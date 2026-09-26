@@ -55,11 +55,34 @@ Use the **EN / VI** switch in the header. Everything, including the valuation re
 ![Home in English](screenshots/01-home-hero.png)
 ![Home in Vietnamese](screenshots/02-home-hero-vi.png)
 
+### How the app is organised
+
+Every task has its own screen and URL, so you can reload, bookmark or send a link to exactly where you are.
+
+| Area | Where | What is on the left rail |
+|---|---|---|
+| **Founder flow** | `/start` → `/v/<id>/research` → `/v/<id>/report` → `/v/<id>/ticker` → `/v/<id>/holders` → `/c/<TICKER>/issue` → `/c/<TICKER>/sync` → `/c/<TICKER>/wallet` | The 8 steps in 3 phases (Value, Structure, Go live) and the two human gates ◆ |
+| **Company workspace** | `/c/<TICKER>/overview`, `/cap-table`, `/transfers`, `/mint`, `/dividends`, `/activity`, `/team`, plus `/verify/<TICKER>` | The same 8 steps (done ✓) and the workspace sections |
+| **Admin console** | `/admin` (inbox), `/admin/dashboard`, `/admin/<queue>/<item>`, `/admin/companies/<TICKER>`, `/admin/wallets`, `/admin/audit` | Inbox, then the queues in flow order with a count each, then registry and audit |
+| **Public** | `/`, `/companies`, `/verify`, `/hsk` | none |
+
+- Every screen ends with a **pager**: the previous step on the left, the next step on the right. When the next
+  step is locked, the pager says why (for example "The next step opens when an admin approves the valuation").
+  The ← and → keys do the same.
+- **Gates (gold ◆)** are the two places where a person must approve: after the valuation report (step 3) and after
+  the shareholder list (step 5). The rail shows each gate as waiting, approved or rejected.
+- At a gate, **Open this item in the admin console** takes an admin straight to that item
+  (`/admin/valuations/<id>` or `/admin/issuance/<TICKER>`). After **Approve**, the console returns to the founder's
+  next step.
+- The flow moves on by itself: when the AI research finishes you land on the report, and while the issuer works
+  the page moves from *Issue* to *Sync chains* to *Wallet*.
+- Old links (`/new`, `/v/<id>`, `/c/<TICKER>`, `/admin`) still work and open the right step.
+
 ---
 
 ## 2. Value a startup
 
-**Where:** https://eth.blockid.au/new · **Who:** anyone with a wallet (3 valuations per wallet per day).
+**Where:** https://eth.blockid.au/start (step 1) · **Who:** anyone with a wallet (3 valuations per wallet per day).
 
 1. Click **Connect wallet** and sign the login message in MetaMask (no transaction, no gas).
 2. Paste the company's public website, for example `https://www.airwallex.com/`, and optionally add
@@ -69,11 +92,14 @@ Use the **EN / VI** switch in the header. Everything, including the valuation re
 
 ![New valuation wizard](screenshots/07-new-wizard-step1.png)
 
-While it runs you see the agent log: each step, how many searches it used and which sources it read.
+The page moves to step 2, **AI research** (`/v/<id>/research`). While it runs you see the agent log: each step, how many searches it used and which sources it read.
 
 ![Agent log](screenshots/08-valuation-agent-log.png)
 
 ### Read the report
+
+When the research finishes, the page opens step 3, **Valuation** (`/v/<id>/report`), by itself. The report
+goes straight to the admin queue (gate 1); the pager keeps step 4 locked and says why until an admin approves.
 
 - **SVI index and grade (A–E)** with a contribution chart for the 7 dimensions (Founder, Product, Market, Revenue,
   Growth, Investment readiness, Trust). Revenue and growth are computed by code; the other five are
@@ -87,7 +113,7 @@ While it runs you see the agent log: each step, how many searches it used and wh
 ![Narrative and evidence](screenshots/11-valuation-narrative-evidence.png)
 ![Warnings](screenshots/12-valuation-warnings.png)
 
-A public sample report is at https://eth.blockid.au/v/sample.
+A public sample report is at https://eth.blockid.au/v/sample/report.
 
 > The valuation is an indicative index, not financial advice. Companies that publish no revenue get a low score
 > by design; the admin can adjust the five qualitative scores before approving.
@@ -96,18 +122,20 @@ A public sample report is at https://eth.blockid.au/v/sample.
 
 ## 3. Tokenise the company
 
-**Where:** the valuation page, after an admin has approved the valuation · **Who:** the requester or an admin.
+**Where:** steps 4–8 of the flow, after an admin has approved the valuation · **Who:** the requester or an admin.
 
-1. Click **Continue to ticker**. Pick a 3-letter ticker (suggestions are shown) and a share price. The default
-   is *valuation mid ÷ A$1.00* shares.
-2. Build the cap table: **Add holder** for each holder (name + wallet). Wallets must be valid EIP-55 addresses and
-   percentages must add up to 100%.
-3. Click **Create & submit for approval**. The company page opens with the **issuance tracker**.
+1. Step 4, **Ticker** (`/v/<id>/ticker`): enter the company name and pick a free 3-letter ticker (suggestions are
+   shown). The pager's **Shareholders →** stays locked until both are set.
+2. Step 5, **Shareholders** (`/v/<id>/holders`): **Add holder** for each holder (name + wallet). Wallets must be
+   valid EIP-55 addresses and percentages must add up to 100%. The default supply is *valuation mid ÷ A$1.00*.
+3. Click **Create & submit for approval**. This is gate 2: the flow opens step 6, **Issue** (`/c/<TICKER>/issue`),
+   which shows *Waiting for admin approval* until an admin gives the one issuance approval.
+4. After approval the issuer works on its own. Step 6 shows the BlockID Chain transactions; when they are done
+   the page moves to step 7, **Sync chains** (Hoodi and HashKey), then step 8, **Wallet**, with the contract
+   addresses and **Add to MetaMask**.
 
-The tracker shows six stages: Submitted → Waiting for admin approval → Issuing on BlockID Chain → Sync to
-Ethereum Hoodi → Sync to HashKey Chain → Live. Each sub-step links to its transaction.
-
-![Issuance tracker, all chains synced](screenshots/15-company-arw-tracker-kpis.png)
+![Issue step: tracker on BlockID Chain](screenshots/16-company-eba-tracker-kpis.png)
+![Sync chains step: Hoodi and HashKey](screenshots/16b-company-eba-sync.png)
 
 ---
 
@@ -117,35 +145,43 @@ Ethereum Hoodi → Sync to HashKey Chain → Live. Each sub-step links to its tr
 
 ![Admin login](screenshots/27-admin-login.png)
 
-### Overview
+### Inbox and queues
 
-KPIs, service-wallet balances on all three chains, tokenised companies and recent activity.
+The console opens on the **Inbox**: how many items wait in each queue and a **Next step** card that opens the
+oldest one. The left rail lists the queues **in the order a company moves through the flow**, each with its
+count; ◆ marks a human gate.
 
-![Admin overview](screenshots/28-admin-overview.png)
-![Companies and activity](screenshots/28b-admin-overview-companies-activity.png)
+| # | Queue | URL | What approving does |
+|---|---|---|---|
+| 1 ◆ | **Valuations** | `/admin/valuations/<id>` | Approves the AI report. **Open full report** first to check evidence or adjust any of the five AI scores (*Admin review*) |
+| 2 ◆ | **Issuance** | `/admin/issuance/<TICKER>` | One approval: the issuer deploys the identity registry, share token and dividend distributor on BlockID Chain, KYCs every holder, issues the shares, anchors the report hash, then mirrors to Hoodi and HashKey and anchors the cap-table Merkle root |
+| 3 | **Chain sync** | `/admin/sync/<TICKER>` | **Re-sync missing chains** for a company whose Hoodi or HashKey sync failed |
+| 4 ◆ | **Mints** | `/admin/mints/<id>` | KYC for the new holder, mint on BlockID Chain, re-sync both mirrors and re-anchor (~80 s) |
+| 5 ◆ | **Dividends** | `/admin/dividends/<id>` | Funds a Merkle round in the distributor; holders claim, the relayer pays their gas |
+| 6 | **Transfers & KYC** | `/admin/transfers` | Approval-mode transfers (`forcedTransfer`) and KYC registrations |
 
-### Approvals
+Each queue shows **one item at a time** with *Item 2 of 5*, **Previous / Next** (or the J and K keys) and the
+list of all items below. After **Approve** or **Reject** the next item opens. If you came from a founder's gate
+link, a banner says so and **Approve** takes you back to the founder's next step.
 
-One queue for everything that needs a human: valuations, issuance, mints, dividends, transfers and KYC.
-
-| Item | What approving does |
-|---|---|
-| **Valuation** | Opens the report's *Admin review*: adjust any AI score, preview the new index, then approve or **Reject valuation** |
-| **Issuance** | One approval: the issuer deploys the identity registry, share token and dividend distributor on BlockID Chain, KYCs every holder, issues the shares, anchors the report hash, then mirrors to Hoodi and HashKey and anchors the cap-table Merkle root |
-| **Mint** | KYC for the new holder, mint on BlockID Chain, re-sync both mirrors and re-anchor (~80 s) |
-| **Dividend** | Funds a Merkle round in the distributor; holders claim, the relayer pays their gas |
-| **Transfer** (approval mode) | The issuer executes `forcedTransfer` after checking KYC and limits |
-| **KYC** | Registers the wallet in the company's identity registry |
-
-![Approvals](screenshots/29-admin-approvals.png)
+![Inbox](screenshots/29-admin-approvals.png)
+![One queue item](screenshots/29b-admin-queue-item.png)
 
 The issuer runs **one job at a time**. Bulk approvals are safe: they queue and run in order.
 
-### Companies, issuer wallets and audit
+### Dashboard
 
-- **Companies:** pick a row to see its mark chart and sync state per chain, **Revalue** it, or **Re-sync missing chains**.
-- **Issuer wallets:** grant or revoke wallets that may submit companies.
-- **Audit log:** every login, approval and issuer action, hash-chained.
+KPIs, service-wallet balances on all three chains, tokenised companies and recent activity (`/admin/dashboard`).
+
+![Admin dashboard](screenshots/28-admin-overview.png)
+![Companies and activity](screenshots/28b-admin-overview-companies-activity.png)
+
+### Registry and audit
+
+- **Companies** (`/admin/companies/<TICKER>`): pick a row to see its mark chart and sync state per chain,
+  **Revalue** it, or **Re-sync missing chains**.
+- **Issuer wallets** (`/admin/wallets`): grant or revoke wallets that may submit companies.
+- **Audit log** (`/admin/audit`): every login, approval and issuer action, hash-chained.
 
 ![Company detail](screenshots/30-admin-company-detail.png)
 ![Issuer wallets](screenshots/31-admin-issuer-wallets.png)
@@ -155,17 +191,18 @@ The issuer runs **one job at a time**. Bulk approvals are safe: they queue and r
 
 ## 5. Shareholders: see and hold your shares
 
-**Where:** https://eth.blockid.au/companies and `https://eth.blockid.au/c/<TICKER>`.
+**Where:** https://eth.blockid.au/companies and the company workspace `https://eth.blockid.au/c/<TICKER>/overview`.
 
 ![Companies](screenshots/14-companies-list.png)
 
-On the company page:
+The workspace has one screen per task (left rail, **Workspace** group):
 
-- **KPIs**: valuation, shares outstanding, holders (all KYC-verified), last anchor block.
-- **Cap table**: balances are read live from BlockID Chain, with an ownership chart.
-- **Contract addresses** on all three chains, with QR codes and explorer links.
-
-![KPIs](screenshots/16-company-eba-tracker-kpis.png)
+- **Overview**: a *Next step* card, KPIs (valuation, shares, KYC-verified holders, last anchor block) and the
+  share-mark chart.
+- **Cap table** (`/cap-table`): balances read live from BlockID Chain, with an ownership chart.
+- **Wallet** (step 8, `/wallet`): contract addresses on all three chains, with QR codes and explorer links.
+- **Transfers**, **Mint shares**, **Dividends**, **Activity** and **Team**. Screens you cannot use are greyed out
+  with the reason (for example *For company admins only*).
 ![Cap table](screenshots/18-company-eba-cap-table.png)
 ![Contracts and QR codes](screenshots/19-company-eba-contracts-qr.png)
 
@@ -183,11 +220,11 @@ Mirrors on Hoodi and HashKey are **paused** read-only copies; the live, transfer
 
 ## 6. Issue new shares (a new round)
 
-**Where:** company page → **Model a new round** · **Who:** the company owner wallet or an admin.
+**Where:** workspace → **Mint shares** (`/c/<TICKER>/mint`) · **Who:** the company owner wallet or an admin.
 
 1. Enter the **recipient wallet**, a **holder name** (anonymised labels such as `Seed investor 01` are fine) and the
    number of **new shares**. The preview shows the dilution for existing holders.
-2. Send the request. It appears in the admin **Approvals** queue as a mint.
+2. Click **Request approval**. It appears in the admin **Mints** queue (`/admin/mints`).
 3. After approval, the new holder appears in the cap table and the supply updates on all three chains.
 
 ![Cap tools](screenshots/21-company-eba-cap-tools.png)
@@ -204,7 +241,7 @@ And Airwallex (ARW): three original holders plus twelve anonymised holders.
 
 ## 7. Pay a dividend
 
-**Where:** company page → **Plan a dividend** · **Who:** owner or admin; an admin approves.
+**Where:** workspace → **Dividends** (`/c/<TICKER>/dividends`) · **Who:** owner or admin; an admin approves.
 
 1. Enter the **Total (mAUD)**. The server snapshots balances at the record block, splits pro rata (rounded down;
    the remainder stays with the issuer) and computes a Merkle root. The claim deadline is 30 days.
@@ -222,12 +259,12 @@ admin:
 
 | Mode | Token state | How a holder transfers |
 |---|---|---|
-| **Admin approval required** (default) | paused | Sign in with the holding wallet, open **Transfer shares**, enter **Receiver wallet** and **Receiver name**, then **Submit for approval**; an admin approves and the issuer runs `forcedTransfer` |
+| **Admin approval required** (default) | paused | Sign in with the holding wallet, open the workspace **Transfers** screen (`/c/<TICKER>/transfers`), enter **Receiver wallet** and **Receiver name**, then **Submit for approval**; an admin approves and the issuer runs `forcedTransfer` |
 | **Free transfer** | unpaused | Same panel, **Sign transfer in MetaMask**; the app records the tx hash and re-syncs the register and mirrors |
 
 The panel checks the transfer first (KYC, lock-up, frozen wallet, shareholder cap, balance) and explains any problem,
 for example *Receiver is not KYC-verified*. A new investor clicks **Request KYC** for their wallet on the company
-page; an admin approves it in the queue. **Transfer history** lists every transfer.
+page; an admin approves it in **Admin → Transfers & KYC**. **Transfer history** lists every transfer.
 
 ---
 
@@ -289,7 +326,7 @@ Demo holder wallets created on the server live in `~/.blockid/holder-wallets/` a
 
 | Symptom | Cause and fix |
 |---|---|
-| "Daily limit reached" on /new | 3 valuations per wallet per day. Use another wallet or ask an admin. |
+| "Daily limit reached" on /start | 3 valuations per wallet per day. Use another wallet or ask an admin. |
 | Valuation shows "no market data" | Brave quota exhausted; search falls back to Claude web search automatically. If both fail the valuation still completes with a warning. |
 | Low SVI for a well-known company | Revenue and growth come from published numbers only. Add self-reported metrics or let the admin adjust scores. |
 | Issuance or mint seems stuck | The issuer runs one job at a time; check the tracker's "Now:" line and the admin overview. Failed chains can be retried with **Re-sync missing chains**. |

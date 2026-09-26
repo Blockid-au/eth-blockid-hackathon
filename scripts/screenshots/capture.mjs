@@ -2,7 +2,7 @@
 //
 // STRICTLY READ-ONLY: this script never clicks Approve / Reject / Grant / Revoke / Submit / Sign /
 // Re-sync / Request / Send. The only interactions are: language toggle, <details> expand, stepper
-// view switch, the client-side "Show simulated growth" toggle, the client-side "Tamper test",
+// URL step navigation, the client-side "Show simulated growth" toggle, the client-side "Tamper test",
 // admin tab switches, selecting a row in the admin companies table, and the explorer "Holders" tab.
 // The admin password login (POST /v1/auth/login) is the only request that touches the server.
 //
@@ -111,13 +111,13 @@ const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, 
   { const r = await rect(page.locator("#hsk")); await shotBand(page, "06-home-hashkey-strip", r.top, r.bottom, { padTop: 0, padBottom: 0 }); }
 
   // New valuation wizard, step 1 with optional metrics expanded
-  await go(page, APP + "/new");
+  await go(page, APP + "/start");
   await page.locator("details.srbox > summary").click();
   await sleep(700);
-  { const top = await rect(page.locator("section.block").first()); const b = await rect(page.locator("details.srbox"), ".panel"); await shotBand(page, "07-new-wizard-step1", top.top, b.bottom, { padTop: 0, padBottom: 32 }); }
+  { const top = await rect(page.locator("section.shellpage").first()); const b = await rect(page.locator("details.srbox"), ".panel"); await shotBand(page, "07-new-wizard-step1", top.top, b.bottom, { padTop: 0, padBottom: 32 }); }
 
   // Sample report (public)
-  await go(page, APP + "/v/sample", 2500);
+  await go(page, APP + "/v/sample/report", 2500);
   await shotFull(page, "13-sample-report", 2200);
 
   // Companies list
@@ -164,42 +164,49 @@ const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, 
   await page.locator(".login input[autocomplete=username]").fill(ADMIN_USER);
   await page.locator(".login input[type=password]").fill(ADMIN_PASS);
   await page.locator(".login form button[type=submit]").click(); // login only
-  await page.locator("#tab-ov").waitFor({ timeout: 20000 });
+  await page.locator(".rail").waitFor({ timeout: 20000 });
   await settle_(page, 3000);
+
+  // Inbox: every queue in flow order, with the next step
+  await go(page, APP + "/admin", 2500);
+  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); await shotBand(page, "29-admin-approvals", 0, Math.max(docH, 900), { padTop: 0, padBottom: 0, maxH: 1300 }); }
+  // One queue item with previous / next (read-only; nothing is clicked)
+  await go(page, APP + "/admin/sync", 2500);
+  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); await shotBand(page, "29b-admin-queue-item", 0, Math.max(docH, 900), { padTop: 0, padBottom: 0, maxH: 1300 }); }
+  await go(page, APP + "/admin/dashboard", 3000);
 
   // Overview dashboard
   {
     // the platform-value chart keeps its adaptive default range ("Since launch" while the platform is young)
-    const a = await rect(page.locator("section.block").first());
+    const a = await rect(page.locator("section.shellpage").first());
     const t = await rect(page.locator("h4", { hasText: /Tokeni[sz]ed companies/ }).first(), ".card, .pane, .panel");
     await shotBand(page, "28-admin-overview", a.top, t.top, { padTop: 0, padBottom: -4 });
     const docH = await page.evaluate(() => document.documentElement.scrollHeight);
     await shotBand(page, "28b-admin-overview-companies-activity", t.top, docH, { padTop: 40, padBottom: 0, maxH: 1000 });
   }
-  // Approvals queue (read-only). Do NOT click anything inside.
-  await page.locator("#tab-ap").click(); await settle_(page, 1800);
-  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); await shotBand(page, "29-admin-approvals", 0, Math.max(docH, 900), { padTop: 0, padBottom: 0, maxH: 1600 }); }
-  // Companies tab: select EBA row to open the detail pane (selection only)
-  await page.locator("#tab-co").click(); await settle_(page, 1800);
-  const row = page.locator("tr", { hasText: "EBA" }).first();
-  if (await row.count()) { await row.click(); await settle_(page, 2500); }
-  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); const a = await rect(page.locator("[role=tablist], #tab-ov"), "[role=tablist]"); await shotBand(page, "30-admin-company-detail", a.top, docH, { padTop: 24, padBottom: 0, maxH: 1490 }); }
-  await page.locator("#tab-wa").click(); await settle_(page, 1800);
-  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); const a = await rect(page.locator("#tab-ov"), "[role=tablist]"); await shotBand(page, "31-admin-issuer-wallets", a.top, docH, { padTop: 24, padBottom: 0, maxH: 1600 }); }
-  await page.locator("#tab-au").click(); await settle_(page, 1800);
-  { const a = await rect(page.locator("#tab-ov"), "[role=tablist]"); await shotBand(page, "32-admin-audit-log", a.top, a.top + 1300, { padTop: 24, padBottom: 0 }); }
+  // Companies: EBA selected through the URL (selection only)
+  await go(page, APP + "/admin/companies/EBA", 3000);
+  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); const a = await rect(page.locator("section.shellpage")); await shotBand(page, "30-admin-company-detail", a.top, docH, { padTop: 0, padBottom: 0, maxH: 1490 }); }
+  await go(page, APP + "/admin/wallets", 2500);
+  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); const a = await rect(page.locator("section.shellpage")); await shotBand(page, "31-admin-issuer-wallets", a.top, docH, { padTop: 0, padBottom: 0, maxH: 1600 }); }
+  await go(page, APP + "/admin/audit", 2500);
+  { const a = await rect(page.locator("section.shellpage")); await shotBand(page, "32-admin-audit-log", a.top, a.top + 1300, { padTop: 0, padBottom: 0 }); }
 
   // Company ARW: issued on BlockID Chain + Hoodi + HSK, full anonymised cap table (15 holders).
-  await go(page, APP + "/c/ARW", 3000);
-  { const a = await rect(page.locator("section.block").first()); const b = await rect(page.locator(".kpis")); await shotBand(page, "15-company-arw-tracker-kpis", a.top, b.bottom, { padTop: 0, padBottom: 16 }); }
+  await go(page, APP + "/c/ARW/overview", 3000);
+  { const a = await rect(page.locator("section.shellpage").first()); const b = await rect(page.locator(".kpis")); await shotBand(page, "15-company-arw-tracker-kpis", a.top, b.bottom, { padTop: 0, padBottom: 16 }); }
+  await go(page, APP + "/c/ARW/cap-table", 3000);
   { const r = await rect(page.locator("h4", { hasText: "Cap table" }), ".cols, .panel, .pane"); await shotBand(page, "15b-company-arw-cap-table", r.top, r.bottom, { padTop: 16, padBottom: 16, maxH: 1400 }); }
   // Company ART: original holders + 10 anonymised holders minted through the admin-approved flow.
-  await go(page, APP + "/c/ART", 3000);
+  await go(page, APP + "/c/ART/cap-table", 3000);
   { const r = await rect(page.locator("h4", { hasText: "Cap table" }), ".cols, .panel, .pane"); await shotBand(page, "15c-company-art-cap-table", r.top, r.bottom, { padTop: 16, padBottom: 16, maxH: 1400 }); }
 
   // Company EBA: fully live
-  await go(page, APP + "/c/EBA", 3000);
-  { const a = await rect(page.locator("section.block").first()); const b = await rect(page.locator(".kpis")); await shotBand(page, "16-company-eba-tracker-kpis", a.top, b.bottom, { padTop: 0, padBottom: 16 }); }
+  await go(page, APP + "/c/EBA/issue", 3000);
+  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); await shotBand(page, "16-company-eba-tracker-kpis", 0, docH, { padTop: 0, padBottom: 0, maxH: 1200 }); }
+  await go(page, APP + "/c/EBA/sync", 3000);
+  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); await shotBand(page, "16b-company-eba-sync", 0, docH, { padTop: 0, padBottom: 0, maxH: 1200 }); }
+  await go(page, APP + "/c/EBA/overview", 3000);
   if (want("17-company-eba-mark-chart-simulated")) {
     const sim = page.locator("svg.chart").first().locator("xpath=ancestor::*[.//input[@type='checkbox']][1]").locator("input[type=checkbox]").first();
     if (!(await sim.isChecked())) await sim.check();
@@ -207,26 +214,30 @@ const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, 
     const r = await rect(page.locator("svg.chart").first(), ".panel, .pane, .card");
     await shotBand(page, "17-company-eba-mark-chart-simulated", r.top, r.bottom, { padTop: 16, padBottom: 16 });
   }
+  await go(page, APP + "/c/EBA/cap-table", 3000);
   { const r = await rect(page.locator("h4", { hasText: "Cap table" }), ".cols, .panel, .pane"); await shotBand(page, "18-company-eba-cap-table", r.top, r.bottom, { padTop: 16, padBottom: 16 }); }
-  { const a = await rect(page.locator("h3", { hasText: "is live" }), ".panel"); const b = await rect(page.locator("p.merkle")); await shotBand(page, "19-company-eba-contracts-qr", a.top, b.bottom, { padTop: 16, padBottom: 24 }); }
-  { const a = await rect(page.locator("h4", { hasText: "Add it manually" })); const p = await rect(page.locator("h3", { hasText: "is live" }), ".panel"); await shotBand(page, "20-company-eba-metamask-network", a.top, p.bottom, { padTop: 24, padBottom: 16 }); }
-  { const a = await rect(page.locator("h2", { hasText: "Your cap table, always current" })); const b = await rect(page.locator("h4", { hasText: /^Activity$/ }), ".pane"); await shotBand(page, "21-company-eba-cap-tools", a.top, b.top, { padTop: 40, padBottom: 0 }); await shotBand(page, "21b-company-eba-activity", b.top, b.bottom, { padTop: 16, padBottom: 16, maxH: 900 }); }
+  await go(page, APP + "/c/EBA/wallet", 3000);
+  { const a = await rect(page.locator(".shellmain > .panel")); const b = await rect(page.locator(".shellmain > .panel .cols3")); await shotBand(page, "19-company-eba-contracts-qr", 0, b.bottom, { padTop: 0, padBottom: 24 }); }
+  { const a = await rect(page.locator("h4", { hasText: "Add it manually" })); const p = await rect(page.locator(".shellmain > .panel")); await shotBand(page, "20-company-eba-metamask-network", a.top, p.bottom, { padTop: 24, padBottom: 16 }); }
+  await go(page, APP + "/c/EBA/mint", 3000);
+  { const docH = await page.evaluate(() => document.documentElement.scrollHeight); await shotBand(page, "21-company-eba-cap-tools", 0, docH, { padTop: 0, padBottom: 0, maxH: 1300 }); }
+  await go(page, APP + "/c/EBA/activity", 3000);
+  { const r = await rect(page.locator(".shellmain > .pane")); await shotBand(page, "21b-company-eba-activity", r.top, r.bottom, { padTop: 16, padBottom: 16, maxH: 900 }); }
 
   // Finished valuation report (Airwallex). Stepper clicks only switch the client-side view.
-  await go(page, `${APP}/v/${VAL_ID}`, 3000);
   if (want("08-valuation-agent-log")) {
-    await page.locator("nav.stepnav button").nth(1).click(); await sleep(1200);
-    const a = await rect(page.locator("section.block").first()); const b = await rect(page.locator("#s2h"), ".panel");
+    await go(page, `${APP}/v/${VAL_ID}/research`, 3000);
+    const a = await rect(page.locator("section.shellpage").first()); const b = await rect(page.locator(".shellmain > .panel"));
     await shotBand(page, "08-valuation-agent-log", a.top, b.bottom, { padTop: 0, padBottom: 24 });
-    await page.locator("nav.stepnav button").nth(2).click(); await sleep(2000);
   }
+  await go(page, `${APP}/v/${VAL_ID}/report`, 3000);
   {
-    const a = await rect(page.locator("#s3h"), ".panel");
+    const a = await rect(page.locator(".shellmain > .panel"));
     const b = await rect(page.locator("h4", { hasText: "Valuation range" }), ".card");
     await shotBand(page, "09-valuation-radar-contribution", a.top, b.top, { padTop: 16, padBottom: 0 });
     const c = await rect(page.locator("h4", { hasText: "Analyst narrative" }), ".card");
     await shotBand(page, "10-valuation-range-competitors", b.top, c.top, { padTop: 16, padBottom: 0, maxH: 800 });
-    const panel = await rect(page.locator("#s3h"), ".panel");
+    const panel = await rect(page.locator(".shellmain > .panel"));
     await shotBand(page, "11-valuation-narrative-evidence", c.top, panel.bottom, { padTop: 16, padBottom: 16, maxH: 1150 });
   }
   // A valuation that carries agent warnings (first approved one with warnings)
@@ -234,7 +245,7 @@ const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, 
     const list = await (await page.request.get(APP + "/api/v1/studio/valuations")).json().catch(() => []);
     const w = (Array.isArray(list) ? list : list.items || []).find((v) => (v.warnings || []).length > 0 && v.status === "approved");
     if (w) {
-      await go(page, `${APP}/v/${w.id}`, 3000);
+      await go(page, `${APP}/v/${w.id}/report`, 3000);
       const b = await rect(page.locator(".banner.warn").first());
       await shotBand(page, "12-valuation-warnings", 0, b.bottom + 520, { padTop: 0, padBottom: 0 });
     } else problems.push("no valuation with warnings found");
@@ -261,7 +272,7 @@ const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, 
   const page = await ctx.newPage();
   await go(page, APP + "/", 2000);
   await shotView(page, "35-mobile-home");
-  await go(page, APP + "/c/EBA", 3000);
+  await go(page, APP + "/c/EBA/overview", 3000);
   await shotBand(page, "36-mobile-company-eba", 0, 1700, { padTop: 0, padBottom: 0 });
   await go(page, APP + "/verify/EBA", 3500);
   await shotBand(page, "37-mobile-verify-eba", 0, 1500, { padTop: 0, padBottom: 0 });

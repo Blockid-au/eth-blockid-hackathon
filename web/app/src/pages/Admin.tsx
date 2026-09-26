@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { safeNext } from "../components/DemoGuide";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
@@ -18,7 +18,9 @@ import type { DictKey } from "../dict";
 import { SyncChips } from "../components/Tracker";
 import { LowBalanceBanner } from "../components/LowBalance";
 import { isSyncFailure, resolvedFailures } from "../lib/events";
-import { AdminTransfersTab, useTx } from "./Transfers";
+import { AdminTransfersTab, tapi } from "./Transfers";
+import { Crumbs, RailGroup, RailItem, SideLayout, StepHead } from "../components/Shell";
+import { QUEUES, queueCounts, queueItems, type QueueKey } from "../lib/flow";
 import { CompanyAdminsPanel } from "../components/CompanyAdmins";
 
 const POLL = 12000;
@@ -240,119 +242,247 @@ function IssueReview({ c, signer, onAct }: { c: ApprovalCompany; signer?: string
   );
 }
 
-function ApprovalsTab({ ap, signer, onChanged, wallets }: { ap: Async<Approvals>; signer?: string | null; onChanged: () => void; wallets?: AdminWallets | null }) {
+/* ================= queues: one item at a time, in flow order ================= */
+type Act = (fn: () => Promise<unknown>, okMsg?: string) => Promise<void>;
+
+function ReturnBanner({ back }: { back: string }) {
+  const { t } = useI18n();
+  return (
+    <div className="retbanner" role="note">
+      <span><b>{t("ad.ret.h")}</b> · {t("ad.ret.p", { p: back })}</span>
+      <Link className="btn ghost sm" to={back}>{t("ad.ret.back")}</Link>
+    </div>
+  );
+}
+
+function ValuationItem({ v, busy, act }: { v: Valuation; busy: boolean; act: Act }) {
   const { t, fmt, money, date } = useI18n();
-  const [open, setOpen] = useState<number | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; s: string } | null>(null);
+  return (
+    <div className="pane">
+      <div className="between">
+        <span><b style={{ overflowWrap: "anywhere" }}>{v.url.replace(/^https?:\/\//, "")}</b> <span className="muted-sm">{v.requested_by ? t("ap.req", { w: shortAddr(v.requested_by) || v.requested_by }) : ""} · {v.created_at ? date(v.created_at, true) : ""}</span></span>
+        {v.svi && <span className="row"><span className="gchip" style={{ background: "var(--c3)" }}>{bandGrade(v.svi)}</span><span className="num">SVI {fmt(v.svi.index, 1)}</span></span>}
+      </div>
+      {v.svi && (
+        <div className="kpis">
+          <div className="kpi"><small>{t("ad.qv.mid")}</small><b>{money(v.svi.valuation_mid_aud)}</b><span>{money(v.svi.valuation_low_aud)} – {money(v.svi.valuation_high_aud)}</span></div>
+          <div className="kpi"><small>{t("s2.src")}</small><b>{fmt(v.counters?.sources ?? 0)}</b><span>{t("s2.comp")}: {fmt(v.counters?.competitors ?? v.competitors?.length ?? 0)}</span></div>
+          <div className="kpi"><small>{t("v.warn")}</small><b>{fmt((v.warnings ?? []).length)}</b><span>{(v.warnings ?? [])[0] ?? " "}</span></div>
+        </div>
+      )}
+      {(v.warnings ?? []).length > 0 && <div className="banner warn">{(v.warnings ?? []).map((w, i) => <span key={i}>· {w}</span>)}</div>}
+      <p className="note">{t("ad.qv.note")}</p>
+      <div className="row">
+        <Link className="btn ghost sm" to={`/v/${encodeURIComponent(v.id)}/report`}>{t("ap.open")}</Link>
+        <span className="grow" />
+        <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.decide(v.id, false), t("ap.rejected"))}>{t("ap.reject")}</button>
+        <button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.decide(v.id, true), t("v.adm.done"))}>{t("s3.approve")}</button>
+      </div>
+    </div>
+  );
+}
+
+function IssuanceItem({ c, signer, wallets, act }: { c: ApprovalCompany; signer?: string | null; wallets?: AdminWallets | null; act: Act }) {
+  const { t, fmt, money } = useI18n();
+  return (
+    <div className="pane">
+      <div className="between">
+        <span><b className="mono">{c.ticker}</b> · {c.name} <span className="muted-sm">· {money(Number(c.valuation_aud))} · {fmt(Number(c.total_shares))} {t("t.shares").toLowerCase()} · {t("ap.holders", { n: holdersOf(c).length || Number(c.holders) || 0 })}{c.created_by ? " · " + t("ap.req", { w: shortAddr(c.created_by) || c.created_by }) : ""}</span></span>
+        <Link className="btn ghost sm" to={`/c/${c.ticker}/issue`}>{t("ad.co.open")}</Link>
+      </div>
+      <p className="note">{t("trk.approve")}: BlockID Chain → Ethereum Hoodi → HashKey Chain testnet</p>
+      <LowBalanceBanner wallets={wallets} compact />
+      {c.error && <p className="banner bad">{c.error}</p>}
+      <IssueReview c={c} signer={signer} onAct={(fn) => act(fn)} />
+    </div>
+  );
+}
+
+function SyncItem({ c, busy, act }: { c: ApprovalCompany; busy: boolean; act: Act }) {
+  const { t } = useI18n();
+  return (
+    <div className="pane">
+      <div className="between">
+        <span><b className="mono">{c.ticker}</b> · {c.name} <span className="muted-sm">· {c.local_token ? shortAddr(c.local_token) : ""}</span></span>
+        <Link className="btn ghost sm" to={`/c/${c.ticker}/sync`}>{t("ad.co.open")}</Link>
+      </div>
+      <SyncChips sync={c.sync} />
+      {c.error && <p className="banner bad">{c.error}</p>}
+      <div className="row"><span className="grow" /><button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.approveAnchor(c.id))}>{t("trk.resync")}</button></div>
+    </div>
+  );
+}
+
+function MintItem({ m, busy, act }: { m: MintReq; busy: boolean; act: Act }) {
+  const { t, fmt } = useI18n();
+  return (
+    <div className="pane">
+      <div className="between">
+        <span><b className="mono">{m.ticker}</b> · {t("ap.mintrow", { n: fmt(Number(m.shares)), tk: m.ticker ?? "", name: m.holder_name })} <span className="muted-sm mono" title={m.to_wallet}>{shortAddr(m.to_wallet)}</span></span>
+        {m.ticker && <Link className="btn ghost sm" to={`/c/${m.ticker}/cap-table`}>{t("ad.co.open")}</Link>}
+      </div>
+      <p className="note">{m.reason || "–"}{m.requested_by ? " · " + t("ap.req", { w: shortAddr(m.requested_by) || m.requested_by }) : ""}</p>
+      <div className="row">
+        <span className="grow" />
+        <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.rejectMint(m.id, "rejected by admin"), t("ap.rejected"))}>{t("ap.reject")}</button>
+        <button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.approveMint(m.id))}>{t("ap.approve")}</button>
+      </div>
+    </div>
+  );
+}
+
+function DividendItem({ d, busy, act }: { d: DividendReq; busy: boolean; act: Act }) {
+  const { t, fmt } = useI18n();
+  return (
+    <div className="pane">
+      <div className="between">
+        <span><b className="mono">{d.ticker}</b> · {t("ap.divrow", { n: fmt(d.total_maud ?? d.total_units / 1e6, 2), tk: d.ticker ?? "" })}{d.holders ? " · " + t("ap.holders", { n: d.holders }) : ""}</span>
+        <span className="merkle">{d.merkle_root ? shortAddr(d.merkle_root) : ""}</span>
+      </div>
+      <div className="row">
+        <span className="grow" />
+        <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.rejectDividend(d.id, "rejected by admin"), t("ap.rejected"))}>{t("ap.reject")}</button>
+        <button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.approveDividend(d.id))}>{t("ap.approve")}</button>
+      </div>
+    </div>
+  );
+}
+
+type AnyItem = Valuation | ApprovalCompany | MintReq | DividendReq;
+const keyOf = (q: QueueKey, x: AnyItem): string =>
+  q === "valuations" ? (x as Valuation).id : q === "issuance" || q === "sync" ? (x as ApprovalCompany).ticker : String((x as MintReq).id);
+function itemLabel(q: QueueKey, x: AnyItem): string {
+  if (q === "valuations") return (x as Valuation).url.replace(/^https?:\/\//, "");
+  if (q === "issuance" || q === "sync") return `${(x as ApprovalCompany).ticker} · ${(x as ApprovalCompany).name}`;
+  return `${(x as MintReq).ticker ?? ""} #${(x as MintReq).id}`;
+}
+
+function QueueView({ q, ap, wallets, onChanged }: { q: QueueKey; ap: Async<Approvals>; wallets?: AdminWallets | null; onChanged: () => void }) {
+  const { t } = useI18n();
+  const { item } = useParams();
+  const [params] = useSearchParams();
+  const back = safeNext(params.get("return"));
+  const nav = useNavigate();
   const [busy, setBusy] = useState(false);
-  const act = async (fn: () => Promise<unknown>, okMsg = t("ap.sent")) => {
+  const [msg, setMsg] = useState<{ ok: boolean; s: string } | null>(null);
+  const items = queueItems(ap.data)[q] as AnyItem[];
+  const found = item ? items.findIndex((x) => keyOf(q, x) === item) : 0;
+  const idx = found < 0 ? 0 : found;
+  const cur = items[idx];
+  const base = `/admin/${q}`;
+  const go = (i: number) => { const x = items[i]; if (x) nav(`${base}/${encodeURIComponent(keyOf(q, x))}${back ? "?return=" + encodeURIComponent(back) : ""}`); };
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      if (e.altKey || e.ctrlKey || e.metaKey || (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (e.key === "j" && idx < items.length - 1) go(idx + 1);
+      if (e.key === "k" && idx > 0) go(idx - 1);
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const act: Act = async (fn, okMsg = t("ap.sent")) => {
     setBusy(true); setMsg(null);
-    try { await fn(); setMsg({ ok: true, s: okMsg }); setOpen(null); await ap.reload(); onChanged(); }
-    catch (e) { setMsg({ ok: false, s: errText(e, t) }); }
+    const after = items[idx + 1] ?? items[idx - 1];
+    try {
+      await fn();
+      await ap.reload(); onChanged();
+      if (back) { nav(back, { state: { flash: okMsg } }); return; }
+      setMsg({ ok: true, s: okMsg });
+      nav(after ? `${base}/${encodeURIComponent(keyOf(q, after))}` : base, { replace: true });
+    } catch (e) { setMsg({ ok: false, s: errText(e, t) }); }
     finally { setBusy(false); }
   };
-  const a = ap.data;
-  if (!a) return ap.error ? <ErrorBox error={ap.error} retry={ap.reload} /> : <p className="note">{t("common.loading")}</p>;
-  const pendingIssue = a.companies.filter((c) => c.status === "pending_issue");
-  const toAnchor = a.companies.filter((c) => c.status === "issued" || c.status === "pending_anchor" || c.status === "partially_anchored");
-  const empty = !a.valuations.length && !a.companies.length && !a.mints.length && !a.dividends.length;
+
+  if (!ap.data) return ap.error ? <ErrorBox error={ap.error} retry={ap.reload} /> : <p className="note">{t("common.loading")}</p>;
+  const qi = QUEUES.findIndex((x) => x.key === q);
+  const counts = queueCounts(ap.data);
+  const nextQ = QUEUES.slice(qi + 1).find((x) => counts[x.key] > 0) ?? QUEUES.slice(0, qi).find((x) => counts[x.key] > 0);
   return (
-    <div style={{ display: "grid", gap: 20 }} aria-busy={busy}>
-      <LowBalanceBanner wallets={wallets} />
+    <div className="stack" aria-busy={busy}>
+      {back && <ReturnBanner back={back} />}
       {msg && <p className={"banner " + (msg.ok ? "ok" : "bad")} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
-      {empty && <p className="empty">{t("ap.empty")}</p>}
-      {a.valuations.length > 0 && (
-        <section className="apsec">
-          <h4 className="eyebrow">{t("ap.val")} · {a.valuations.length}</h4>
-          {a.valuations.map((v: Valuation) => (
-            <div className="aprow" key={v.id}>
-              <div className="between">
-                <span><b>{v.url.replace(/^https?:\/\//, "")}</b> <span className="muted-sm">{v.requested_by ? t("ap.req", { w: shortAddr(v.requested_by) || v.requested_by }) : ""} · {v.created_at ? date(v.created_at, true) : ""}</span></span>
-                {v.svi && <span className="row"><span className="gchip" style={{ background: "var(--c3)" }}>{bandGrade(v.svi)}</span><span className="num">SVI {fmt(v.svi.index, 1)} · {money(v.svi.valuation_mid_aud)}</span></span>}
-              </div>
-              <div className="row">
-                <Link className="btn gold sm" to={`/v/${encodeURIComponent(v.id)}`}>{t("ap.open")}</Link>
-                <button className="btn ghost sm" type="button" disabled={busy} onClick={() => act(() => api.decide(v.id, true), t("v.adm.done"))}>{t("ap.approve")}</button>
-                <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.decide(v.id, false), t("ap.rejected"))}>{t("ap.reject")}</button>
-              </div>
+      {item && found < 0 && items.length > 0 && <p className="banner warn" role="status">{t("ad.q.gone")}</p>}
+      {!cur ? (
+        <div className="pane">
+          <p style={{ margin: 0 }}>{item && back ? t("ad.q.done") : t("ad.q.empty")}</p>
+          <div className="row">
+            {back && <Link className="btn sm" to={back}>{t("ad.ret.go")} →</Link>}
+            <Link className="btn ghost sm" to="/admin">{t("ad.nav.inbox")}</Link>
+            {nextQ && <Link className={"btn sm" + (back ? " ghost" : "")} to={`/admin/${nextQ.key}`}>{t("ad.q.nextq", { q: t(("ad.q." + nextQ.key) as DictKey) })} →</Link>}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="qhead">
+            <span>{t("ad.q.pos", { i: idx + 1, n: items.length })}</span>
+            <span className="row" style={{ gap: 6 }}>
+              <span className="hint">{t("ad.q.keys")}</span>
+              <button className="btn ghost sm" type="button" disabled={idx === 0} onClick={() => go(idx - 1)}>↑ {t("ad.q.prev")}</button>
+              <button className="btn ghost sm" type="button" disabled={idx >= items.length - 1} onClick={() => go(idx + 1)}>{t("ad.q.next")} ↓</button>
+            </span>
+          </div>
+          {q === "valuations" && <ValuationItem key={keyOf(q, cur)} v={cur as Valuation} busy={busy} act={act} />}
+          {q === "issuance" && <IssuanceItem key={keyOf(q, cur)} c={cur as ApprovalCompany} signer={wallets?.issuer?.address} wallets={wallets} act={act} />}
+          {q === "sync" && <SyncItem key={keyOf(q, cur)} c={cur as ApprovalCompany} busy={busy} act={act} />}
+          {q === "mints" && <MintItem key={keyOf(q, cur)} m={cur as MintReq} busy={busy} act={act} />}
+          {q === "dividends" && <DividendItem key={keyOf(q, cur)} d={cur as DividendReq} busy={busy} act={act} />}
+          {items.length > 1 && (
+            <div className="pane">
+              <h4>{t(("ad.q." + q) as DictKey)} · {items.length}</h4>
+              <ol className="qlist">
+                {items.map((x, i) => (
+                  <li key={keyOf(q, x)}><Link to={`${base}/${encodeURIComponent(keyOf(q, x))}${back ? "?return=" + encodeURIComponent(back) : ""}`} aria-current={i === idx ? "true" : undefined}><span className="mono">{String(i + 1).padStart(2, "0")}</span>{itemLabel(q, x)}</Link></li>
+                ))}
+              </ol>
             </div>
-          ))}
-        </section>
+          )}
+        </>
       )}
-      {pendingIssue.length > 0 && (
-        <section className="apsec">
-          <h4 className="eyebrow">{t("ap.co")} · {pendingIssue.length}</h4>
-          {pendingIssue.map((c) => (
-            <div className="aprow" key={c.id}>
-              <div className="between">
-                <span><b className="mono">{c.ticker}</b> · {c.name} <span className="muted-sm">· {money(Number(c.valuation_aud))} · {fmt(Number(c.total_shares))} {t("t.shares").toLowerCase()} · {t("ap.holders", { n: holdersOf(c).length || Number(c.holders) || 0 })}{c.created_by ? " · " + t("ap.req", { w: shortAddr(c.created_by) || c.created_by }) : ""}</span></span>
-                <span className="gatepill">{t("gate.admin")}</span>
-              </div>
-              <p className="note">{t("trk.approve")}: BlockID Chain → Ethereum Hoodi → HashKey Chain testnet</p>
-              <LowBalanceBanner wallets={wallets} compact />
-              {c.error && <p className="banner bad">{c.error}</p>}
-              {open === c.id ? <IssueReview c={c} signer={signer} onAct={(fn) => act(fn)} /> : null}
-              <div className="row">
-                <button className="btn gold sm" type="button" onClick={() => setOpen(open === c.id ? null : c.id)} aria-expanded={open === c.id}>{open === c.id ? t("ap.hide") : t("ap.review")}</button>
-                <Link className="btn ghost sm" to={`/c/${c.ticker}`}>{t("ad.co.open")}</Link>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-      {toAnchor.length > 0 && (
-        <section className="apsec">
-          <h4 className="eyebrow">{t("ap.anchor")} · {toAnchor.length}</h4>
-          {toAnchor.map((c) => (
-            <div className="aprow" key={c.id}>
-              <div className="between">
-                <span><b className="mono">{c.ticker}</b> · {c.name} <span className="muted-sm">· {c.local_token ? shortAddr(c.local_token) : ""}</span></span>
-                <span className="gatepill">{t("gate.admin")}</span>
-              </div>
-              <SyncChips sync={c.sync} />
-              {c.error && <p className="banner bad">{c.error}</p>}
-              <div className="row">
-                <button className="btn gold sm" type="button" disabled={busy} onClick={() => act(() => api.approveAnchor(c.id))}>{t("trk.resync")}</button>
-                <Link className="btn ghost sm" to={`/c/${c.ticker}`}>{t("ad.co.open")}</Link>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-      {a.mints.length > 0 && (
-        <section className="apsec">
-          <h4 className="eyebrow">{t("ap.mints")} · {a.mints.length}</h4>
-          {a.mints.map((m: MintReq) => (
-            <div className="aprow" key={m.id}>
-              <div className="between">
-                <span><b className="mono">{m.ticker}</b> · {t("ap.mintrow", { n: fmt(Number(m.shares)), tk: m.ticker ?? "", name: m.holder_name })} <span className="muted-sm mono" title={m.to_wallet}>{shortAddr(m.to_wallet)}</span></span>
-                <span className="muted-sm">{m.reason}{m.requested_by ? " · " + t("ap.req", { w: shortAddr(m.requested_by) || m.requested_by }) : ""}</span>
-              </div>
-              <div className="row">
-                <button className="btn gold sm" type="button" disabled={busy} onClick={() => act(() => api.approveMint(m.id))}>{t("ap.approve")}</button>
-                <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.rejectMint(m.id, "rejected by admin"), t("ap.rejected"))}>{t("ap.reject")}</button>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-      {a.dividends.length > 0 && (
-        <section className="apsec">
-          <h4 className="eyebrow">{t("ap.divs")} · {a.dividends.length}</h4>
-          {a.dividends.map((d: DividendReq) => (
-            <div className="aprow" key={d.id}>
-              <div className="between">
-                <span><b className="mono">{d.ticker}</b> · {t("ap.divrow", { n: fmt(d.total_maud ?? d.total_units / 1e6, 2), tk: d.ticker ?? "" })}{d.holders ? " · " + t("ap.holders", { n: d.holders }) : ""}</span>
-                <span className="merkle">{d.merkle_root ? shortAddr(d.merkle_root) : ""}</span>
-              </div>
-              <div className="row">
-                <button className="btn gold sm" type="button" disabled={busy} onClick={() => act(() => api.approveDividend(d.id))}>{t("ap.approve")}</button>
-                <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.rejectDividend(d.id, "rejected by admin"), t("ap.rejected"))}>{t("ap.reject")}</button>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
+    </div>
+  );
+}
+
+function Inbox({ ap, nTr }: { ap: Async<Approvals>; nTr: number | null }) {
+  const { t } = useI18n();
+  if (!ap.data) return ap.error ? <ErrorBox error={ap.error} retry={ap.reload} /> : <p className="note">{t("common.loading")}</p>;
+  const items = queueItems(ap.data);
+  const counts = queueCounts(ap.data);
+  const total = counts.total + (nTr ?? 0);
+  const first = QUEUES.find((x) => counts[x.key] > 0);
+  return (
+    <div className="stack">
+      {first ? (
+        <div className="nextact">
+          <div><span className="eyebrow">{t("ws.next")}</span><p>{t("ad.inbox.first", { q: t(("ad.q." + first.key) as DictKey), n: counts[first.key] })}</p></div>
+          <Link className="btn gold" to={`/admin/${first.key}`}>{t("ad.review")} <span aria-hidden="true">→</span></Link>
+        </div>
+      ) : <p className="empty">{total ? t("ad.inbox.onlytr") : t("ap.empty")}</p>}
+      <div className="pane">
+        <div className="tbl"><table>
+          <thead><tr><th>{t("ad.inbox.q")}</th><th className="r">{t("ad.inbox.n")}</th><th>{t("ad.inbox.oldest")}</th><th /></tr></thead>
+          <tbody>
+            {QUEUES.map((x, i) => {
+              const list = items[x.key] as AnyItem[];
+              return (
+                <tr key={x.key}>
+                  <td><span className="mono muted">{i + 1}</span> {x.gate && <span className="gdiamond" aria-hidden="true">◆</span>} <Link to={`/admin/${x.key}`}>{t(("ad.q." + x.key) as DictKey)}</Link></td>
+                  <td className="r"><b>{list.length}</b></td>
+                  <td className="muted-sm">{list[0] ? itemLabel(x.key, list[0]) : "–"}</td>
+                  <td className="r">{list.length ? <Link className="btn ghost sm" to={`/admin/${x.key}`}>{t("ad.review")}</Link> : <span className="pill ok">✓</span>}</td>
+                </tr>
+              );
+            })}
+            <tr>
+              <td><span className="mono muted">6</span> <Link to="/admin/transfers">{t("ad.q.transfers")}</Link></td>
+              <td className="r"><b>{nTr ?? "–"}</b></td><td className="muted-sm">–</td>
+              <td className="r">{nTr ? <Link className="btn ghost sm" to="/admin/transfers">{t("ad.review")}</Link> : <span className="pill ok">✓</span>}</td>
+            </tr>
+          </tbody>
+        </table></div>
+        <p className="note">{t("ad.inbox.p")}</p>
+      </div>
     </div>
   );
 }
@@ -431,7 +561,11 @@ function CompanyDetailPane({ tk, row, onChanged }: { tk: string; row?: AdminComp
   );
 }
 
-function CompaniesTab({ sel, setSel, onChanged }: { sel: string | null; setSel: (s: string) => void; onChanged: () => void }) {
+function CompaniesTab({ onChanged }: { onChanged: () => void }) {
+  const { item } = useParams();
+  const nav = useNavigate();
+  const sel = item ? item.toUpperCase() : null;
+  const setSel = (tk: string) => nav(`/admin/companies/${tk}`);
   const { t, fmt, money, date } = useI18n();
   const all = useAsync(() => api.adminCompanies(), [], POLL);
   const rows = all.data ?? [];
@@ -587,29 +721,58 @@ function AuditTab() {
 }
 
 /* ================= console ================= */
-type Tab = "ov" | "ap" | "co" | "tr" | "wa" | "au";
+const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "transfers", "companies", "wallets", "audit"] as const;
+type Section = (typeof SECTIONS)[number];
 
 function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const { t, fmt } = useI18n();
   const { me, logout } = useAuth();
+  const { section: rawSec } = useParams();
+  const section: Section = (SECTIONS as readonly string[]).includes(rawSec ?? "") ? (rawSec as Section) : "inbox";
   const visible = usePageVisible();
   const now = useNow(1000);
-  const [tab, setTab] = useState<Tab>("ov");
-  const [sel, setSel] = useState<string | null>(null);
+  const nav = useNavigate();
   const stats = useAsync(() => api.stats(), [], POLL);
   const cos = useAsync(() => api.companies(), [], POLL);
   const ap = useAsync(() => api.approvals(), [], POLL);
+  const tr = useAsync(() => Promise.all([tapi.adminTransfers(), tapi.adminKyc()]), [], POLL);
   const wallets = useAsync(() => api.adminWallets(), [], 60000);
   const [updated, setUpdated] = useState(Date.now());
   useEffect(() => { if (stats.data) setUpdated(Date.now()); }, [stats.data]);
   useEffect(() => { if (pwRequired(ap.error) || pwRequired(wallets.error)) onPwRequired(); }, [ap.error, wallets.error, onPwRequired]);
-  const nAp = useMemo(() => (ap.data ? ap.data.valuations.length + ap.data.companies.length + ap.data.mints.length + ap.data.dividends.length : 0), [ap.data]);
+  useEffect(() => { if (rawSec && rawSec !== section) nav("/admin", { replace: true }); }, [rawSec, section, nav]);
+  const counts = useMemo(() => queueCounts(ap.data), [ap.data]);
+  const nTr = tr.data ? [...tr.data[0], ...tr.data[1]].filter((x) => x.status === "pending" || x.status === "failed").length : null;
   const who = me?.address ? shortAddr(me.address) : me?.username ?? "admin";
-  const tabs: [Tab, DictKey][] = [["ov", "ad.t.ov"], ["ap", "ad.t.ap"], ["co", "ad.t.cos"], ["wa", "ad.t.wa"], ["au", "ad.t.au"]];
-  const refreshAll = () => { void stats.reload(); void cos.reload(); void ap.reload(); };
-  const txL = useTx();
+  const refreshAll = () => { void stats.reload(); void cos.reload(); void ap.reload(); void tr.reload(); };
+  const title: Record<Section, string> = {
+    inbox: t("ad.nav.inbox"), dashboard: t("ad.t.ov"), valuations: t("ad.q.valuations"), issuance: t("ad.q.issuance"), sync: t("ad.q.sync"),
+    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"),
+  };
+  const isQueue = (QUEUES.map((x) => x.key) as string[]).includes(section);
+  const rail = (
+    <>
+      <RailGroup>
+        <RailItem to="/admin" current={section === "inbox"} count={counts.total + (nTr ?? 0)}>{t("ad.nav.inbox")}</RailItem>
+        <RailItem to="/admin/dashboard" current={section === "dashboard"}>{t("ad.t.ov")}</RailItem>
+      </RailGroup>
+      <RailGroup title={t("ad.nav.queues")}>
+        {QUEUES.map((x, i) => <RailItem key={x.key} to={`/admin/${x.key}`} current={section === x.key} mark={i + 1} gate={x.gate} count={counts[x.key]}>{t(("ad.q." + x.key) as DictKey)}</RailItem>)}
+        <RailItem to="/admin/transfers" current={section === "transfers"} mark={6} count={nTr}>{t("ad.q.transfers")}</RailItem>
+      </RailGroup>
+      <RailGroup title={t("ad.nav.registry")}>
+        <RailItem to="/admin/companies" current={section === "companies"}>{t("ad.t.cos")}</RailItem>
+        <RailItem to="/admin/wallets" current={section === "wallets"}>{t("ad.t.wa")}</RailItem>
+      </RailGroup>
+      <RailGroup title={t("ad.nav.trust")}>
+        <RailItem to="/admin/audit" current={section === "audit"}>{t("ad.t.au")}</RailItem>
+      </RailGroup>
+    </>
+  );
+  const qi = QUEUES.findIndex((x) => x.key === section);
   return (
-    <div className="console">
+    <SideLayout rail={rail} label={t("ad.eyebrow")}>
+      <Crumbs items={[{ to: "/admin", label: t("ad.eyebrow") }, { label: title[section] }]} />
       <div className="chead">
         <div className="whoami"><span>{t("ad.signedas")}</span><span className="addrpill" title={me?.address ?? undefined}>{who}</span><button className="btn ghost sm" type="button" onClick={() => void logout()}>{t("ad.logout")}</button></div>
         <span className="live" aria-live="off">
@@ -618,23 +781,17 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
           {stats.data?.block ? <span className="mono muted">#{fmt(stats.data.block)}</span> : null}
         </span>
       </div>
-      <div className="atabs" role="tablist" aria-label={t("ad.eyebrow")}>
-        {tabs.map(([k, l]) => (
-          <button key={k} type="button" role="tab" id={"tab-" + k} aria-controls={"panel-" + k} aria-selected={tab === k} onClick={() => setTab(k)}>
-            {t(l)}{k === "ap" && nAp > 0 ? <span className="badge-n" aria-label={`${nAp}`}>{nAp}</span> : null}
-          </button>
-        ))}
-        <button type="button" role="tab" id="tab-tr" aria-controls="panel-tr" aria-selected={tab === "tr"} onClick={() => setTab("tr")}>{txL.h}</button>
-      </div>
-      <div role="tabpanel" id={"panel-" + tab} aria-labelledby={"tab-" + tab}>
-        {tab === "tr" && <TransfersTab onChanged={refreshAll} />}
-        {tab === "ov" && <Overview stats={stats} cos={cos} wallets={wallets.data} onPick={(tk) => { setSel(tk); setTab("co"); }} />}
-        {tab === "ap" && <ApprovalsTab ap={ap} wallets={wallets.data} signer={wallets.data?.issuer?.address} onChanged={refreshAll} />}
-        {tab === "co" && <CompaniesTab sel={sel} setSel={setSel} onChanged={refreshAll} />}
-        {tab === "wa" && <WalletsTab />}
-        {tab === "au" && <AuditTab />}
-      </div>
-    </div>
+      <StepHead eyebrow={isQueue ? t("ad.q.eyebrow", { i: qi + 1 }) + (QUEUES[qi]?.gate ? " · ◆ " + t("gate.admin") : "") : t("ad.eyebrow")}
+        title={section === "inbox" ? t("ad.inbox.h", { n: counts.total + (nTr ?? 0) }) : title[section]}
+        desc={t(("ad.d." + section) as DictKey)} />
+      {section === "inbox" && <Inbox ap={ap} nTr={nTr} />}
+      {section === "dashboard" && <Overview stats={stats} cos={cos} wallets={wallets.data} onPick={(tk) => nav(`/admin/companies/${tk}`)} />}
+      {isQueue && <QueueView q={section as QueueKey} ap={ap} wallets={wallets.data} onChanged={refreshAll} />}
+      {section === "transfers" && <TransfersTab onChanged={refreshAll} />}
+      {section === "companies" && <CompaniesTab onChanged={refreshAll} />}
+      {section === "wallets" && <WalletsTab />}
+      {section === "audit" && <AuditTab />}
+    </SideLayout>
   );
 }
 
@@ -645,11 +802,13 @@ export default function AdminPage() {
   const [params] = useSearchParams();
   const nav = useNavigate();
   const next = safeNext(params.get("next"));
+  const back = safeNext(params.get("return"));
   useTitle(t("ad.eyebrow"));
   const isAdmin = me?.role === "admin";
   const mustChange = isAdmin && (me?.must_change || needPw);
   // back to the page that sent the judge here (e.g. /c/DPT) once signed in as admin
   useEffect(() => { if (!loading && isAdmin && !mustChange && next) nav(next, { replace: true }); }, [loading, isAdmin, mustChange, next, nav]);
+  if (!loading && isAdmin && !mustChange) return <Console onPwRequired={() => setNeedPw(true)} />;
   return (
     <section className="block admin-band" style={{ borderTop: 0, paddingTop: 40, minHeight: "70vh" }}>
       <div className="wrap">
@@ -658,10 +817,8 @@ export default function AdminPage() {
           <h2>{t("ad.h2")}</h2>
           <p>{t("ad.p")}</p>
         </div>
-        {loading ? <p className="note">{t("common.loading")}</p> : !isAdmin ? <LoginCard next={next} /> : mustChange ? (
+        {loading ? <p className="note">{t("common.loading")}</p> : !isAdmin ? <LoginCard next={next ?? back} /> : (
           <ChangePassword onDone={async () => { setNeedPw(false); const m = await refresh(); if (m) setMe({ ...m, must_change: false }); }} />
-        ) : (
-          <Console onPwRequired={() => setNeedPw(true)} />
         )}
       </div>
     </section>

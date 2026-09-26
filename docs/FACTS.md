@@ -58,6 +58,20 @@ Last verified: 26 Sep 2026 (after the Canva end-to-end demo run).
 6. **After issuance:** mint (dilution preview), Merkle dividends in mAUD with relayer `claimFor` (holders pay no gas),
    revaluations (mark = valuation ÷ shares; simulated growth is labelled and never counted), admin dashboard.
 
+## App screens (canonical navigation)
+
+Every feature is its own screen with its own URL, a left rail and a previous / next pager. Source of truth in code:
+`web/app/src/lib/flow.ts`.
+
+| Area | Screens (URL) | Order |
+|---|---|---|
+| Founder flow | 1 Website `/start` · 2 AI research `/v/:id/research` · 3 Valuation `/v/:id/report` · ◆ gate 1 · 4 Ticker `/v/:id/ticker` · 5 Shareholders `/v/:id/holders` · ◆ gate 2 · 6 Issue `/c/:tk/issue` · 7 Sync chains `/c/:tk/sync` · 8 Wallet `/c/:tk/wallet` | Phases: **Value** (1–3), **Structure** (4–5), **Go live** (6–8) |
+| Company workspace | `/c/:tk/overview` · `cap-table` · `transfers` · `mint` ◆ · `dividends` ◆ · `activity` · `team` · `/verify/:tk` | After step 8 |
+| Admin console | `/admin` inbox · `/admin/dashboard` · queues in flow order: 1 `valuations` ◆ · 2 `issuance` ◆ · 3 `sync` · 4 `mints` ◆ · 5 `dividends` ◆ · 6 `transfers` · registry `companies`, `wallets` · `audit` | One item per screen: `/admin/<queue>/<item>` |
+
+◆ = a person must approve. A gate link opens the exact admin item with `?return=<founder step>`; after approval the
+admin lands back on the founder's next step. Old URLs (`/new`, `/v/:id`, `/c/:tk`, `/admin`) still work.
+
 ## Chains
 
 | Chain | Chain id | Role | Explorer |

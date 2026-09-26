@@ -156,10 +156,19 @@ background thread, updating `studio.companies/mints/dividends` status + `studio.
 
 Vite + React + TypeScript + react-router, i18n via a small dictionary module (EN default, VI on flag click, persisted),
 viem for MetaMask (SIWE, `wallet_addEthereumChain`, `wallet_switchEthereumChain`, `wallet_watchAsset`). Charts are
-hand-drawn SVG as in the prototype. Routes: `/` home, `/new` wizard (8 steps), `/v/:id` valuation progress/report,
-`/c/:ticker` company (issuance tracker, cap table, contract address cards on three chains, add-to-wallet, mint/dividend),
-`/verify/:ticker` public hash check, `/hsk` HashKey deployment, `/companies` list,
-`/admin` (login: SIWE wallet in ADMIN_WALLETS or a username/password configured via ADMIN_PASSWORD_HASH; overview dashboard, approvals queue, companies, issuer wallets, audit).
+hand-drawn SVG as in the prototype. Routes: `/` home, `/start` step 1, `/v/:id/:step` steps 2–5 (research, report, ticker, holders),
+`/c/:ticker/:section` company: flow steps 6–8 (`issue`, `sync`, `wallet`) and the workspace (`overview`, `cap-table`,
+`transfers`, `mint`, `dividends`, `activity`, `team`), `/verify/:ticker` public hash check, `/hsk` HashKey deployment,
+`/companies` list, `/admin/:section/:item` (login: SIWE wallet in ADMIN_WALLETS or a username/password configured via
+ADMIN_PASSWORD_HASH; inbox, dashboard, queues `valuations|issuance|sync|mints|dividends|transfers` in flow order,
+`companies`, `wallets`, `audit`). Old routes (`/new`, `/v/:id`, `/c/:ticker`, `/admin`) redirect to the right step.
+
+Navigation model: `web/app/src/lib/flow.ts` is the single source of truth for the 8 steps, 3 phases, the 2 human
+gates, route builders, the step a valuation/company is on (`valAuto`, `coStep`) and the admin queue order.
+`components/Shell.tsx` renders it: `SideLayout` (left rail + main column), `FlowRail`, `RailItem`, `Crumbs`,
+`StepHead` and `Pager` (previous / next with the reason when locked; ← → keys). Gate links carry
+`?return=<founder path>`; the admin queue returns there after a decision. Read-only smoke test of every screen:
+`scripts/screenshots/flow-smoke.mjs`.
 Design tokens, copy, flows and charts: copy the prototype.
 
 ## File ownership during the build

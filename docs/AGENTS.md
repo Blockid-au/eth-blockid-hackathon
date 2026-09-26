@@ -9,7 +9,7 @@ There are two graphs:
 
 | Graph | Status | Steps |
 |---|---|---|
-| **`site_valuation`** | **Live** at https://eth.blockid.au (`/new` wizard) | `read_site → profile → competitors → market → svi → narrative → [gate_valuation]` |
+| **`site_valuation`** | **Live** at https://eth.blockid.au (`/start`, flow steps 1–3) | `read_site → profile → competitors → market → svi → narrative → [gate_valuation]` |
 | `onboarding` + `dividend` | Legacy data-room flow (API `/v1/onboarding`, `make demo`) | `intake → research → valuation → [gate] → contract_builder → [gate] → registry`; `plan → [gate] → build_batch` |
 
 ## Policy table (`policy.POLICIES`)

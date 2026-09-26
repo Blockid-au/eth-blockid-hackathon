@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import { api, ApiError, type SelfReported } from "../api";
-import { Stepper } from "../components/Stepper";
+import { Crumbs, FlowRail, Pager, SideLayout, StepHead } from "../components/Shell";
 import { useAsync, useTitle } from "../lib/hooks";
 import type { DictKey } from "../dict";
 import { cleanInput, parseSelfReported, SR_FIELDS, type SrField } from "../lib/selfReported";
@@ -133,31 +133,26 @@ export default function NewWizard() {
   };
 
   return (
-    <section className="block" style={{ borderTop: 0, paddingTop: 40 }}>
-      <div className="wrap">
-        <div className="head">
-          <span className="eyebrow">{t("new.eyebrow")}</span>
-          <h2>{t("new.h2")}</h2>
-          <p>{t("new.p")}</p>
+    <SideLayout label={t("flow.nav")} rail={<FlowRail cur={1} reach={1} gates={["none", "none"]} href={(n) => (n === 1 ? "/start" : null)} />}>
+      <Crumbs items={[{ to: "/start", label: t("nav.studio") }, { label: "01 " + t("step.1") }]} />
+      <StepHead eyebrow={t("flow.stepof", { n: 1, p: t("flow.ph.a") })} title={t("new.h2")} desc={t("new.p")} />
+      <form className="panel" onSubmit={start} noValidate>
+        <div className="ptitle"><div><h3>{t("s1.h")}</h3><p>{t("s1.p")}</p></div></div>
+        <div className="field">
+          <input type="url" inputMode="url" autoComplete="url" placeholder="https://yourcompany.com.au" aria-label={t("c.website")} value={url} onChange={(e) => setUrl(e.target.value)} aria-invalid={!!err} aria-describedby="url-err" autoFocus />
+          <button className="btn" type="submit" disabled={busy}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{busy ? t("new.starting") : me ? t("s1.btn") : t("nav.connect") + " · " + t("s1.btn")}</button>
         </div>
-        <Stepper cur={1} done={0} />
-        <form className="panel" onSubmit={start} noValidate>
-          <div className="ptitle"><div><h3>{t("s1.h")}</h3><p>{t("s1.p")}</p></div></div>
-          <div className="field">
-            <input type="url" inputMode="url" autoComplete="url" placeholder="https://yourcompany.com.au" aria-label={t("c.website")} value={url} onChange={(e) => setUrl(e.target.value)} aria-invalid={!!err} aria-describedby="url-err" autoFocus />
-            <button className="btn" type="submit" disabled={busy}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{busy ? t("new.starting") : me ? t("s1.btn") : t("nav.connect") + " · " + t("s1.btn")}</button>
-          </div>
-          <p className="err" id="url-err" role="alert">{err}</p>
-          <SelfReportedFields raw={raw} setRaw={setRaw} bad={bad} />
-          {!me && <p className="banner gold">{t("new.signin")}</p>}
-          <div className="cols3">
-            <div className="card"><h4>{t("s1.c1")}</h4><p className="sub">{t("s1.c1p")}</p></div>
-            <div className="card"><h4>{t("s1.c2")}</h4><p className="sub">{t("s1.c2p")}</p></div>
-            <div className="card"><h4>{t("s1.c3")}</h4><p className="sub">{t("s1.c3p")}</p></div>
-          </div>
-        </form>
-        {me && <Mine />}
-      </div>
-    </section>
+        <p className="err" id="url-err" role="alert">{err}</p>
+        <SelfReportedFields raw={raw} setRaw={setRaw} bad={bad} />
+        {!me && <p className="banner gold">{t("new.signin")}</p>}
+        <div className="cols3">
+          <div className="card"><h4>{t("s1.c1")}</h4><p className="sub">{t("s1.c1p")}</p></div>
+          <div className="card"><h4>{t("s1.c2")}</h4><p className="sub">{t("s1.c2p")}</p></div>
+          <div className="card"><h4>{t("s1.c3")}</h4><p className="sub">{t("s1.c3p")}</p></div>
+        </div>
+      </form>
+      <Pager keys={false} prev={{ to: "/", label: t("flow.home") }} next={{ to: "/v/sample/report", label: t("cta.secondary"), primary: false }} />
+      {me && <Mine />}
+    </SideLayout>
   );
 }

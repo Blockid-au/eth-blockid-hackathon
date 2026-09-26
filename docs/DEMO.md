@@ -10,12 +10,12 @@ switch to the app on slides 5 and 6.
 
 - **Prepare one company in *Awaiting issue approval*** (status `pending_issue`) before the demo: pick an approved
   valuation (valuations take a few minutes, so run it in advance), create the company (name, ticker, 2–4
-  shareholders with wallets and %), and **Submit**. Leave it in the admin Approvals queue. All 10 existing
+  shareholders with wallets and %), and **Submit**. Leave it in the admin **Issuance** queue. All 10 existing
   companies are already issued on three chains (see [DEPLOYMENTS.md](DEPLOYMENTS.md)).
 - Check the issuer has gas on Hoodi and HashKey (Admin → Issuer wallets; about 0.004 Hoodi ETH per company).
 - Sign in at https://eth.blockid.au with the founder wallet, and in a second browser profile with an admin wallet
   (SIWE) or the admin account.
-- Open tabs: `/admin` → Approvals, a pre-run valuation report `/v/:id` (e.g. Airwallex), `/verify/EBA`,
+- Open tabs: `/admin` (inbox), a pre-run valuation report `/v/:id/report` (e.g. Airwallex), `/verify/EBA`,
   https://scan.blockid.au, https://eth.blockid.au/hsk and the HashKey testnet explorer.
 - Backup if nothing is pending: approve a share **mint** instead (company page → **Model a new round**, or
   `POST /v1/companies/{tk}/mints`) — it re-syncs Hoodi and HashKey after the BlockID mint.
@@ -27,8 +27,8 @@ switch to the app on slides 5 and 6.
 | 0:00–0:20 | 1 · Hook | "Every startup has two questions it can't answer cheaply: what are we worth, and who exactly owns us? BlockID Startup Passport answers both. Agents propose, humans approve, chains prove." |
 | 0:20–0:45 | 2 · Problem → solution | "Cap tables live in spreadsheets, valuations are slow and unsourced, shareholders can't verify anything. The founder pastes a website, gets a cited valuation in minutes, and after one approval has KYC-gated shares on-chain that anyone can verify." |
 | 0:45–1:15 | 3 · How it works (whole system) | "AI agents read up to six pages and run at most three searches; a fixed formula computes the value; the agents hold no keys. A human admin signs one approval. Only then does the isolated issuer — the only component with a key — create the register on our zero-gas chain and mirror it to Ethereum Hoodi and HashKey." |
-| 1:15–1:40 | 4 · Valuation → pre-run report `/v/:id` | "The AI only suggests scores, labelled `ai_suggested`. A fixed public formula turns seven weighted dimensions into a grade and a range; any claim without a fetched source is dropped." Point at the evidence list and dimension bases. |
-| 1:40–2:05 | 5 · One approval → 3 chains → **live**: `/admin` → Approvals → the prepared company → **Approve issuance**; open `/c/:ticker` | "One approval. The issuer deploys the registry and token, KYCs each holder and issues on BlockID Chain, then mirrors the cap table with a Merkle root to Hoodi and HashKey." Let the tracker run (BlockID → Hoodi → HashKey, about 1–2 min); show the contract cards with QR + Add to MetaMask. |
+| 1:15–1:40 | 4 · Valuation → pre-run report `/v/:id/report` | "The AI only suggests scores, labelled `ai_suggested`. A fixed public formula turns seven weighted dimensions into a grade and a range; any claim without a fetched source is dropped." Point at the evidence list and dimension bases. |
+| 1:40–2:05 | 5 · One approval → 3 chains → **live**: `/admin/issuance` → the prepared company → **Sign & issue**; open `/c/:ticker/issue` (the page moves on to *Sync chains* and *Wallet* by itself) | "One approval. The issuer deploys the registry and token, KYCs each holder and issues on BlockID Chain, then mirrors the cap table with a Merkle root to Hoodi and HashKey." Let the tracker run (BlockID → Hoodi → HashKey, about 1–2 min); show the contract cards with QR + Add to MetaMask. |
 | 2:05–2:25 | 6 · Verify → **live**: `/verify/EBA` → green (BlockID ✓ Hoodi ✓ HashKey ✓) → **Tamper test** → red | "You don't have to trust us. The page recomputes keccak256 of the canonical report in your browser and compares it with the hash on all three chains. Change one score and it turns red." |
 | 2:25–3:00 | 7 · Live results / ask | "This is live today: ten real companies, thirty token contracts on three chains, A$5.63B of marked valuation, ten out of ten verified, 147 automated tests. We're looking for pilot startups and licensed partners — try it at eth.blockid.au." Come back to the tracker: the new company should now be live on all three chains. |
 

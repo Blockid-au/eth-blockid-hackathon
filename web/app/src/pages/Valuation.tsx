@@ -4,7 +4,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import { api, ApiError, type Evidence, type Svi, type TickerCandidate, type Valuation as Val } from "../api";
-import { Stepper } from "../components/Stepper";
+import { Crumbs, FlowRail, Pager, SideLayout, StepHead, type PagerLink } from "../components/Shell";
+import { phaseOf, valAuto, valGate, valPath, valReach, VAL_STEP } from "../lib/flow";
 import { DemoApproveGuide } from "../components/DemoGuide";
 import { Contrib, Donut, HBars, Legend, Radar, RangeChart } from "../components/charts";
 import { ErrorBox, Loading } from "../components/Layout";
@@ -51,8 +52,7 @@ function AgentLog({ v }: { v: Val }) {
   };
   const c = v.counters ?? {};
   return (
-    <div className="panel" role="region" aria-labelledby="s2h">
-      <div className="ptitle"><div><h3 id="s2h">{t("s2.h")}</h3><p>{t("s2.p")}</p></div><span className="live" aria-live="polite">{ACTIVE.includes(v.status) && v.status !== "waiting_approval" ? <i /> : null}{t(("v.st." + v.status) as "v.st.queued")}</span></div>
+    <div className="panel" role="region" aria-label={t("s2.h")}>
       <div className="cols">
         <div className="log" aria-live="polite">
           {v.steps.length === 0 && <div><span className="dot run" /><span>{t("v.queued")}</span><em>…</em></div>}
@@ -133,14 +133,10 @@ function Report({ v, evidence, isAdmin, onDecided }: { v: Val; evidence: Evidenc
   const comps = (v.competitors ?? []).slice(0, 8);
   const nSrc = (s: unknown) => (Array.isArray(s) ? s.length : typeof s === "number" ? s : 0);
   return (
-    <div className="panel" role="region" aria-labelledby="s3h">
-      <div className="ptitle">
-        <div><h3 id="s3h">{t("s3.h")}</h3><p>{t("s3.p")}</p></div>
-        <span className="gatepill">{v.status === "approved" ? "✓ " + t("v.st.approved") : t("gate.admin")}</span>
-      </div>
+    <div className="panel" role="region" aria-label={t("s3.h")}>
       {v.status === "waiting_approval" && <p className="banner gold" role="status"><span className="spinner" aria-hidden="true" />{t("v.waiting")}</p>}
       {v.status === "rejected" && <p className="banner bad" role="status">{t("v.rejected")}</p>}
-      {!isAdmin && v.status === "waiting_approval" && <DemoApproveGuide action={t("s3.approve")} tail="demo.tail.val" />}
+      {!isAdmin && v.status === "waiting_approval" && <DemoApproveGuide action={t("s3.approve")} tail="demo.tail.val" admin={`/admin/valuations/${encodeURIComponent(v.id)}`} next={valPath(v.id, 4)} />}
       {isAdmin && v.status === "waiting_approval" && <AdminReview v={v} svi={svi} onDone={onDecided} />}
       <div className="row" style={{ gap: 14 }}>
         <span className="gradebadge" aria-label={`${t("ad.c.grade")} ${g}`}>{g}</span>
@@ -327,11 +323,11 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
         if (c.id != null) await api.submitCompany(c.id);
       } catch (e) {
         setStage("opening");
-        nav(`/c/${tk}`, { state: { flash: t("v.sh.draft", { e: errText(e, t) }), companyId: c.id } });
+        nav(`/c/${tk}/issue`, { state: { flash: t("v.sh.draft", { e: errText(e, t) }), companyId: c.id } });
         return;
       }
       setStage("opening");
-      nav(`/c/${tk}`, { state: { flash: t("c.submitted") } });
+      nav(`/c/${tk}/issue`, { state: { flash: t("c.submitted") } });
     } catch (e) {
       setErr(errText(e, t));
     } finally {
@@ -388,18 +384,34 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
         </div>
       </div>
       <p className="err" role="alert">{err}</p>
-      <div className="pnav" style={{ borderTop: 0, paddingTop: 0 }}>
-        <span />
-        <button className="btn" type="button" disabled={busy} onClick={submit}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{busy ? t(stage ? (("sh.stage." + stage) as DictKey) : "v.sh.creating") : t("v.sh.submit")}</button>
+      <div className="pager">
+        <span className="pl"><Link className="btn ghost" to={valPath(v.id, 4)}><span aria-hidden="true">←</span>{t("step.4")}</Link></span>
+        <button className="btn gold" type="button" disabled={busy} onClick={submit}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{busy ? t(stage ? (("sh.stage." + stage) as DictKey) : "v.sh.creating") : t("v.sh.submit")}</button>
       </div>
     </>
   );
 }
 
 /* ================= page ================= */
+function useDraft(id: string) {
+  const key = "bid.v." + id;
+  const read = (): { name: string; ticker: string } => {
+    try { const x = JSON.parse(sessionStorage.getItem(key) || "{}"); return { name: String(x.name ?? ""), ticker: String(x.ticker ?? "") }; } catch { return { name: "", ticker: "" }; }
+  };
+  const [d, setD] = useState(read);
+  useEffect(() => { setD(read()); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { try { sessionStorage.setItem(key, JSON.stringify(d)); } catch { /* private mode */ } }, [key, d]);
+  return {
+    name: d.name, ticker: d.ticker,
+    setName: (name: string) => setD((x) => ({ ...x, name })),
+    setTicker: (ticker: string) => setD((x) => ({ ...x, ticker })),
+  };
+}
+
 export default function ValuationPage() {
-  const { id = "" } = useParams();
+  const { id = "", step: seg } = useParams();
   const { t } = useI18n();
+  const nav = useNavigate();
   const { me, loading: authLoading, connect } = useAuth();
   const sample = id === "sample";
   const [status, setStatus] = useState<string>("");
@@ -409,78 +421,100 @@ export default function ValuationPage() {
   useEffect(() => { if (v) setStatus(v.status); }, [v?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const hasEvidence = !!v && ((v.counters?.sources ?? 0) > 0 || !!v.svi);
   const ev = useAsync<Evidence[] | undefined>(() => (sample ? Promise.resolve(SAMPLE_EVIDENCE) : hasEvidence ? api.evidence(id) : Promise.resolve(undefined)), [id, hasEvidence, v?.status, v?.counters?.sources]);
-  useTitle(t("v.eyebrow") + (v ? " · " + v.url.replace(/^https?:\/\//, "") : ""));
+  const host = v ? v.url.replace(/^https?:\/\//, "") : "";
+  useTitle(t("v.eyebrow") + (host ? " · " + host : ""));
 
-  const auto = !v ? 2 : v.svi ? 3 : 2;
-  const [view, setView] = useState<number | null>(null);
-  const cur = view ?? auto;
-  const reach = !v ? 2 : sample ? 3 : v.status === "approved" ? 5 : v.svi ? 3 : 2;
-  const [name, setName] = useState("");
-  const [ticker, setTicker] = useState("");
-  const nameInit = useRef(false);
+  const reach = valReach(v, sample);
+  const want = seg ? VAL_STEP[seg] : undefined;
+  const cur = want ? Math.min(want, reach) : valAuto(v);
+  const { name, ticker, setName, setTicker } = useDraft(id);
+  const [toast, setToast] = useState("");
+  // canonical URL: /v/:id/<step>; an unknown or not-yet-reachable step falls back to the furthest allowed one
   useEffect(() => {
-    if (!nameInit.current && v?.status === "approved") {
-      nameInit.current = true;
+    if (v && VAL_STEP[seg ?? ""] !== cur) nav(valPath(id, cur), { replace: true });
+  }, [v != null, seg, cur, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // research finished while watching step 2: move on to the report
+  const hadSvi = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!v) return;
+    if (hadSvi.current === false && v.svi && cur === 2) { nav(valPath(id, 3)); setToast(t("flow.auto.report")); }
+    hadSvi.current = !!v.svi;
+  }, [v?.svi]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (v?.status === "approved" && !name) {
       const pn = typeof v.profile?.name === "string" ? v.profile.name : "";
-      let host = "";
-      try { host = new URL(v.url).hostname.replace(/^www\./, "").split(".")[0]; } catch { /* */ }
-      setName(pn || host.replace(/^\w/, (c) => c.toUpperCase()));
+      let h = "";
+      try { h = new URL(v.url).hostname.replace(/^www\./, "").split(".")[0]; } catch { /* */ }
+      setName(pn || h.replace(/^\w/, (c) => c.toUpperCase()));
     }
-  }, [v]);
+  }, [v?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!toast) return; const x = setTimeout(() => setToast(""), 5000); return () => clearTimeout(x); }, [toast]);
 
-  if (q.loading && !v) return <Loading />;
+  const rail = (
+    <FlowRail cur={cur} reach={sample ? 3 : reach} gates={[valGate(v), "none"]}
+      href={(n) => (n === 1 ? "/start" : n <= 5 ? valPath(id, n) : null)} />
+  );
+
+  if (q.loading && !v) return <SideLayout rail={rail} label={t("flow.nav")}><Loading /></SideLayout>;
   if (q.error && !v) {
     const e = q.error;
     return (
-      <div className="wrap page stack">
-        {e instanceof ApiError && e.status === 404 ? <p className="banner warn">{t("v.notfound")}</p> :
-          e instanceof ApiError && (e.status === 401 || e.status === 403) ? (
-            <div className="banner gold"><span>{t("v.signin")}</span>{!me && !authLoading && <button className="btn sm" type="button" onClick={() => void connect().catch(() => undefined)}>{t("nav.connect")}</button>}</div>
-          ) : <ErrorBox error={e} retry={q.reload} />}
-        <Link to="/new" className="btn ghost" style={{ justifySelf: "start" }}>{t("v.newval")}</Link>
-      </div>
+      <SideLayout rail={rail} label={t("flow.nav")}>
+        <div className="stack">
+          {e instanceof ApiError && e.status === 404 ? <p className="banner warn">{t("v.notfound")}</p> :
+            e instanceof ApiError && (e.status === 401 || e.status === 403) ? (
+              <div className="banner gold"><span>{t("v.signin")}</span>{!me && !authLoading && <button className="btn sm" type="button" onClick={() => void connect().catch(() => undefined)}>{t("nav.connect")}</button>}</div>
+            ) : <ErrorBox error={e} retry={q.reload} />}
+          <Link to="/start" className="btn ghost" style={{ justifySelf: "start" }}>{t("v.newval")}</Link>
+        </div>
+      </SideLayout>
     );
   }
-  if (!v) return <Loading />;
+  if (!v) return <SideLayout rail={rail} label={t("flow.nav")}><Loading /></SideLayout>;
 
-  const done = v.status === "approved" ? Math.max(3, cur - 1) : v.svi ? 2 : 1;
-  const host = v.url.replace(/^https?:\/\//, "");
+  const running = ACTIVE.includes(v.status) && v.status !== "waiting_approval";
+  const HEAD: Record<number, [DictKey, DictKey]> = { 2: ["s2.h", "s2.p"], 3: ["s3.h", "s3.p"], 4: ["s4.h", "s4.p"], 5: ["s5.h", "s5.p"] };
+  const statusPill =
+    cur === 2 ? <span className="live" aria-live="polite">{running ? <i /> : null}{t(("v.st." + v.status) as DictKey)}</span>
+    : cur === 3 ? <span className={"pill " + (v.status === "approved" ? "ok" : v.status === "waiting_approval" ? "gold" : v.status === "rejected" || v.status === "failed" ? "bad" : "")}>{v.status === "approved" ? "✓ " : v.status === "waiting_approval" ? "◆ " : ""}{t(("v.st." + v.status) as DictKey)}</span>
+    : cur === 5 ? <span className="gatepill mono">{ticker}</span> : null;
+
+  // pager
+  const prev = cur > 2 ? { to: valPath(id, cur - 1), label: t(("step." + (cur - 1)) as DictKey) } : { to: "/start", label: t("step.1") };
+  let next: PagerLink | null = null;
+  let reason: string | null = null;
+  if (cur === 2) { next = { to: valPath(id, 3), label: t("step.3"), disabled: !v.svi }; if (!v.svi) reason = t("flow.why.research"); }
+  if (cur === 3) {
+    if (sample) next = { to: "/start", label: t("cta.primary") };
+    else if (v.status === "approved") next = { to: valPath(id, 4), label: t("step.4") };
+    else if (v.status === "rejected" || v.status === "failed") next = { to: "/start", label: t("v.newval") };
+    else { next = { label: t("step.4"), disabled: true }; reason = t("flow.why.g1"); }
+  }
+  if (cur === 4) {
+    const ok = /^[A-Z]{3}$/.test(ticker) && !!name.trim();
+    next = { to: valPath(id, 5), label: t("step.5"), disabled: !ok };
+    if (!ok) reason = t("flow.why.ticker");
+  }
+
   return (
-    <section className="block" style={{ borderTop: 0, paddingTop: 40 }}>
-      <div className="wrap stack">
-        <div className="head" style={{ marginBottom: 12 }}>
-          <span className="eyebrow">{t("v.eyebrow")}{sample ? " · " + t("cta.secondary") : ""}</span>
-          <h2 style={{ overflowWrap: "anywhere" }}>{host}</h2>
-        </div>
-        <Stepper cur={cur} done={done} reach={reach} onPick={(i) => setView(i)} />
-        {v.status === "failed" && <p className="banner bad" role="alert">{t("v.failed", { e: v.error || "" })}</p>}
-        {(v.warnings ?? []).length > 0 && <div className="banner warn" role="status"><b>{t("v.warn")}</b>{(v.warnings ?? []).map((w, i) => <span key={i}>· {w}</span>)}</div>}
-        {q.error ? <ErrorBox error={q.error} retry={q.reload} /> : null}
+    <SideLayout rail={rail} label={t("flow.nav")}>
+      <Crumbs items={[{ to: "/start", label: t("nav.studio") }, { label: host }, { label: `${String(cur).padStart(2, "0")} ${t(("step." + cur) as DictKey)}` }]} />
+      <StepHead eyebrow={t("flow.stepof", { n: cur, p: t(("flow.ph." + phaseOf(cur)) as DictKey) }) + (sample ? " · " + t("cta.secondary") : "")}
+        title={t(HEAD[cur][0])} desc={t(HEAD[cur][1])} right={statusPill} />
+      {toast && <p className="banner ok" role="status">{toast}</p>}
+      {v.status === "failed" && <p className="banner bad" role="alert">{t("v.failed", { e: v.error || "" })}</p>}
+      {(v.warnings ?? []).length > 0 && <div className="banner warn" role="status"><b>{t("v.warn")}</b>{(v.warnings ?? []).map((w, i) => <span key={i}>· {w}</span>)}</div>}
+      {q.error ? <ErrorBox error={q.error} retry={q.reload} /> : null}
 
-        {cur === 2 && <AgentLog v={v} />}
-        {cur === 3 && v.svi && <Report v={v} evidence={ev.data} isAdmin={me?.role === "admin" && !sample} onDecided={(x) => q.setData(x)} />}
-        {reach >= 4 && !sample && (
-          <div className="panel" hidden={cur !== 4}>
-            <div className="ptitle"><div><h3>{t("s4.h")}</h3><p>{t("s4.p")}</p></div></div>
-            <TickerStep name={name} setName={setName} ticker={ticker} setTicker={setTicker} />
-          </div>
-        )}
-        {reach >= 5 && !sample && (
-          <div className="panel" hidden={cur !== 5}>
-            <div className="ptitle"><div><h3>{t("s5.h")}</h3><p>{t("s5.p")}</p></div><span className="gatepill mono">{ticker}</span></div>
-            <HoldersStep v={v} name={name} ticker={ticker} defaultWallet={me?.address} />
-          </div>
-        )}
-
-        <div className="pnav">
-          {cur > 2 ? <button className="btn ghost" type="button" onClick={() => setView(cur - 1)}>{t("nav.back")}</button> : <span />}
-          {cur === 2 && v.svi && <button className="btn" type="button" onClick={() => setView(3)}>{t("nav.next")}</button>}
-          {cur === 3 && sample && <Link className="btn" to="/new">{t("cta.primary")}</Link>}
-          {cur === 3 && !sample && v.status === "approved" && <button className="btn" type="button" onClick={() => setView(4)}>{t("v.continue")}</button>}
-          {cur === 3 && (v.status === "rejected" || v.status === "failed") && <Link className="btn" to="/new">{t("v.newval")}</Link>}
-          {cur === 4 && <button className="btn" type="button" disabled={!/^[A-Z]{3}$/.test(ticker) || !name.trim()} onClick={() => setView(5)}>{t("nav.next")}</button>}
-        </div>
-      </div>
-    </section>
+      {cur === 2 && <AgentLog v={v} />}
+      {cur === 3 && v.svi && <Report v={v} evidence={ev.data} isAdmin={me?.role === "admin" && !sample} onDecided={(x) => q.setData(x)} />}
+      {cur === 4 && !sample && (
+        <div className="panel"><TickerStep name={name} setName={setName} ticker={ticker} setTicker={setTicker} /></div>
+      )}
+      {cur === 5 && !sample && (
+        <div className="panel"><HoldersStep v={v} name={name} ticker={ticker} defaultWallet={me?.address} /></div>
+      )}
+      {cur !== 5 && <Pager prev={prev} next={next} reason={reason} />}
+    </SideLayout>
   );
 }

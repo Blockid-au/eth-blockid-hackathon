@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
-import { isMock } from "../api";
+import { api, isMock } from "../api";
+import { useAsync } from "../lib/hooks";
+import { queueCounts } from "../lib/flow";
 import { shortAddr } from "../lib/addr";
 import { useMyCompanies, type MyCompany } from "../lib/companyAdmins";
 
@@ -91,21 +93,39 @@ function Account({ mine }: { mine: MyCompany[] }) {
   );
 }
 
+/** Admin link with the number of items waiting for a decision (admins only). */
+function AdminNavLink() {
+  const { t } = useI18n();
+  const { me } = useAuth();
+  return me?.role === "admin" ? <AdminCount label={t("nav.admin")} /> : <NavLink to="/admin">{t("nav.admin")}</NavLink>;
+}
+function AdminCount({ label }: { label: string }) {
+  const ap = useAsync(() => api.approvals(), [], 30000);
+  const n = queueCounts(ap.data).total;
+  return <NavLink to="/admin">{label}{n > 0 && <span className="badge-n" aria-label={`${n}`}>{n}</span>}</NavLink>;
+}
+
 export function Nav() {
   const { t, lang, setLang } = useI18n();
   const mine = useMyCompanies().list;
+  const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  useEffect(() => setOpen(false), [pathname]);
   return (
     <header className="nav">
       <a className="skip" href="#main">{t("nav.skip")}</a>
-      <div className="wrap">
+      <div className="wrap wide">
         <Link className="brand" to="/"><span className="mark" aria-hidden="true" />BlockID</Link>
-        <nav className="links" aria-label={t("nav.primary")}>
+        <button className="menubtn" type="button" aria-expanded={open} aria-controls="primary-links" onClick={() => setOpen((o) => !o)}>{open ? "✕" : "☰"}<span className="sr-only">{t("nav.menu")}</span></button>
+        <nav id="primary-links" className={"links" + (open ? " open" : "")} aria-label={t("nav.primary")}>
           <Link to="/#how">{t("nav.how")}</Link>
           <NavLink to="/companies">{t("nav.companies")}</NavLink>
-          <NavLink to="/hsk">{t("nav.hsk")}</NavLink>
           <NavLink to="/verify">{t("nav.verify")}</NavLink>
-          <NavLink to="/admin">{t("nav.admin")}</NavLink>
+          <NavLink to="/hsk">{t("nav.hsk")}</NavLink>
+          <span className="navsep" aria-hidden="true" />
+          <NavLink to="/start">{t("nav.studio")}</NavLink>
           <MyCompaniesNav list={mine} />
+          <AdminNavLink />
         </nav>
         <span className="grow" />
         {isMock && <span className="simbadge" title="?mock=0 to leave">{t("mock.badge")}</span>}
@@ -115,7 +135,7 @@ export function Nav() {
           <button type="button" aria-pressed={lang === "vi"} onClick={() => setLang("vi")} lang="vi"><FlagVI />VI</button>
         </span>
         <Account mine={mine} />
-        <Link className="btn sm" to="/new">{t("cta.primary")}</Link>
+        <Link className="btn sm navcta" to="/start">{t("cta.primary")}</Link>
       </div>
     </header>
   );

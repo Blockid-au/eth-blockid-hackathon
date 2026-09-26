@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Footer, Nav, ScrollManager } from "./components/Layout";
 import { ErrorBoundary, PageLoading } from "./components/Boundary";
 import { lazyPage as lazy } from "./lib/chunks";
@@ -25,11 +25,13 @@ export function App() {
         <Suspense fallback={<PageLoading />}>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/new" element={<NewWizard />} />
-            <Route path="/v/:id" element={<ValuationPage />} />
-            <Route path="/c/:ticker" element={<CompanyPage />} />
+            <Route path="/start" element={<NewWizard />} />
+            <Route path="/new" element={<Navigate to="/start" replace />} />
+            <Route path="/v/:id/:step?" element={<ValuationPage />} />
+            <Route path="/c/:ticker/:section?" element={<CompanyPage />} />
             <Route path="/companies" element={<CompaniesPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/explore" element={<Navigate to="/companies" replace />} />
+            <Route path="/admin/:section?/:item?" element={<AdminPage />} />
             <Route path="/hsk" element={<HskPage />} />
             <Route path="/verify" element={<VerifyPage />} />
             <Route path="/verify/:ticker" element={<VerifyPage />} />

@@ -235,7 +235,7 @@ Key transactions (the full *AI proposes → human approves → issuer executes* 
 
 After a single admin approval the isolated issuer creates the register on BlockID EVM first, then syncs it to
 Ethereum Hoodi and HashKey Chain (paused mirror token + cap-table Merkle root + the valuation report hash), with a
-live tracker at `/c/:ticker`. Anyone can recompute the report hash in the browser at `/verify/:ticker`.
+live tracker at `/c/:ticker/issue` → `/sync` → `/wallet`. Anyone can recompute the report hash in the browser at `/verify/:ticker`.
 Example — **EBA (ETH BlockID Australia)**, 3,650,000 shares:
 
 | Chain | Share token | Proof |

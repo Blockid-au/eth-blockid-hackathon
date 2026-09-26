@@ -31,7 +31,7 @@ function elapsed(ms: number) {
 }
 
 /** Live issuance tracker (/c/:ticker for companies not yet live on every chain). */
-export function Tracker({ c, onChanged }: { c: CompanyDetail; onChanged: () => void }) {
+export function Tracker({ c, onChanged, only, feed = true }: { c: CompanyDetail; onChanged: () => void; only?: string[]; feed?: boolean }) {
   const { t, fmt } = useI18n();
   const { me } = useAuth();
   const now = useNow(1000);
@@ -124,7 +124,7 @@ export function Tracker({ c, onChanged }: { c: CompanyDetail; onChanged: () => v
         <b>{t("trk.now")}:</b> {nowLine}
       </p>
       <ol className="trk">
-        {stages.map((s, i) => (
+        {stages.map((s, i) => (only && !only.includes(s.key) ? null :
           <li key={s.key} className={"trk-st " + s.state} aria-current={s.state === "running" ? "step" : undefined}>
             <span className="trk-dot" aria-hidden="true">{s.state === "done" ? "✓" : s.state === "failed" || s.state === "rejected" ? "!" : s.state === "running" ? <span className="spinner" /> : i + 1}</span>
             <div className="trk-body">
@@ -144,7 +144,7 @@ export function Tracker({ c, onChanged }: { c: CompanyDetail; onChanged: () => v
                 </ul>
               )}
               {s.error && (s.state === "failed" || s.state === "skipped" || s.state === "rejected") && <p className="banner bad" role="alert" style={{ margin: "6px 0 0" }}>{s.error}</p>}
-              {!admin && s.action === "approve" && <DemoApproveGuide action={t("trk.approve")} tail="demo.tail.issue" next={`/c/${c.ticker}`} />}
+              {!admin && s.action === "approve" && <DemoApproveGuide action={t("trk.approve")} tail="demo.tail.issue" admin={`/admin/issuance/${c.ticker}`} next={`/c/${c.ticker}/issue`} />}
               {admin && s.action && c.id != null && s.action !== "retry-issue" && <LowBalanceInline />}
               {admin && s.action && c.id != null && (
                 <button className={"btn sm " + (s.action === "approve" ? "gold" : "ghost")} type="button" disabled={busy} onClick={() => act(s.action)} style={{ marginTop: 6 }}>{actLabel(s.action)}</button>
@@ -154,7 +154,7 @@ export function Tracker({ c, onChanged }: { c: CompanyDetail; onChanged: () => v
         ))}
       </ol>
       {msg && <p className={msg.ok ? "toast" : "err"} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
-      {events.length > 0 && (
+      {feed && events.length > 0 && (
         <details open={status !== "anchored"}>
           <summary className="muted-sm">{t("trk.feed")} · {fmt(Math.min(events.length, 8))}</summary>
           <EventList events={events.slice(0, 8)} sync={c.sync} />

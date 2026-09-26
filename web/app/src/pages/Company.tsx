@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import { api, ApiError, type CapRow, type CoEvent, type CoStatus, type CompanyDetail, type SyncInfo } from "../api";
@@ -17,10 +17,11 @@ import { TransferPanel } from "./Transfers";
 import { DemoApproveGuide } from "../components/DemoGuide";
 import { CompanyAdminsPanel, CompanyApprovals } from "../components/CompanyAdmins";
 import { useMyCompanies } from "../lib/companyAdmins";
+import { Crumbs, FlowRail, Pager, RailGroup, RailItem, SideLayout, StepHead } from "../components/Shell";
+import { CO_SEG, CO_STEP, coGate, coReach, coStep, LIVE, valPath, WS, type WsSection } from "../lib/flow";
 
 const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring", "partially_anchored"];
 const RUNNING: CoStatus[] = ["issuing", "anchoring"];
-const LIVE: CoStatus[] = ["issued", "pending_anchor", "anchoring", "anchored", "partially_anchored"];
 
 /* ---------- status timeline ---------- */
 function Timeline({ status }: { status: CoStatus }) {
@@ -293,7 +294,7 @@ function PrivateCompany({ ticker, onSignedIn }: { ticker: string; onSignedIn: ()
       <div className="pane stateCard">
         <h2>{t("c.private.h")}</h2>
         <p>{t("c.private.signed", { t: ticker })}</p>
-        <div className="row"><Link className="btn" to="/companies">{t("nav.companies")}</Link><Link className="btn ghost" to="/new">{t("cta.primary")}</Link></div>
+        <div className="row"><Link className="btn" to="/companies">{t("nav.companies")}</Link><Link className="btn ghost" to="/start">{t("cta.primary")}</Link></div>
       </div>
     );
   }
@@ -310,18 +311,22 @@ function PrivateCompany({ ticker, onSignedIn }: { ticker: string; onSignedIn: ()
         <Link className="btn ghost" to="/companies">{t("nav.companies")}</Link>
       </div>
       {err && <p className="err" role="alert">{err}</p>}
-      <DemoApproveGuide action={t("trk.approve")} tail="demo.tail.issue" next={`/c/${ticker}`} />
+      <DemoApproveGuide action={t("trk.approve")} tail="demo.tail.issue" admin={`/admin/issuance/${ticker}`} next={`/c/${ticker}/issue`} />
     </div>
   );
 }
 
+type Sec = "issue" | "sync" | "wallet" | WsSection;
+const ORDER: Sec[] = ["issue", "sync", "wallet", ...WS];
+
 export default function CompanyPage() {
-  const { ticker: raw = "" } = useParams();
+  const { ticker: raw = "", section } = useParams();
   const ticker = raw.toUpperCase();
   const { t, fmt, money } = useI18n();
   const { me } = useAuth();
   const mine = useMyCompanies();
   const loc = useLocation();
+  const nav = useNavigate();
   const flash = (loc.state as { flash?: string; companyId?: number } | null)?.flash;
   const companyId = (loc.state as { companyId?: number } | null)?.companyId;
   const [status, setStatus] = useState<CoStatus | "">("");
@@ -331,6 +336,20 @@ export default function CompanyPage() {
   const [toast, setToast] = useState("");
   const [submitMsg, setSubmitMsg] = useState("");
   useTitle(c ? `${c.ticker} · ${c.name}` : ticker);
+
+  // follow the issuer: 6 -> 7 -> 8 while the founder watches
+  const lastStep = useRef<number | null>(null);
+  const step = c ? coStep(c) : 6;
+  useEffect(() => {
+    if (!c) return;
+    const prev = lastStep.current;
+    lastStep.current = step;
+    if (prev != null && step > prev && section === CO_SEG[prev]) nav(`/c/${c.ticker}/${CO_SEG[step]}`, { replace: true });
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+  // /c/:tk without a section: the current flow step, or the workspace once everything is live
+  useEffect(() => {
+    if (c && !section) nav(`/c/${c.ticker}/${c.status === "anchored" || step === 8 ? "overview" : CO_SEG[step]}`, { replace: true, state: loc.state });
+  }, [c != null, section]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (q.loading && !c) return <Loading />;
   if (!c) {
@@ -364,79 +383,127 @@ export default function CompanyPage() {
     try { await api.submitCompany(id); setSubmitMsg(t("c.submitted")); void q.reload(); } catch (e) { setSubmitMsg(errText(e, t)); }
   };
 
+  // which sections this viewer can open, and why not
+  const reach = coReach(c);
+  const why = (s: Sec): string | null => {
+    if (s === "issue") return null;
+    if (s === "sync" || s === "wallet") return CO_STEP[s] <= reach ? null : t("flow.locked");
+    if (s === "overview" || s === "cap-table" || s === "activity") return null;
+    if (!live) return t("ws.needlive");
+    if (s === "transfers") return localToken ? (me ? null : t("ws.needsign")) : t("ws.needlive");
+    if (s === "mint" || s === "dividends") return canRequest ? null : t("ws.needauth");
+    if (s === "team") return canManage ? null : t("ws.needauth");
+    return null;
+  };
+  const sec: Sec = (ORDER as string[]).includes(section ?? "") && !why(section as Sec) ? (section as Sec) : (section ? "overview" : CO_SEG[step] as Sec);
+  const open = ORDER.filter((s) => !why(s));
+  const at = open.indexOf(sec);
+  const label = (s: Sec) => (CO_STEP[s] ? t(("step." + CO_STEP[s]) as DictKey) : t(("ws." + s) as DictKey));
+  const prevS = at > 0 ? open[at - 1] : null;
+  const nextS = at >= 0 && at < open.length - 1 ? open[at + 1] : null;
+  const flowN = CO_STEP[sec];
+
+  const rail = (
+    <>
+      <FlowRail cur={flowN ?? 0} reach={Math.max(reach, 6)} gates={["ok", coGate(c)]}
+        href={(n) => (n <= 3 ? (c.valuation_id ? valPath(c.valuation_id, Math.max(2, n)) : null) : n <= 5 ? null : `/c/${c.ticker}/${CO_SEG[n]}`)} />
+      <RailGroup title={t("flow.ph.d")} aside={<span className="mono">{c.ticker}</span>}>
+        {WS.map((s) => <RailItem key={s} to={why(s) ? null : `/c/${c.ticker}/${s}`} current={sec === s} hint={why(s) ?? undefined} gate={s === "mint" || s === "dividends"}>{t(("ws." + s) as DictKey)}</RailItem>)}
+        <RailItem to={`/verify/${c.ticker}`}>{t("ws.verify")} <span aria-hidden="true">↗</span></RailItem>
+      </RailGroup>
+    </>
+  );
+
+  const nextAct = (() => {
+    if (c.status === "draft") return { k: "ws.next.draft" as DictKey, to: "issue" };
+    if (c.status === "pending_issue") return { k: "ws.next.wait" as DictKey, to: "issue" };
+    if (c.status === "rejected" || c.status === "failed") return { k: "ws.next.fail" as DictKey, to: "issue" };
+    if (step === 6) return { k: "ws.next.issuing" as DictKey, to: "issue" };
+    if (step === 7) return { k: "ws.next.sync" as DictKey, to: "sync" };
+    return { k: "ws.next.live" as DictKey, to: "wallet" };
+  })();
+
   return (
-    <section className="block" style={{ borderTop: 0, paddingTop: 40 }}>
-      <div className="wrap stack" style={{ gap: 20 }}>
-        <div className="between">
-          <div className="head" style={{ marginBottom: 0 }}>
-            <span className="eyebrow">{t("c.eyebrow")} · {t(("c.st." + c.status) as DictKey)}</span>
-            <h2 className="row" style={{ gap: 12 }}>
-              <span className="mono" style={{ color: "var(--accent)", letterSpacing: ".1em" }}>{c.ticker}</span>
-              <span>{c.name}</span>
-              {c.grade && <span className="gchip lg" style={{ background: `var(${GRADE_C[c.grade] ?? "--c6"})` }} aria-label={`${t("ad.c.grade")} ${c.grade}`}>{c.grade}</span>}
-            </h2>
-            {c.website && <a href={c.website} target="_blank" rel="noopener noreferrer" className="muted-sm">{c.website.replace(/^https?:\/\//, "")}</a>}
-          </div>
-          {TRANSIENT.includes(c.status) && <span className="live"><i />{t(("c.st." + c.status) as DictKey)}</span>}
-        </div>
-        {flash && <p className="banner gold" role="status">{flash}</p>}
-        {c.status === "draft" || c.status === "rejected" ? <div className="pane"><Timeline status={c.status} /></div> : null}
-        {c.status !== "draft" && <Tracker c={c} onChanged={() => void q.reload()} />}
-        {c.status === "rejected" && <p className="banner bad" role="alert">{t("c.st.rejected")}{c.error ? ": " + c.error : ""}</p>}
-        {c.status === "draft" && (
-          <div className="banner gold"><span>{t("c.draftnote")}</span>{(c.id ?? companyId) != null && me && <button className="btn gold sm" type="button" onClick={submit}>{t("c.submit")}</button>}{submitMsg && <span>{submitMsg}</span>}</div>
-        )}
+    <SideLayout rail={rail} label={t("flow.nav")}>
+      <Crumbs items={[{ to: "/companies", label: t("nav.companies") }, { to: `/c/${c.ticker}/overview`, label: c.ticker }, { label: label(sec) }]} />
+      <div className="cohead">
+        <h1 className="row" style={{ gap: 12 }}>
+          <span className="mono" style={{ color: "var(--accent)", letterSpacing: ".1em" }}>{c.ticker}</span>
+          <span>{c.name}</span>
+          {c.grade && <span className="gchip lg" style={{ background: `var(${GRADE_C[c.grade] ?? "--c6"})` }} aria-label={`${t("ad.c.grade")} ${c.grade}`}>{c.grade}</span>}
+        </h1>
+        <span className="row" style={{ gap: 8 }}>
+          {c.website && <a href={c.website} target="_blank" rel="noopener noreferrer" className="muted-sm">{c.website.replace(/^https?:\/\//, "")}</a>}
+          {TRANSIENT.includes(c.status) ? <span className="live"><i />{t(("c.st." + c.status) as DictKey)}</span> : <span className={"pill" + (c.status === "anchored" ? " ok" : c.status === "rejected" || c.status === "failed" ? " bad" : "")}>{t(("c.st." + c.status) as DictKey)}</span>}
+        </span>
+      </div>
+      <StepHead eyebrow={flowN ? t("flow.stepof", { n: flowN, p: t("flow.ph.c") }) : t("ws.h")} title={flowN ? t(("step." + flowN) as DictKey) : t(("ws." + sec) as DictKey)} desc={t((flowN ? "flow.d" + flowN : "ws.d." + sec) as DictKey)} />
+      {flash && <p className="banner gold" role="status">{flash}</p>}
 
-        <div className="kpis">
-          <div className="kpi"><small>{t("c.k.val")}</small><b>{money(c.valuation_aud)}</b><span>{t("c.k.valsub", { s: c.svi != null ? fmt(Number(c.svi), 1) : "–", g })}</span></div>
-          <div className="kpi"><small>{t("k.shares")}</small><b>{fmt(c.total_shares)}</b><span>{t("c.k.sharesub", { tk: c.ticker })}</span></div>
-          <div className="kpi"><small>{t("k.holders")}</small><b>{fmt(holders.length || c.holders || 0)}</b><span>{live ? t("k.kyc") : " "}</span></div>
-          <div className="kpi"><small>{t("k.anchor")}</small><b>{c.hoodi?.block ? "#" + fmt(c.hoodi.block) : t("c.k.noanchor")}</b><span>Ethereum Hoodi{c.hsk?.block ? ` · HashKey #${fmt(c.hsk.block)}` : ""}</span></div>
-        </div>
-
-        {live && c.marks?.length ? (
-          <MarkPanel ticker={c.ticker} name={c.name} grade={g} svi={c.svi} marks={c.marks} events={c.events} valuation={c.valuation_aud} totalShares={c.total_shares} holders={holders.length} />
-        ) : null}
-
-        <CapTable rows={holders} ticker={c.ticker} source={c.cap_table_source} block={c.cap_table_block} />
-        {live && localToken && <TransferPanel c={c} onDone={() => void q.reload()} />}
-
+      {sec === "issue" && (
+        <>
+          {c.status === "draft" || c.status === "rejected" ? <div className="pane"><Timeline status={c.status} /></div> : null}
+          {c.status !== "draft" && <Tracker c={c} onChanged={() => void q.reload()} only={["s1", "s2", "s3"]} feed={false} />}
+          {c.status === "rejected" && <p className="banner bad" role="alert">{t("c.st.rejected")}{c.error ? ": " + c.error : ""}</p>}
+          {c.status === "draft" && (
+            <div className="banner gold"><span>{t("c.draftnote")}</span>{(c.id ?? companyId) != null && me && <button className="btn gold sm" type="button" onClick={submit}>{t("c.submit")}</button>}{submitMsg && <span>{submitMsg}</span>}</div>
+          )}
+        </>
+      )}
+      {sec === "sync" && (
+        <>
+          <Tracker c={c} onChanged={() => void q.reload()} only={["s4", "s5", "s6"]} />
+          {c.hoodi?.merkle_root && (
+            <p className="merkle">{t("c.anchor.root")} {c.hoodi.merkle_root}{c.hoodi.anchor_tx ? <> · <a href={CHAINS.hoodi.txUrl(c.hoodi.anchor_tx)} target="_blank" rel="noopener noreferrer">Hoodi {shortAddr(c.hoodi.anchor_tx)}</a></> : null}{c.hsk?.anchor_tx ? <> · <a href={CHAINS.hsk.txUrl(c.hsk.anchor_tx)} target="_blank" rel="noopener noreferrer">HSK {shortAddr(c.hsk.anchor_tx)}</a></> : null}</p>
+          )}
+        </>
+      )}
+      {sec === "wallet" && (
         <div className="panel">
-          <div className="ptitle"><div><h3>{t("s8.h").replace("HBL", c.ticker)}</h3><p>{t("s8.p")}</p></div></div>
-          <div className="cols">
+          <div className="cols3">
             <AddrCard chain={CHAINS.local} address={localToken} ticker={c.ticker} onToast={setToast} />
             <AddrCard chain={CHAINS.hoodi} address={hoodiToken} ticker={c.ticker} onToast={setToast} />
             <AddrCard chain={CHAINS.hsk} address={hskToken} ticker={c.ticker} onToast={setToast} />
           </div>
           <p className="toast" role="status">{toast}</p>
-          {c.hoodi?.merkle_root && (
-            <p className="merkle">{t("c.anchor.root")} {c.hoodi.merkle_root}{c.hoodi.anchor_tx ? <> · <a href={CHAINS.hoodi.txUrl(c.hoodi.anchor_tx)} target="_blank" rel="noopener noreferrer">Hoodi {shortAddr(c.hoodi.anchor_tx)}</a></> : null}{c.hsk?.anchor_tx ? <> · <a href={CHAINS.hsk.txUrl(c.hsk.anchor_tx)} target="_blank" rel="noopener noreferrer">HSK {shortAddr(c.hsk.anchor_tx)}</a></> : null}</p>
-          )}
           <div className="cols">
             <ManualSteps ticker={c.ticker} />
             <NetworkDetails />
           </div>
         </div>
+      )}
 
-        <div className="head" style={{ marginBottom: 0, marginTop: 12 }}>
-          <span className="eyebrow">{t("dash.eyebrow")}</span>
-          <h2>{t("dash.h2")}</h2>
-          <p>{t("dash.p")}</p>
-        </div>
-        {!live ? <p className="empty">{t("c.onlyissued")}</p> : !canRequest ? <p className="banner gold">{t("c.needauth")}</p> : (
-          <div className="cols">
-            <MintForm c={c} onSent={() => void q.reload()} />
-            <DividendForm c={c} onSent={() => void q.reload()} />
+      {sec === "overview" && (
+        <>
+          <div className="nextact">
+            <div><span className="eyebrow">{t("ws.next")}</span><p>{t(nextAct.k, { tk: c.ticker })}</p></div>
+            <Link className="btn" to={`/c/${c.ticker}/${nextAct.to}`}>{label(nextAct.to as Sec)} <span aria-hidden="true">→</span></Link>
           </div>
-        )}
-        {live && canManage && c.id != null && <CompanyApprovals companyId={c.id} onChanged={() => void q.reload()} />}
-        {canManage && <CompanyAdminsPanel ticker={c.ticker} onChanged={mine.reload} />}
+          <div className="kpis">
+            <div className="kpi"><small>{t("c.k.val")}</small><b>{money(c.valuation_aud)}</b><span>{t("c.k.valsub", { s: c.svi != null ? fmt(Number(c.svi), 1) : "–", g })}</span></div>
+            <div className="kpi"><small>{t("k.shares")}</small><b>{fmt(c.total_shares)}</b><span>{t("c.k.sharesub", { tk: c.ticker })}</span></div>
+            <div className="kpi"><small>{t("k.holders")}</small><b>{fmt(holders.length || c.holders || 0)}</b><span>{live ? t("k.kyc") : " "}</span></div>
+            <div className="kpi"><small>{t("k.anchor")}</small><b>{c.hoodi?.block ? "#" + fmt(c.hoodi.block) : t("c.k.noanchor")}</b><span>Ethereum Hoodi{c.hsk?.block ? ` · HashKey #${fmt(c.hsk.block)}` : ""}</span></div>
+          </div>
+          {live && c.marks?.length ? (
+            <MarkPanel ticker={c.ticker} name={c.name} grade={g} svi={c.svi} marks={c.marks} events={c.events} valuation={c.valuation_aud} totalShares={c.total_shares} holders={holders.length} />
+          ) : null}
+        </>
+      )}
+      {sec === "cap-table" && <CapTable rows={holders} ticker={c.ticker} source={c.cap_table_source} block={c.cap_table_block} />}
+      {sec === "transfers" && <TransferPanel c={c} onDone={() => void q.reload()} />}
+      {sec === "mint" && <MintForm c={c} onSent={() => void q.reload()} />}
+      {sec === "dividends" && <DividendForm c={c} onSent={() => void q.reload()} />}
+      {sec === "activity" && <div className="pane"><EventList events={c.events ?? []} sync={c.sync} /></div>}
+      {sec === "team" && (
+        <>
+          {live && c.id != null && <CompanyApprovals companyId={c.id} onChanged={() => void q.reload()} />}
+          <CompanyAdminsPanel ticker={c.ticker} onChanged={mine.reload} />
+        </>
+      )}
 
-        <div className="pane">
-          <h4>{t("c.ev")}</h4>
-          <EventList events={c.events ?? []} sync={c.sync} />
-        </div>
-      </div>
-    </section>
+      <Pager prev={prevS ? { to: `/c/${c.ticker}/${prevS}`, label: label(prevS) } : null}
+        next={nextS ? { to: `/c/${c.ticker}/${nextS}`, label: label(nextS), primary: !!CO_STEP[sec] } : null} />
+    </SideLayout>
   );
 }

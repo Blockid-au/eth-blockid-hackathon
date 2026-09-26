@@ -120,7 +120,7 @@ Today these cap tables live in spreadsheets; valuations are opinions without evi
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │ 1. UI  (React + viem, MetaMask, SIWE EIP-4361, EN/VI)                     │
-│    /new · /v/:id · /c/:ticker · /verify/:ticker · /admin · /hsk           │
+│    /start · /v/:id/:step · /c/:ticker/:section · /verify · /admin/:queue  │
 └──────────────────────────────┬────────────────────────────────────────────┘
                                │ HTTPS, session cookie, CSRF origin check
 ┌──────────────────────────────▼────────────────────────────────────────────┐

@@ -54,7 +54,7 @@ Stats are read live from the BlockID API: companies tokenized, total valuation, 
 
 **What it does:** This is step 1 of the 8-step flow. The founder pastes a website and can optionally expand **"Add your numbers"** to enter revenue, growth, margin, customers, raised to date, runway and headcount. The report labels these figures as *self-reported*.
 **Why it matters:** A website alone rarely states revenue, so self-reported metrics make the revenue and growth scores meaningful. Each valuation belongs to the wallet that requested it, and there is a limit of 3 per wallet per day.
-**URL:** https://eth.blockid.au/new
+**URL:** https://eth.blockid.au/start (old link `/new` redirects here)
 
 ![New valuation wizard, step 1](screenshots/07-new-wizard-step1.png)
 *Step 1 with the optional self-reported metrics section expanded.*
@@ -65,7 +65,7 @@ Stats are read live from the BlockID API: companies tokenized, total valuation, 
 
 **What it does:** AI agents read the site, extract a company profile, find competitors, analyse the market with cited sources, score the 7 SVI dimensions and draft a narrative. A fixed formula then produces the index, the grade (A–E) and an A$ valuation range. An admin can adjust AI scores before approving.
 **Why it matters:** Every number traces back to a source or a formula, which makes the valuation investor-readable and auditable.
-**URL:** `https://eth.blockid.au/v/<valuation-id>` (Airwallex: https://eth.blockid.au/v/275fa4d16186466d, visible to its owner or an admin)
+**URL:** `https://eth.blockid.au/v/<valuation-id>/research` (step 2) and `/report` (step 3) (Airwallex: https://eth.blockid.au/v/275fa4d16186466d/report, visible to its owner or an admin)
 
 ![Agent steps log](screenshots/08-valuation-agent-log.png)
 *Step 2, "AI agents at work": each agent reports its result and elapsed time, with running counters for pages, competitors and sources.*
@@ -89,7 +89,7 @@ When a data source is degraded, for example search was unavailable or few compet
 ### Sample report
 
 A public, example-data passport (Harbourline) shows the full report without signing in.
-**URL:** https://eth.blockid.au/v/sample
+**URL:** https://eth.blockid.au/v/sample/report
 
 ![Sample report](screenshots/13-sample-report.png)
 *The complete sample report: grade B, A$3.36M, radar, contribution table, range, competitor funding chart, narrative and evidence.*
@@ -107,11 +107,12 @@ A public, example-data passport (Harbourline) shows the full report without sign
 
 ---
 
-## 5. Company page: issuance tracker
+## 5. Company page: issuance steps and workspace
 
-**What it does:** It is a live, self-updating tracker for a company's issuance after **one admin approval**. The stages are Submitted → Waiting for admin approval → Issuing on BlockID Chain → Sync to Ethereum Hoodi → Sync to HashKey Chain → Live. Each sub-step links to its transaction.
+**What it does:** Steps 6–8 of the flow (`/c/<TICKER>/issue`, `/sync`, `/wallet`) show a live, self-updating tracker for a company's issuance after **one admin approval**. The stages are Submitted → Waiting for admin approval → Issuing on BlockID Chain → Sync to Ethereum Hoodi → Sync to HashKey Chain → Live. Each sub-step links to its transaction.
 **Why it matters:** Founders can see exactly where their issuance is and cannot skip the human gate.
-**URL:** https://eth.blockid.au/c/ARW · https://eth.blockid.au/c/ART · https://eth.blockid.au/c/EBA (all live)
+After issuance the same page becomes the **company workspace**, one screen per task: Overview, Cap table, Transfers, Mint shares, Dividends, Activity, Team and Verify (`/c/<TICKER>/<section>`).
+**URL:** https://eth.blockid.au/c/ARW/overview · https://eth.blockid.au/c/ART/cap-table · https://eth.blockid.au/c/EBA/issue (all live)
 
 ![ARW tracker and KPIs](screenshots/15-company-arw-tracker-kpis.png)
 *Airwallex (ARW) after one admin approval: issued on BlockID Chain (registry, token, distributor, KYC 15/15, shares, report hash), then mirrored and Merkle-anchored on Ethereum Hoodi and HashKey Chain testnet.*
@@ -195,9 +196,9 @@ Owners and admins can model a new round and see the dilution before and after, o
 ![Admin login](screenshots/27-admin-login.png)
 *The sign-in card, with MetaMask and Username tabs.*
 
-### Overview
+### Dashboard
 
-KPI tiles with sparklines, the platform value chart (marked), companies by grade, top movers over 30 days, the tokenized companies table, and a live activity feed.
+`/admin/dashboard`: KPI tiles with sparklines, the platform value chart (marked), companies by grade, top movers over 30 days, the tokenized companies table, and a live activity feed.
 
 ![Admin overview](screenshots/28-admin-overview.png)
 *Overview KPIs, the platform value chart (1M), grades and top movers.*
@@ -205,30 +206,33 @@ KPI tiles with sparklines, the platform value chart (marked), companies by grade
 ![Admin overview: companies and activity](screenshots/28b-admin-overview-companies-activity.png)
 *The companies table and live activity feed.*
 
-### Approvals
+### Inbox and queues
 
-This tab is the queue of companies waiting for issuance approval. Approving runs every chain: BlockID Chain → Ethereum Hoodi → HashKey Chain.
+The console opens on the **Inbox** (`/admin`). The left rail lists six queues in the order a company moves through the flow: Valuations ◆, Issuance ◆, Chain sync, Mints ◆, Dividends ◆, Transfers & KYC, each with its count (◆ = human gate). A queue shows one item at a time (`/admin/<queue>/<item>`) with *Item i of n*, Previous / Next (J / K) and Approve / Reject; after a decision the next item opens. An item opened from a founder's gate link returns to the founder's next step after approval. Issuance approval runs every chain: BlockID Chain → Ethereum Hoodi → HashKey Chain.
 
-![Approvals](screenshots/29-admin-approvals.png)
-*The approvals queue at capture time: a pending dividend plan for SVI. Companies awaiting their one issuance approval, mint requests and valuations appear in the same queue.*
+![Inbox](screenshots/29-admin-approvals.png)
+*The inbox: every queue in flow order with its count, and a Next step card for the oldest waiting item.*
+
+![Queue item](screenshots/29b-admin-queue-item.png)
+*One item in the Chain sync queue, with per-chain status, the sync error and Re-sync missing chains.*
 
 ### Companies
 
-This tab lists all companies with per-chain sync chips (✓ BlockID / ✓ Hoodi / ✓ HSK). Selecting a row opens a detail pane with the mark chart, KPIs, the revaluation form and activity.
+`/admin/companies/<TICKER>` lists all companies with per-chain sync chips (✓ BlockID / ✓ Hoodi / ✓ HSK). Selecting a row opens a detail pane with the mark chart, KPIs, the revaluation form and activity.
 
 ![Admin company detail](screenshots/30-admin-company-detail.png)
 *The companies tab with sync chips (all 10 companies live on BlockID, Hoodi and HashKey) and the EBA detail pane.*
 
 ### Issuer wallets
 
-This tab shows the admin and service wallets (issuer and relayer) and lets an admin grant or revoke `ISSUER_ROLE` on-chain.
+`/admin/wallets` shows the admin and service wallets (issuer and relayer) and lets an admin grant or revoke `ISSUER_ROLE` on-chain.
 
 ![Issuer wallets](screenshots/31-admin-issuer-wallets.png)
 *The three admin wallets, the issuer and relayer service wallets with their native balances on each chain (BLKD on BlockID Chain, ETH on Hoodi, HSK on HashKey), and wallets approved to issue.*
 
 ### Audit log
 
-This tab is an append-only log of every sign-in, valuation request, approval, rejection and re-anchor.
+`/admin/audit` is an append-only log of every sign-in, valuation request, approval, rejection and re-anchor.
 
 ![Audit log](screenshots/32-admin-audit-log.png)
 *The audit log.*

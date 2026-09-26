@@ -188,8 +188,8 @@ export function Home() {
             <p className="tagline">{t("hero.tag")}</p>
             <p className="pitch">{t("hero.pitch")}</p>
             <div className="ctas">
-              <Link className="btn" to="/new">{t("cta.primary")}</Link>
-              <Link className="btn ghost" to="/v/sample">{t("cta.secondary")}</Link>
+              <Link className="btn" to="/start">{t("cta.primary")}</Link>
+              <Link className="btn ghost" to="/v/sample/report">{t("cta.secondary")}</Link>
             </div>
             <p className="legal">{t("hero.legal")}</p>
             <div className="chips">
@@ -228,8 +228,8 @@ export function Home() {
             ))}
           </ol>
           <div className="row" style={{ marginTop: 20 }}>
-            <Link className="btn" to="/new">{t("home.walk.cta")}</Link>
-            <Link className="btn ghost" to="/v/sample">{t("cta.secondary")}</Link>
+            <Link className="btn" to="/start">{t("home.walk.cta")}</Link>
+            <Link className="btn ghost" to="/v/sample/report">{t("cta.secondary")}</Link>
           </div>
         </div>
       </section>
@@ -245,7 +245,7 @@ export function Home() {
           <div className="final">
             <h2>{t("fin.h")}</h2>
             <p>{t("fin.p")}</p>
-            <Link className="btn" to="/new">{t("cta.primary")}</Link>
+            <Link className="btn" to="/start">{t("cta.primary")}</Link>
           </div>
         </div>
       </section>

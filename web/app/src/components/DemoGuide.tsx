@@ -13,8 +13,9 @@ export function safeNext(raw: string | null | undefined): string | null {
 /**
  * Testnet-demo convenience for judges: how to approve a pending item with the demo admin account.
  * Shown to non-admins wherever an admin approval is pending. `action` is the button label they will press.
+ * With `admin`, the button opens that exact admin queue item and returns to `next` after the decision.
  */
-export function DemoApproveGuide({ action, tail, next }: { action: string; tail: DictKey; next?: string }) {
+export function DemoApproveGuide({ action, tail, next, admin }: { action: string; tail: DictKey; next?: string; admin?: string }) {
   const { t } = useI18n();
   const loc = useLocation();
   const back = safeNext(next ?? loc.pathname + loc.search) ?? "/";
@@ -29,7 +30,7 @@ export function DemoApproveGuide({ action, tail, next }: { action: string; tail:
         <li>{t("demo.s4", { a: action })}</li>
       </ol>
       <p>{t(tail)}</p>
-      <Link className="btn gold" to={`/admin?next=${encodeURIComponent(back)}`}>{t("demo.btn")}</Link>
+      <Link className="btn gold" to={admin ? `${admin}?return=${encodeURIComponent(back)}` : `/admin?next=${encodeURIComponent(back)}`}>{admin ? t("gate.open") : t("demo.btn")}</Link>
     </aside>
   );
 }

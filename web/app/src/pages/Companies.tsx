@@ -81,7 +81,7 @@ export default function CompaniesPage() {
           <span className="note">{t("ad.clickrow")}</span>
         </div>
         {data.error ? <ErrorBox error={data.error} retry={data.reload} /> : data.loading && !data.data ? <p className="note">{t("common.loading")}</p> : rows.length === 0 ? (
-          <p className="empty">{t("co.empty")} <Link to="/new">{t("cta.primary")}</Link></p>
+          <p className="empty">{t("co.empty")} <Link to="/start">{t("cta.primary")}</Link></p>
         ) : (
           <CompanyTable rows={rows} onPick={(c) => nav(`/c/${c.ticker}`)} />
         )}
