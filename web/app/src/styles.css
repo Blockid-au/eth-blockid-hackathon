@@ -265,6 +265,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 .ranges button { border: 0; background: transparent; padding: 5px 10px; border-radius: 6px; font: 600 .76rem/1 var(--mono); color: var(--muted); cursor: pointer; }
 .ranges button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
 .split { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.split > * { min-width: 0; } /* let wide tables scroll inside their card instead of overflowing it */
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
 .ctable { width: 100%; border-collapse: collapse; font-size: .86rem; }
 .ctable th { position: sticky; top: 0; background: var(--surface); }

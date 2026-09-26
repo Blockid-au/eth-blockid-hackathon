@@ -117,13 +117,20 @@ def score(profile: StartupProfile, qualitative: QualitativeScores, market: Marke
     rev = profile.metrics.revenue_ttm_aud
     factor = 0.5 + index / 100  # index 50 -> 1.0x, 80 -> 1.3x, 30 -> 0.8x
     if rev > 0 and market and market.revenue_multiple_median:
-        lo_m = market.revenue_multiple_low or market.revenue_multiple_median * 0.6
-        hi_m = market.revenue_multiple_high or market.revenue_multiple_median * 1.5
-        low, mid, high = rev * lo_m * factor, rev * market.revenue_multiple_median * factor, rev * hi_m * factor
+        med = market.revenue_multiple_median
+        lo_m = market.revenue_multiple_low or med * 0.6
+        hi_m = market.revenue_multiple_high or med * 1.5
+        # Sources often cite a single multiple, so low = median = high collapses the range to one number.
+        # A valuation is a range: fall back to a fixed spread and say so in the method.
+        spread = lo_m >= med * 0.95 or hi_m <= med * 1.05
+        if spread:
+            lo_m, hi_m = min(lo_m, med * 0.7), max(hi_m, med * 1.4)
+        low, mid, high = rev * lo_m * factor, rev * med * factor, rev * hi_m * factor
         method = (
             ("self-reported " if "revenue_ttm_aud" in (self_reported or ()) else "")
-            + f"revenue multiple ({lo_m:.1f}x / {market.revenue_multiple_median:.1f}x / {hi_m:.1f}x, cited market data) "
-            f"x SVI factor {factor:.2f}"
+            + f"revenue multiple ({lo_m:.1f}x / {med:.1f}x / {hi_m:.1f}x, cited market data"
+            + ("; single cited multiple, range set to 0.7x-1.4x of it" if spread else "")
+            + f") x SVI factor {factor:.2f}"
         )
         if market.confidence == "low":
             review.append("market multiples have LOW confidence — verify sources before use")

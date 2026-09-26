@@ -476,7 +476,8 @@ function WalletsTab() {
     try { await api.revokeIssuerWallet(x.address); setMsg(""); await iw.reload(); }
     catch (e) { setMsg(errText(e, t)); }
   };
-  const bal = (v: unknown) => (v == null || v === "" ? "–" : fmt(Number(v), 3));
+  // balances arrive as wei strings; show whole units (18 decimals)
+  const bal = (v: unknown) => (v == null || v === "" ? "–" : fmt(Number(BigInt(String(v)) / 10n ** 12n) / 1e6, 4));
   const svc = [["ad.aw.issuer", w.data?.issuer], ["ad.aw.relayer", w.data?.relayer]] as const;
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -490,7 +491,7 @@ function WalletsTab() {
               <span key={k} style={{ display: "grid", gap: 2 }}>
                 <span className="muted-sm">{t(k)}</span>
                 <span className="full">{x?.address ?? "–"}</span>
-                {x?.address && <span className="note">{t("ad.aw.bal", { a: bal(x.local_balance), b: bal(x.hoodi_balance) })}</span>}
+                {x?.address && <span className="note">{t("ad.aw.bal", { a: bal(x.local_balance), b: bal(x.hoodi_balance), c: bal((x as { hsk_balance?: unknown }).hsk_balance) })}</span>}
               </span>
             ))}
             <span className="note">{t("ad.awnote")}</span>
