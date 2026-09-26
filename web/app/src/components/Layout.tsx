@@ -94,6 +94,11 @@ export function Footer() {
     <footer>
       <div className="wrap">
         <span>BlockID · eth.blockid.au</span>
+        <span>
+          {t("foot.deck")}:{" "}
+          <a href="/deck/BlockID-Startup-Passport-pitch.pdf" download>PDF</a>{" · "}
+          <a href="/deck/BlockID-Startup-Passport-pitch.pptx" download>PPTX</a>
+        </span>
         <span>{t("foot.legal")}</span>
       </div>
     </footer>
