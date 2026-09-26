@@ -155,7 +155,7 @@ class OpenAICompatLLM:
 
 
 class SambaNovaLLM(OpenAICompatLLM):
-    """SambaNova Cloud (OpenAI-compatible). Fast, but the free tier allows ~20 requests/day per model, so:
+    """SambaNova Cloud (OpenAI-compatible). Fast and free, but per-model quotas and "high demand" 402s happen, so:
     short timeout, ONE retry (timeout / 5xx / invalid output), and a 429 parks the model for COOLDOWN_S so the
     chain falls through immediately instead of waiting. JSON mode (`response_format=json_object`) is used when
     the model accepts it; a 400 on it switches to prompt-only JSON, parsed robustly (think blocks / fences)."""

@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+h2{font-size:44px;margin:4px 0 22px}
+.flow{display:grid;grid-template-columns:1fr 44px 1fr 44px 1fr;align-items:stretch;margin-bottom:22px}
+.step{border-radius:18px;padding:20px 22px;border:1px solid}
+.step .k{font-family:"JetBrains Mono";font-size:14px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.step h3{font-size:28px;margin-bottom:8px}.step p{font-size:16px;color:var(--muted);line-height:1.45}
+.step code{font-family:"JetBrains Mono";font-size:14px;color:var(--ink);background:rgba(255,255,255,.06);padding:1px 6px;border-radius:5px}
+.s1{background:var(--accent-soft);border-color:#1d4a40}.s1 .k,.s1 h3{color:var(--accent-deep)}
+.s2{background:var(--gold-soft);border-color:#5a4418}.s2 .k,.s2 h3{color:var(--gold)}
+.s3{background:var(--blue-soft);border-color:#243d63}.s3 .k,.s3 h3{color:#9CC0F5}
+.arr{display:grid;place-items:center;color:var(--faint);font-size:30px}
+.layers{display:grid;grid-template-columns:1.1fr 1fr;gap:22px}
+.layer{display:flex;gap:14px;align-items:flex-start;padding:12px 16px;border-radius:12px;background:var(--sunken);border:1px solid var(--line);margin-bottom:10px}
+.layer .tag{font-family:"JetBrains Mono";font-size:12px;color:var(--faint);width:92px;flex:none;padding-top:3px;text-transform:uppercase;letter-spacing:.06em}
+.layer b{font-size:17px}.layer p{font-size:14.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+.lock{border-color:#5a4418;background:#16140c}
+.chains h3{font-size:18px;margin-bottom:10px;color:var(--muted);font-weight:600}
+.chain{padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);margin-bottom:10px}
+.chain b{font-size:17px}.chain .id{float:right;font-family:"JetBrains Mono";font-size:13px;color:var(--faint)}
+.chain p{font-size:14.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+.hsk{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.new{background:var(--accent);color:#04201A;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:2px}
+</style></head><body>
+<div class="top"><div class="brand"><span class="mark"></span>BlockID Startup Passport</div><span class="eyebrow">How it works · Architecture</span></div>
+<h2>Agents propose. Humans approve. Chains prove.</h2>
+<div class="flow">
+<div class="step s1"><div class="k">01 · AI agents</div><h3>Propose</h3><p>Research → valuation (SVI) → cap-table & dividend plans. Output is hashed and recorded with its model id: <code>propose()</code>. <b style="color:var(--ink)">No keys.</b></p></div>
+<div class="arr">→</div>
+<div class="step s2"><div class="k">02 · Human wallet</div><h3>Approve</h3><p>A <b style="color:var(--ink)">different</b> wallet reviews and signs <code>approve()</code>. Four-eyes rule enforced by the contract (<code>SelfApproval</code> revert).</p></div>
+<div class="arr">→</div>
+<div class="step s3"><div class="k">03 · Issuer + chain</div><h3>Prove</h3><p>Issuer executes only if <code>verify(id, hash)</code> is true → issue shares, anchor cap table, fund dividends, <code>markExecuted()</code>.</p></div>
+</div>
+<div class="layers">
+<div>
+<div class="layer"><span class="tag">UI</span><div><b>Web app · MetaMask · Sign-In with Ethereum</b><p>Valuation wizard, approvals queue, cap table, dividends, /hsk verify page</p></div></div>
+<div class="layer"><span class="tag">Agents</span><div><b>LangGraph pipeline · least-privilege policy</b><p>intake · research · valuation · contract builder · registry · dividend — deterministic maths, LLM only suggests</p></div></div>
+<div class="layer"><span class="tag">Control</span><div><b>Approval gates · hash-chained audit log</b><p>Every chain action needs an admin-approved row; tamper-evident audit</p></div></div>
+<div class="layer lock"><span class="tag" style="color:var(--gold)">Keys</span><div><b>Isolated issuer service — the only key holder</b><p>Separate network; agents have no route to it. Relayer pays gas for claims.</p></div></div>
+</div>
+<div class="chains"><h3>Chains</h3>
+<div class="chain hsk"><b>HashKey Chain testnet<span class="new">NEW</span></b><span class="id">chain 133</span><p>AgentProvenance · ShareToken · IdentityRegistry · DividendDistributor · CapTableAnchor · mAUD</p></div>
+<div class="chain"><b>Ethereum Hoodi</b><span class="id">chain 560048</span><p>CapTableAnchor Merkle roots + paused mirror token</p></div>
+<div class="chain"><b>BlockID EVM</b><span class="id">chain 262626</span><p>Zero-gas operational share register</p></div>
+</div></div>
+<div class="foot"><span><b>AgentProvenance</b> 0x6B96…8e84 · HashKey Chain testnet</span><span>github.com/Blockid-au/eth-blockid-hackathon</span></div>
+</body></html>

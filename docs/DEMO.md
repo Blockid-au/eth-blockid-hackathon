@@ -3,8 +3,8 @@
 > **Testnet demo. Not an offer of securities.**
 
 Before going on stage: sign in once at https://eth.blockid.au with MetaMask (founder wallet) and in a second
-browser profile with the admin wallet; have one valuation already finished and waiting for approval (valuations
-take a few minutes); open tabs for https://eth.blockid.au/hsk, https://scan.blockid.au and the HashKey testnet
+browser profile with the admin wallet; keep company **ARW (Airwallex)** in *Awaiting issue approval* for the live approval (valuations
+take a few minutes, so they are pre-run); open tabs for https://eth.blockid.au/hsk, https://scan.blockid.au and the HashKey testnet
 explorer on the `AgentProvenance` contract.
 
 ## Timed beats
@@ -14,9 +14,9 @@ explorer on the `AgentProvenance` contract.
 | 0:00–0:20 | Home page | "Startups in Australia, Vietnam and emerging markets can't afford a valuation, a proper share register or dividend admin — cap tables live in spreadsheets. BlockID lets AI agents do the work and tokenises the equity as an RWA — but agents never hold keys." |
 | 0:20–0:50 | `/new` wizard → paste a website, start valuation; switch to the pre-run valuation `/v/:id` | "The agent crawls the public site through an SSRF-safe fetcher, finds competitors, builds a market view and scores 7 SVI dimensions. The maths is code; the AI only suggests qualitative scores, labelled `ai_suggested`, and every claim links to a fetched source." |
 | 0:50–1:15 | Evidence list, dimension bases, then `/admin` approvals queue | "The graph stops at a human gate. The admin — a different person, with their own wallet — approves or overrides. The agent's policy forbids signing, sending, deploying, reading keys or running a shell — enforced in code, not in the prompt." |
-| 1:15–1:45 | Create company (ticker, holders), submit; admin approves issuance; company page `/c/:ticker` | "On approval, the isolated issuer — the only component with a key — deploys the identity registry, the permissioned share token and dividend distributor, KYCs the holders and issues shares. Zero gas on the BlockID chain." Click a tx → https://scan.blockid.au |
-| 1:45–2:05 | Company page: anchor to Hoodi, add-token button | "The cap-table Merkle root is anchored on Ethereum Hoodi — any holder can prove their balance against it." |
-| 2:05–2:40 | https://eth.blockid.au/hsk + HSK explorer | "For the HashKey track the full stack is live on HashKey Chain testnet, plus our new `AgentProvenance` contract: the agent's output hash and model id are recorded, a human approver wallet approves on-chain — it must differ from the recorder, four-eyes — and only then can execution be marked. Anyone can `verify` a report against what was approved." |
+| 1:15–1:50 | `/admin` → Approvals → company **ARW (Airwallex)** pending → "Approve issuance (runs all chains)"; open `/c/ARW` tracker | "One human approval. The isolated issuer — the only component with a key — creates the share register on our zero-gas BlockID chain first: identity registry, permissioned token, dividend distributor, KYC for each holder, shares issued. Then it syncs automatically to Ethereum Hoodi and HashKey Chain." Point at the live tracker lines ("Now: KYC 2/3…", tx links to scan.blockid.au) |
+| 1:50–2:10 | Company page of an anchored company (e.g. **EBA**): contract-address cards for BlockID / Hoodi / HashKey, "Add to MetaMask" | "Each chain gets a paused mirror of the cap table plus a Merkle root in `CapTableAnchor`; every shareholder can import the token and prove their balance." |
+| 2:10–2:40 | `/verify/EBA` → green banner (BlockID ✓ Hoodi ✓ HashKey ✓) → **Tamper test** → red | "Auditable AI: the model only scores; a fixed public formula computes the value — recomputed here in your browser. The keccak of the report is on three chains. Change one score and the hash no longer matches." Then mention `/hsk` + `AgentProvenance` four-eyes approval for the HashKey track |
 | 2:40–3:00 | Back to home | "AI proposes, code computes, humans approve with their own wallets, an isolated issuer signs, and every step is provable on-chain. Next: ERC-4337 agent accounts with spending limits, agent reputation from this provenance log, real stablecoin dividends and HSK mainnet." |
 
 Fallback if the live site or a chain RPC is slow: run `make demo` (offline end-to-end with fake LLM) in a
@@ -57,4 +57,4 @@ local model tier in code.
 Fees per valuation, per issuance and per dividend round for SMEs; transfer-agent services once licensed.
 
 **What did you build during the hackathon?**
-`AgentProvenance`, the HashKey Chain deployment and page, and the English docs. The rest of the platform existed.
+`AgentProvenance`; the HashKey Chain deployment and page; one-approval sync BlockID → Hoodi → HashKey with a live issuance tracker; the `/verify` page (report hash recomputed in the browser and compared on three chains); a Claude-CLI web-search fallback with a 3-query research budget; English docs. The core platform existed before the event.

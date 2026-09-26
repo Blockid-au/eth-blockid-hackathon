@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+h2{font-size:44px;margin:4px 0 24px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.c{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.c h3{font-size:20px;display:flex;gap:10px;align-items:baseline}
+.c h3 .n{font-family:"JetBrains Mono";font-size:14px;color:var(--gold)}
+.row{display:grid;grid-template-columns:62px 1fr;gap:8px;font-size:15px;line-height:1.4}
+.lb{font-family:"JetBrains Mono";font-size:11.5px;font-weight:600;letter-spacing:.06em;padding:3px 0;border-radius:5px;text-align:center;height:max-content}
+.bug .lb{background:var(--bad-soft);color:var(--bad)}.fx .lb{background:var(--accent-soft);color:var(--accent-deep)}
+.bug p{color:var(--muted)}.fx p{color:var(--ink)}
+code{font-family:"JetBrains Mono";font-size:13px;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px}
+.res{margin-top:22px;display:flex;gap:16px}
+.res div{flex:1;background:var(--accent-soft);border:1px solid #1d4a40;border-radius:14px;padding:14px 18px}
+.res b{display:block;font-family:"Be Vietnam Pro";font-size:28px;color:var(--accent-deep)}
+.res span{color:var(--muted);font-size:15px}
+</style></head><body>
+<div class="top"><div class="brand"><span class="mark"></span>BlockID Startup Passport</div><span class="eyebrow">Challenges we ran into</span></div>
+<h2>What broke while wiring HashKey Chain — and how we fixed it</h2>
+<div class="grid">
+<div class="c"><h3><span class="n">01</span>Real human approval</h3>
+<div class="row bug"><span class="lb">BUG</span><p>One Foundry script = one key, so the same account proposed <i>and</i> approved.</p></div>
+<div class="row fx"><span class="lb">FIX</span><p>Four-eyes rule in the contract (<code>SelfApproval</code>). Split into propose → human <code>approve</code> → execute guarded by <code>verify()</code>.</p></div></div>
+<div class="c"><h3><span class="n">02</span>Stack too deep</h3>
+<div class="row bug"><span class="lb">BUG</span><p><code>execute()</code> had too many locals; solc refused to compile, and the shell script kept going.</p></div>
+<div class="row fx"><span class="lb">FIX</span><p>Extracted the dividend round into a helper (no <code>via-ir</code> needed) and made the script stop on any forge failure.</p></div></div>
+<div class="c"><h3><span class="n">03</span>Wrong Merkle root</h3>
+<div class="row bug"><span class="lb">BUG</span><p>Dividend root was anchored as the cap-table root — nobody could prove a share balance.</p></div>
+<div class="row fx"><span class="lb">FIX</span><p>Separate <code>(holder, shares)</code> tree from our OZ-compatible Python Merkle tool.</p></div></div>
+<div class="c"><h3><span class="n">04</span>Surprising test failure</h3>
+<div class="row bug"><span class="lb">BUG</span><p>Access-control revert showed the test contract, not the attacker.</p></div>
+<div class="row fx"><span class="lb">FIX</span><p><code>vm.prank</code> was consumed by the <code>ROLE()</code> getter — read roles first.</p></div></div>
+<div class="c"><h3><span class="n">05</span>HashKey tooling</h3>
+<div class="row bug"><span class="lb">BUG</span><p>Expected explorer domain didn't resolve; SIWE backend rejects chain 133.</p></div>
+<div class="row fx"><span class="lb">FIX</span><p>Verified <code>testnet-explorer.hskchain.net</code>; MetaMask adds HSK, sign-in falls back safely.</p></div></div>
+<div class="c"><h3><span class="n">06</span>Missing JSON = HTTP 200</h3>
+<div class="row bug"><span class="lb">BUG</span><p>SPA fallback served <code>index.html</code> for <code>/hsk-demo.json</code>; rebuilds wiped it.</p></div>
+<div class="row fx"><span class="lb">FIX</span><p>Non-JSON → "deployment pending" state; Vite plugin keeps deployment JSON.</p></div></div>
+</div>
+<div class="res"><div><b>37 / 37</b><span>Solidity tests (7 new for AgentProvenance)</span></div><div><b>100 passed</b><span>Python agent tests</span></div><div><b>10 txs</b><span>full flow live on HashKey Chain testnet</span></div><div><b>true / false</b><span><code>verify()</code> for real vs tampered report</span></div></div>
+<div class="foot"><span><b>eth.blockid.au/hsk</b></span><span>github.com/Blockid-au/eth-blockid-hackathon</span></div>
+</body></html>

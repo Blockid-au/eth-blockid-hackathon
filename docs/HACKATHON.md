@@ -217,3 +217,10 @@ Honest scope statement:
    for any team that wants agents to act on-chain without keys.
 
 > **Testnet demo. Not an offer of securities.** Not legal or financial advice.
+
+
+## Visual summary
+
+![How it works](images/architecture.png)
+
+![Challenges](images/challenges.png)

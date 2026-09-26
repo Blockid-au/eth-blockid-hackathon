@@ -1,5 +1,7 @@
 # BlockID Startup Passport
 
+![BlockID Startup Passport](docs/images/cover.png)
+
 ### Agents propose. Humans approve. Chains prove.
 
 *Every startup gets a passport: an AI-researched valuation, a tokenised share register and automatic dividends —
@@ -31,6 +33,8 @@ isolated issuer service execute.
 
 See [docs/HACKATHON.md](docs/HACKATHON.md) for why these tracks and how the build maps to each judging criterion.
 
+![The problem it solves](docs/images/problem.png)
+
 ## The problem
 
 Small companies and startups — in Australia, Vietnam and other emerging markets — cannot cheaply:
@@ -42,6 +46,8 @@ Small companies and startups — in Australia, Vietnam and other emerging market
 Tokenisation fixes the register and the payouts, and AI can do the valuation research — but handing an AI agent
 the keys to a company's equity is unacceptable. BlockID's answer: **AI proposes, code computes, humans approve,
 an isolated issuer signs, and every step is verifiable on-chain.**
+
+![How it works — architecture](docs/images/architecture.png)
 
 ## Features
 
@@ -143,6 +149,22 @@ Key transactions (the full *AI proposes → human approves → issuer executes* 
 | 6. Dividend round funded | [`0x09932f10…`](https://testnet-explorer.hskchain.net/tx/0x09932f105dc1b879c0d82764e5c5e7eb2e4f46a629367803b081d2c530f3b7ef) |
 | 7. Proposal marked executed | [`0x8896743f…`](https://testnet-explorer.hskchain.net/tx/0x8896743fc9d7f62857206ccae0ccea407fe9c03d2a71e8b5792680ffccad79e0) |
 | 8. Gasless dividend claim (relayer) | [`0x89b1edc1…`](https://testnet-explorer.hskchain.net/tx/0x89b1edc1d65ed7288bc2a3d35ae6d5334b62cebddb26f6597995e070cfab349a) |
+
+### One approval → three chains (live Studio flow)
+
+After a single admin approval the isolated issuer creates the register on BlockID EVM first, then syncs it to
+Ethereum Hoodi and HashKey Chain (paused mirror token + cap-table Merkle root + the valuation report hash), with a
+live tracker at `/c/:ticker`. Anyone can recompute the report hash in the browser at `/verify/:ticker`.
+Example — **EBA (ETH BlockID Australia)**, 3,650,000 shares:
+
+| Chain | Share token | Proof |
+|---|---|---|
+| BlockID EVM (262626) | [`0x95A5a4b82897087B2c044b653B8e6bd617a58718`](https://scan.blockid.au/token/0x95A5a4b82897087B2c044b653B8e6bd617a58718) | register of record |
+| Ethereum Hoodi (560048) | [`0x1a305fdD461002BD6136476A69F3a268F79aAb3b`](https://hoodi.etherscan.io/token/0x1a305fdD461002BD6136476A69F3a268F79aAb3b) | paused mirror + `CapTableAnchor` root |
+| HashKey Chain testnet (133) | [`0x041Eb1B727c4cdDfc8D46f1fBCb812E1c94fbc90`](https://testnet-explorer.hskchain.net/address/0x041Eb1B727c4cdDfc8D46f1fBCb812E1c94fbc90) | paused mirror; root anchored in [`0xda0d9934…`](https://testnet-explorer.hskchain.net/tx/0xda0d99340d6a892a6fc1e53d38cf7db8802936d623c55f4d1af06eafaef2e10f) |
+
+Valuation report hash on all three tokens: `0xa1466362b035ecc804caf101986edc4de73697cacf54547226317616c3a73e33`
+— check it at https://eth.blockid.au/verify/EBA.
 
 Roles: operator/issuer `0x2567Bb502ac840cF93957C60A410160a8cCb5ddf` · human approver `0xC40052702B48631C26AD7c88b499bF230faCa21F` · relayer `0x1B43f0d3297F79cE6c8BbA12F4FadFBE9112DA4a`.
 SVI report hash: `0x3c273fe671ed6024caede1240085a14a67c89a2f94ee08e0f82918af24efebf4` (keccak256 of [`contracts/deployments/params/hsk-svi-report.json`](contracts/deployments/params/hsk-svi-report.json)). Live page: https://eth.blockid.au/hsk

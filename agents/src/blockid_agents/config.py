@@ -38,18 +38,20 @@ class Settings:
     deepinfra_base_url: str = field(
         default_factory=lambda: _env("DEEPINFRA_BASE_URL", "https://api.deepinfra.com/v1/openai")
     )
-    # Tried in order. Qwen3-235B-2507: reliable JSON, 262k ctx, ~US$0.09/0.55 per M tokens (in/out).
+    # Paid fallback, tried in order. Benchmarked 2026-09-26 on SVI scoring vs Claude Sonnet (docs/LLM-ROUTING.md):
+    # DeepSeek-V4-Flash is closest to Sonnet with no invented URLs (~US$0.0004/call); gpt-oss-120b is cheapest.
     deepinfra_models: tuple[str, ...] = field(default_factory=lambda: tuple(
-        m.strip() for m in _env("DEEPINFRA_MODELS", "Qwen/Qwen3-235B-A22B-Instruct-2507,openai/gpt-oss-120b").split(",")
+        m.strip() for m in _env("DEEPINFRA_MODELS", "deepseek-ai/DeepSeek-V4-Flash,openai/gpt-oss-120b").split(",")
         if m.strip()
     ))
 
-    # SambaNova Cloud (OpenAI-compatible, fast; free tier = 20 requests/day per model, so several models are
-    # chained). IDs from https://docs.sambanova.ai/docs/en/models/rate-limits (free-tier models).
+    # SambaNova Cloud (OpenAI-compatible, fast, free tier; limits are per model — this key reports 60 req/min and
+    # 12k req/day — so several models are chained). gpt-oss-120b first: closest free model to Sonnet on SVI
+    # scoring, ~5 s/call, no invented URLs; gemma-4-31B-it last because it inflates product/market scores.
     sambanova_api_key: str = field(default_factory=lambda: _env("SAMBANOVA_API_KEY"))
     sambanova_base_url: str = field(default_factory=lambda: _env("SAMBANOVA_BASE_URL", "https://api.sambanova.ai/v1"))
     sambanova_models: tuple[str, ...] = field(default_factory=lambda: _csv(
-        "SAMBANOVA_MODELS", "DeepSeek-V3.1,Meta-Llama-3.3-70B-Instruct,gpt-oss-120b"))
+        "SAMBANOVA_MODELS", "gpt-oss-120b,DeepSeek-V3.1,gemma-4-31B-it"))
     sambanova_timeout: float = field(default_factory=lambda: float(_env("SAMBANOVA_TIMEOUT", "60")))
     # Cloud-tier fallback chain after the Claude CLI (when CLAUDE_CLI_ENABLED; list "claude" to place it
     # elsewhere). Providers without an API key are skipped.
