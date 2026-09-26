@@ -93,6 +93,6 @@ export function usePageVisible(): boolean {
 
 export function useTitle(title: string) {
   useEffect(() => {
-    document.title = title ? `${title} · BlockID` : "BlockID Issuance Studio";
+    document.title = title ? `${title} · BlockID` : "BlockID Startup Passport";
   }, [title]);
 }
