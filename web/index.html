@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BlockID · eth.blockid.au</title>
+  <style>
+    :root {
+      --bg: #f6f7f9; --card: #fff; --text: #16181d; --muted: #5d6573; --line: #e3e6eb;
+      --accent: #2856d8; --ok: #1d7a4a; --warn: #a86400; --bad: #b3261e; --chip: #eef1f6;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0f1115; --card: #171a21; --text: #e7e9ee; --muted: #9aa3b2; --line: #272c36;
+              --accent: #7aa2ff; --ok: #4cc38a; --warn: #f0b04a; --bad: #ff7b72; --chip: #202530; color-scheme: dark; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .wrap { max-width: 64rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+    header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1rem; margin-bottom: 1.5rem; }
+    h1 { margin: 0; font-size: 1.6rem; letter-spacing: -.01em; }
+    h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+    .sub { color: var(--muted); margin: .25rem 0 0; }
+    .chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .chip { background: var(--chip); border-radius: 999px; padding: .25rem .7rem; font-size: .85rem; white-space: nowrap; }
+    .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; background: var(--muted); margin-right: .35rem; }
+    .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+    .kv { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; margin: 0; }
+    .kv dt { color: var(--muted); } .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+    .big { font-size: 1.5rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .muted { color: var(--muted); }
+    a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; }
+    .tablebox { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 500; font-size: .85rem; }
+    td.num, th.num { text-align: right; }
+    .tag { font-size: .8rem; padding: .1rem .5rem; border-radius: 6px; background: var(--chip); }
+    .tag.ok { color: var(--ok); } .tag.warn { color: var(--warn); }
+    button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 8px; padding: .45rem .8rem; cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    .actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .note { font-size: .85rem; color: var(--muted); margin-top: .75rem; }
+    #msg { min-height: 1.2em; font-size: .85rem; color: var(--muted); margin-top: .5rem; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>BlockID Agent Platform</h1>
+      <p class="sub">Định giá SVI → phát hành cổ phần số → sổ cổ đông → chia cổ tức Merkle · bản demo testnet</p>
+    </div>
+    <div class="chips">
+      <span class="chip"><span class="dot" id="d-api"></span>API <span id="s-api">…</span></span>
+      <span class="chip"><span class="dot" id="d-chain"></span>BlockID chain <span id="s-chain">…</span></span>
+      <span class="chip"><span class="dot" id="d-hoodi"></span>Hoodi <span id="s-hoodi">…</span></span>
+    </div>
+  </header>
+
+  <section class="card" id="deploy-card">
+    <h2>Demo trên Ethereum Hoodi testnet</h2>
+    <div id="deploy-empty" class="muted">Chưa deploy — đang chờ ví deployer có Hoodi ETH.</div>
+    <div id="deploy" hidden>
+      <div class="grid">
+        <div>
+          <div class="muted">Định giá neo on-chain (SVI)</div>
+          <div class="big" id="v-val">…</div>
+          <div class="muted" id="v-supply"></div>
+        </div>
+        <div>
+          <div class="muted">Vòng cổ tức #0 (mAUD)</div>
+          <div class="big" id="v-div">…</div>
+          <div class="muted" id="v-deadline"></div>
+        </div>
+      </div>
+      <dl class="kv" style="margin-top:1rem" id="contracts"></dl>
+    </div>
+  </section>
+
+  <section class="card" id="holders-card" hidden>
+    <h2>Sổ cổ đông &amp; cổ tức</h2>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>Cổ đông</th><th>KYC</th><th class="num">Cổ phần</th><th class="num">Tỷ lệ</th><th class="num">Cổ tức</th><th>Trạng thái</th></tr></thead>
+        <tbody id="holders"></tbody>
+      </table>
+    </div>
+    <p class="note">Cổ tức được nhận qua <code>claimFor</code> do ví relayer gửi và trả gas thay cổ đông; Merkle proof được sinh bởi Dividend agent (Python) và kiểm chứng bằng Solidity.</p>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>MetaMask</h2>
+      <div class="actions">
+        <button id="add-blockid">Thêm BlockID chain</button>
+        <button id="add-hoodi">Chuyển sang Hoodi</button>
+      </div>
+      <div id="msg"></div>
+      <dl class="kv" style="margin-top:.75rem">
+        <dt>RPC</dt><dd class="mono">https://eth.blockid.au/rpc</dd>
+        <dt>Chain ID</dt><dd class="mono">262626</dd>
+      </dl>
+    </section>
+    <section class="card">
+      <h2>Dịch vụ</h2>
+      <dl class="kv">
+        <dt>Explorer</dt><dd><a href="/explorer/">/explorer/</a></dd>
+        <dt>API</dt><dd><a href="/api/healthz">/api/healthz</a></dd>
+        <dt>JSON-RPC</dt><dd class="mono">/rpc</dd>
+      </dl>
+    </section>
+  </div>
+</div>
+
+<script>
+const HOODI_RPC = "https://ethereum-hoodi-rpc.publicnode.com";
+const HOODI_SCAN = "https://hoodi.etherscan.io";
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n).toLocaleString("vi-VN");
+const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
+
+async function rpc(url, method, params = []) {
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message);
+  return j.result;
+}
+const pad = (hex) => hex.replace(/^0x/, "").toLowerCase().padStart(64, "0");
+const call = (to, data) => rpc(HOODI_RPC, "eth_call", [{ to, data }, "latest"]);
+const word = (hex, i) => BigInt("0x" + hex.slice(2 + i * 64, 2 + (i + 1) * 64));
+
+function status(key, ok, text) {
+  $("d-" + key).className = "dot " + (ok ? "ok" : "bad");
+  $("s-" + key).textContent = text;
+}
+
+async function health() {
+  fetch("/api/healthz").then(r => r.json()).then(j => status("api", j.ok, j.ok ? "ok" : "lỗi"))
+    .catch(() => status("api", false, "lỗi"));
+  rpc("/rpc", "eth_blockNumber").then(b => status("chain", true, "#" + fmt(parseInt(b, 16))))
+    .catch(() => status("chain", false, "lỗi"));
+  rpc(HOODI_RPC, "eth_blockNumber").then(b => status("hoodi", true, "#" + fmt(parseInt(b, 16))))
+    .catch(() => status("hoodi", false, "lỗi"));
+}
+
+async function demo() {
+  let d;
+  try { const r = await fetch("/hoodi-demo.json", { cache: "no-store" }); if (!r.ok) return; d = await r.json(); }
+  catch { return; }
+  $("deploy-empty").hidden = true; $("deploy").hidden = false; $("holders-card").hidden = false;
+
+  const link = (a) => `<a class="mono" href="${HOODI_SCAN}/address/${a}" target="_blank" rel="noopener">${a}</a>`;
+  $("contracts").innerHTML = [
+    ["BlockIDShareToken", d.shareToken], ["IdentityRegistry", d.identityRegistry],
+    ["DividendDistributor", d.dividendDistributor], ["mAUD (demo)", d.payToken],
+    ["Operator", d.operator], ["Relayer", d.relayer],
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${link(v)}</dd>`).join("");
+
+  const [supply, cents, round] = await Promise.all([
+    call(d.shareToken, "0x18160ddd"), call(d.shareToken, "0xbecd72d3"),
+    call(d.dividendDistributor, "0x8f1327c0" + pad("0")),
+  ]);
+  const S = BigInt(supply), C = BigInt(cents);
+  $("v-val").textContent = "A$" + (Number(C) / 100).toFixed(2) + " / cổ phần";
+  $("v-supply").textContent = fmt(S) + " cổ phần · vốn hoá ≈ A$" + fmt(Number(S * C) / 100);
+  // Round tuple: root, payToken, total, claimed, recordBlock, claimDeadline, resolutionRef, closed
+  const total = word(round, 2), claimed = word(round, 3), deadline = word(round, 5);
+  $("v-div").textContent = fmt(Number(claimed) / 1e6) + " / " + fmt(Number(total) / 1e6);
+  $("v-deadline").textContent = "đã nhận / tổng · hạn " + new Date(Number(deadline) * 1000).toLocaleDateString("vi-VN");
+
+  const rows = await Promise.all(d.holders.map(async (h) => {
+    const [bal, kyc, got] = await Promise.all([
+      call(d.shareToken, "0x70a08231" + pad(h.account)),
+      call(d.identityRegistry, "0xb9209e33" + pad(h.account)),
+      call(d.dividendDistributor, "0x873f6f9e" + pad("0") + pad(h.account)),
+    ]);
+    const b = BigInt(bal), pct = S ? Number(b * 10000n / S) / 100 : 0;
+    const claimedTag = BigInt(got) ? '<span class="tag ok">đã nhận</span>' : '<span class="tag warn">chờ nhận</span>';
+    return `<tr><td>${link(h.account).replace(h.account, short(h.account))}</td>
+      <td>${BigInt(kyc) ? '<span class="tag ok">đã xác minh</span>' : '<span class="tag">chưa</span>'}</td>
+      <td class="num">${fmt(b)}</td><td class="num">${pct}%</td>
+      <td class="num">${fmt(h.amount / 1e6)} mAUD</td><td>${claimedTag}</td></tr>`;
+  }));
+  $("holders").innerHTML = rows.join("");
+}
+
+async function addChain(params) {
+  if (!window.ethereum) { $("msg").textContent = "Không tìm thấy MetaMask trong trình duyệt."; return; }
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: params.chainId }] });
+    $("msg").textContent = "Đã chuyển sang " + params.chainName + ".";
+  } catch (e) {
+    try { await window.ethereum.request({ method: "wallet_addEthereumChain", params: [params] });
+          $("msg").textContent = "Đã thêm " + params.chainName + "."; }
+    catch (err) { $("msg").textContent = "MetaMask: " + (err.message || err); }
+  }
+}
+$("add-blockid").onclick = () => addChain({ chainId: "0x401e2", chainName: "BlockID Chain",
+  rpcUrls: ["https://eth.blockid.au/rpc"], nativeCurrency: { name: "BlockID", symbol: "BLKD", decimals: 18 } });
+$("add-hoodi").onclick = () => addChain({ chainId: "0x88bb0", chainName: "Ethereum Hoodi",
+  rpcUrls: [HOODI_RPC], nativeCurrency: { name: "Hoodi ETH", symbol: "ETH", decimals: 18 },
+  blockExplorerUrls: [HOODI_SCAN] });
+
+health(); demo().catch(e => { $("deploy-empty").hidden = false; $("deploy-empty").textContent = "Lỗi đọc dữ liệu Hoodi: " + e.message; });
+setInterval(health, 15000);
+</script>
+</body>
+</html>

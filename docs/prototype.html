@@ -1,0 +1,1689 @@
+<title>BlockID Studio Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap&subset=vietnamese">
+<style>
+:root {
+  --bg: #F3F6F5; --surface: #FFFFFF; --sunken: #EAF0EE; --ink: #0D1B1E; --muted: #55676A; --faint: #8A9A97; --line: #D9E3E0;
+  --accent: #00876A; --accent-ink: #FFFFFF; --accent-soft: #DDF1EA; --accent-deep: #005E4A;
+  --gold: #9A6310; --gold-mark: #C2841A; --gold-soft: #FBF0DC;
+  --ok: #1C7C4A; --warn: #B45309; --warn-soft: #FDF1E3; --bad: #B42318;
+  --c1: #00876A; --c2: #C4503A; --c3: #3A6ECC; --c4: #C2841A; --c5: #8A4FB5; --c6: #9AA8A5;
+  --shadow: 0 1px 2px rgb(10 30 28 / .06), 0 12px 32px -16px rgb(10 30 28 / .22);
+  --display: "Be Vietnam Pro", "IBM Plex Sans", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0A1312; --surface: #101D1B; --sunken: #0C1716; --ink: #E3EDEB; --muted: #95A9A5; --faint: #6C807C; --line: #20322F;
+    --accent: #26A887; --accent-ink: #04201A; --accent-soft: #11302A; --accent-deep: #7FD9C0;
+    --gold: #E6B455; --gold-mark: #B3822A; --gold-soft: #2B2312;
+    --ok: #4CC38A; --warn: #F0A94B; --warn-soft: #2E2110; --bad: #FF8A7E;
+    --c1: #26A887; --c2: #D56A50; --c3: #5D8AD6; --c4: #B3822A; --c5: #A276C8; --c6: #5E706C;
+    --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 16px 40px -18px rgb(0 0 0 / .6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0A1312; --surface: #101D1B; --sunken: #0C1716; --ink: #E3EDEB; --muted: #95A9A5; --faint: #6C807C; --line: #20322F;
+  --accent: #26A887; --accent-ink: #04201A; --accent-soft: #11302A; --accent-deep: #7FD9C0;
+  --gold: #E6B455; --gold-mark: #B3822A; --gold-soft: #2B2312;
+  --ok: #4CC38A; --warn: #F0A94B; --warn-soft: #2E2110; --bad: #FF8A7E;
+  --c1: #26A887; --c2: #D56A50; --c3: #5D8AD6; --c4: #B3822A; --c5: #A276C8; --c6: #5E706C;
+  --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 16px 40px -18px rgb(0 0 0 / .6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+p { margin: 0; }
+a { color: var(--accent); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.mono { font-family: var(--mono); }
+.num { font-variant-numeric: tabular-nums; }
+.eyebrow { font: 600 .74rem/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+
+/* nav */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; gap: 18px; min-height: 60px; flex-wrap: wrap; padding-block: 8px; }
+.brand { display: flex; align-items: center; gap: 9px; font: 800 1.08rem/1 var(--display); letter-spacing: -0.02em; text-decoration: none; color: var(--ink); }
+.mark { width: 24px; height: 24px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
+.mark::after { content: ""; width: 10px; height: 10px; border: 2.5px solid var(--accent-ink); border-radius: 2px; }
+.links { display: flex; gap: 18px; font-size: .92rem; }
+.links a { color: var(--muted); text-decoration: none; }
+.links a:hover { color: var(--ink); }
+.grow { flex: 1; }
+.netchip { display: inline-flex; align-items: center; gap: 7px; font-size: .8rem; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; background: var(--surface); white-space: nowrap; }
+.netchip i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.langs { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--surface); }
+.langs button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 6px 10px; font: 600 .78rem/1 var(--body); color: var(--muted); cursor: pointer; }
+.langs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); }
+.flag { width: 20px; height: 13px; border-radius: 2px; box-shadow: 0 0 0 1px rgb(0 0 0 / .12); display: block; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; padding: 11px 18px; font: 600 .93rem/1 var(--body); border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); cursor: pointer; text-decoration: none; white-space: nowrap; transition: transform .15s ease, box-shadow .15s ease; }
+.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn.ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.btn.gold { background: var(--gold-mark); border-color: var(--gold-mark); color: #fff; }
+.btn.sm { padding: 7px 11px; font-size: .8rem; border-radius: 8px; }
+@media (max-width: 820px) { .links { display: none; } }
+
+/* hero */
+.hero { padding-block: 64px 40px; }
+.hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+@media (max-width: 920px) { .hero .wrap { grid-template-columns: 1fr; gap: 36px; } }
+.hero h1 { font-size: clamp(2.3rem, 4.6vw, 3.7rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.035em; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero .pitch { font-size: 1.12rem; color: var(--muted); max-width: 54ch; margin-top: 20px; }
+.hero .ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+.hero .legal { font-size: .8rem; color: var(--faint); margin-top: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+.chip { display: inline-flex; align-items: center; gap: 7px; font-size: .82rem; border-radius: 999px; padding: 5px 11px; background: var(--surface); border: 1px solid var(--line); }
+.chip svg { width: 14px; height: 14px; color: var(--accent); flex: none; }
+
+/* hero device */
+.device { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
+.device .bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--sunken); font: .76rem/1 var(--mono); color: var(--muted); }
+.device .bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.device .inner { padding: 20px; display: grid; gap: 14px; }
+.urlrow { display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--bg); font: .88rem/1 var(--mono); }
+.urlrow .caret { width: 2px; height: 16px; background: var(--accent); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.stages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.stages span { font-size: .7rem; color: var(--faint); display: grid; gap: 6px; }
+.stages span::before { content: ""; height: 4px; border-radius: 2px; background: var(--line); transition: background .4s; }
+.stages span.on { color: var(--ink); }
+.stages span.on::before { background: var(--accent); }
+.heroviz { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 212px; }
+.tile { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; align-content: start; transition: opacity .5s, transform .5s; }
+.tile.dim { opacity: .28; transform: translateY(4px); }
+.tile small { font-size: .72rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+.gradeline { display: flex; align-items: baseline; gap: 10px; }
+.gradebadge { width: 42px; height: 42px; border-radius: 11px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 800 1.4rem/1 var(--display); }
+.bigno { font: 800 2rem/1 var(--display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.tick { font: 700 1.6rem/1 var(--mono); letter-spacing: .14em; color: var(--accent); }
+.srcs { display: flex; flex-wrap: wrap; gap: 4px; }
+.srcs b { font: 500 .66rem/1 var(--mono); padding: 4px 6px; border-radius: 5px; background: var(--sunken); color: var(--muted); }
+.anchorline { display: flex; align-items: center; gap: 8px; font-size: .78rem; color: var(--gold); background: var(--gold-soft); padding: 7px 10px; border-radius: 8px; }
+.anchorline::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gold-mark); }
+
+/* sections */
+section.block { padding-block: 72px; border-top: 1px solid var(--line); }
+.head { display: grid; gap: 12px; max-width: 760px; margin-bottom: 36px; }
+.head h2 { font-size: clamp(1.7rem, 3vw, 2.4rem); line-height: 1.12; font-weight: 700; }
+.head p { color: var(--muted); font-size: 1.05rem; max-width: 64ch; }
+
+/* diagram */
+figure { margin: 0; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 760px; height: auto; color: var(--ink); }
+figcaption { font-size: .88rem; color: var(--muted); margin-top: 12px; max-width: 80ch; }
+
+/* walkthrough */
+.stepnav { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-bottom: 18px; }
+@media (max-width: 860px) { .stepnav { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.stepnav button { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 9px 10px; cursor: pointer; display: grid; gap: 3px; min-width: 0; }
+.stepnav button b { font: 600 .7rem/1 var(--mono); color: var(--faint); }
+.stepnav button span { font-size: .8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stepnav button.done { border-color: var(--accent); }
+.stepnav button.done b { color: var(--accent); }
+.stepnav button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.stepnav button[aria-selected="true"] b { color: var(--accent-ink); opacity: .8; }
+.stepnav button.gate:not([aria-selected="true"]) { border-color: var(--gold-mark); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 26px; display: grid; gap: 20px; }
+.panel[hidden] { display: none; }
+.ptitle { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ptitle h3 { font-size: 1.45rem; font-weight: 700; }
+.ptitle p { color: var(--muted); max-width: 64ch; margin-top: 6px; }
+.gatepill { font-size: .75rem; font-weight: 600; color: var(--gold); background: var(--gold-soft); border-radius: 999px; padding: 5px 11px; white-space: nowrap; }
+.pnav { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 16px; }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.cols3 { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 20px; }
+@media (max-width: 900px) { .cols, .cols3 { grid-template-columns: 1fr; } }
+.card { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.card h4 { margin: 0; font: 600 .95rem/1.3 var(--display); }
+.card .sub { font-size: .82rem; color: var(--muted); }
+.field { display: flex; gap: 10px; flex-wrap: wrap; }
+.field input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 12px 14px; font-family: var(--mono); font-size: .92rem; }
+.log { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.log div { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: .9rem; }
+.log div:last-child { border-bottom: 0; }
+.log em { font-style: normal; font: .76rem/1 var(--mono); color: var(--faint); }
+.dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); }
+.dot.ok { background: var(--ok); border-color: var(--ok); position: relative; }
+.dot.ok::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.dot.run { border-color: var(--accent); border-top-color: transparent; animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.counter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.counter div { background: var(--sunken); border-radius: 10px; padding: 12px; display: grid; gap: 2px; }
+.counter b { font: 800 1.6rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.counter small { font-size: .75rem; color: var(--muted); }
+svg text { font-family: var(--body); }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.legendrow { display: flex; flex-wrap: wrap; gap: 12px; font-size: .8rem; color: var(--muted); }
+.legendrow span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.contrib { display: grid; gap: 7px; }
+.contrib .r { display: grid; grid-template-columns: 132px 1fr 44px 44px; gap: 10px; align-items: center; font-size: .82rem; }
+.contrib .t { height: 8px; border-radius: 4px; background: var(--sunken); overflow: hidden; }
+.contrib .t i { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+.contrib .w { color: var(--faint); font: .74rem/1 var(--mono); text-align: right; }
+.contrib .v { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.contrib .sum { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 700; }
+@media (max-width: 520px) { .contrib .r { grid-template-columns: 100px 1fr 38px 40px; } }
+.tip { position: fixed; pointer-events: none; z-index: 50; background: var(--ink); color: var(--bg); font-size: .78rem; padding: 6px 9px; border-radius: 7px; transform: translate(-50%, calc(-100% - 10px)); white-space: nowrap; }
+.tickers { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.tk { font: 700 2.2rem/1 var(--mono); letter-spacing: .14em; padding: 14px 18px; border-radius: 12px; border: 2px solid var(--accent); color: var(--accent); background: var(--accent-soft); cursor: pointer; }
+.tk.alt { font-size: 1.1rem; border-width: 1px; border-color: var(--line); background: var(--surface); color: var(--muted); padding: 10px 14px; }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: .88rem; }
+.rules li { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; }
+.rules .ok { color: var(--ok); font-weight: 600; } .rules .no { color: var(--faint); text-decoration: line-through; }
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+th { font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+td.r, th.r { text-align: right; }
+td input { width: 76px; border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; background: var(--bg); text-align: right; font-variant-numeric: tabular-nums; }
+.totalrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.totalrow.ok { background: var(--accent-soft); }
+.totalrow.bad { background: var(--warn-soft); color: var(--warn); }
+.donutwrap { display: grid; place-items: center; }
+.txs { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.txs div { display: grid; grid-template-columns: 20px 1fr auto auto; gap: 12px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: .86rem; }
+.txs div:last-child { border-bottom: 0; }
+.txs .h { font: .74rem/1 var(--mono); color: var(--faint); }
+.approve { border: 1px solid var(--gold-mark); background: var(--gold-soft); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: .86rem; margin: 0; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--mono); font-size: .8rem; overflow-wrap: anywhere; }
+.addrcard { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: 1fr 76px; gap: 10px 16px; align-items: start; }
+.addrcard.hoodi { border-color: var(--gold-mark); background: var(--gold-soft); }
+.addrcard .lbl { font-size: .76rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.addrcard .full { font: .86rem/1.4 var(--mono); overflow-wrap: anywhere; }
+.addrcard .acts { display: flex; gap: 8px; flex-wrap: wrap; grid-column: 1 / -1; }
+.qr { width: 76px; height: 76px; grid-row: span 2; border-radius: 8px; background: var(--surface); padding: 5px; border: 1px solid var(--line); }
+.qr svg { width: 100%; height: 100%; display: block; color: var(--ink); }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: .9rem; }
+.note { font-size: .84rem; color: var(--muted); }
+.toast { font-size: .82rem; color: var(--accent-deep); min-height: 1.2em; }
+.slider { width: 100%; accent-color: var(--accent); }
+.bars100 { display: grid; gap: 8px; }
+.bars100 .lab { display: flex; justify-content: space-between; font-size: .78rem; color: var(--muted); }
+.bars100 .s { display: flex; height: 22px; gap: 2px; }
+.bars100 .s i { height: 100%; display: block; transition: width .35s ease; }
+.bars100 .s i:first-child { border-radius: 5px 0 0 5px; } .bars100 .s i:last-child { border-radius: 0 5px 5px 0; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 4px; }
+.kpi small { font-size: .76rem; color: var(--muted); }
+.kpi b { font: 800 1.55rem/1.1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: .76rem; color: var(--faint); }
+.merkle { font: .78rem/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+footer { border-top: 1px solid var(--line); padding-block: 36px 60px; font-size: .84rem; color: var(--muted); }
+footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.final { text-align: left; background: var(--ink); color: var(--bg); border-radius: 20px; padding: 40px; display: grid; gap: 16px; }
+.final h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); }
+.final p { opacity: .75; max-width: 60ch; }
+.final .btn { justify-self: start; }
+
+/* ================= admin ================= */
+:root { --up: #12805C; --down: #C8372D; --up-soft: #E0F3EA; --down-soft: #FBE6E3; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --up: #3CC48A; --down: #FF7A6E; --up-soft: #10291F; --down-soft: #33161399; } }
+:root[data-theme="dark"] { --up: #3CC48A; --down: #FF7A6E; --up-soft: #10291F; --down-soft: #33161399; }
+.admin-band { background: var(--sunken); }
+.login { max-width: 440px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 26px; display: grid; gap: 16px; }
+.login h3 { font-size: 1.3rem; }
+.segs { display: grid; grid-template-columns: 1fr 1fr; background: var(--sunken); border-radius: 10px; padding: 4px; gap: 4px; }
+.segs button { border: 0; background: transparent; border-radius: 8px; padding: 9px; font-weight: 600; font-size: .86rem; color: var(--muted); cursor: pointer; }
+.segs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+.lf { display: grid; gap: 6px; font-size: .84rem; }
+.lf input { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 11px 13px; }
+.err { color: var(--bad); font-size: .84rem; min-height: 1.2em; }
+.console[hidden] { display: none; }
+.console { display: grid; gap: 20px; }
+.chead { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+.live { display: inline-flex; align-items: center; gap: 8px; font-size: .8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--up); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.whoami { display: flex; align-items: center; gap: 10px; font-size: .82rem; flex-wrap: wrap; }
+.whoami .addrpill { font: .78rem/1 var(--mono); background: var(--gold-soft); color: var(--gold); border-radius: 999px; padding: 6px 10px; }
+.atabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.atabs button { border: 0; background: transparent; padding: 10px 14px; font-weight: 600; font-size: .9rem; color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
+.atabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.kgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .kgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ktile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 6px; min-width: 0; }
+.ktile small { font-size: .76rem; color: var(--muted); }
+.ktile b { font: 800 1.45rem/1.1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.ktile .foot { display: flex; justify-content: space-between; align-items: end; gap: 8px; }
+.ktile svg { width: 72px; height: 24px; flex: none; }
+.chg { font-size: .78rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chg.up { color: var(--up); } .chg.down { color: var(--down); } .chg.flat { color: var(--faint); }
+.pane { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.pane h4 { margin: 0; font: 600 1rem/1.3 var(--display); }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ranges { display: inline-flex; background: var(--sunken); border-radius: 8px; padding: 3px; gap: 2px; }
+.ranges button { border: 0; background: transparent; padding: 5px 10px; border-radius: 6px; font: 600 .76rem/1 var(--mono); color: var(--muted); cursor: pointer; }
+.ranges button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
+.split { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+.ctable { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.ctable th { position: sticky; top: 0; background: var(--surface); }
+.ctable tbody tr { cursor: pointer; }
+.ctable tbody tr:hover td { background: var(--sunken); }
+.ctable tbody tr[aria-selected="true"] td { background: var(--accent-soft); }
+.gchip { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font: 700 .78rem/1 var(--display); color: #fff; }
+.anch { font-size: .76rem; color: var(--gold); }
+.spark { width: 88px; height: 26px; display: block; }
+.detail-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.detail-head .px { font: 800 2rem/1 var(--display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.simbadge { font: 700 .66rem/1 var(--mono); letter-spacing: .08em; color: var(--c5); border: 1px dashed var(--c5); border-radius: 5px; padding: 4px 6px; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--muted); cursor: pointer; }
+.toggle input { accent-color: var(--c5); width: 16px; height: 16px; }
+.feed { display: grid; gap: 0; }
+.feed div { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .84rem; }
+.feed div:last-child { border-bottom: 0; }
+.feed i { width: 8px; height: 8px; border-radius: 50%; display: block; margin-top: 5px; }
+.feed em { font-style: normal; font: .74rem/1 var(--mono); color: var(--faint); }
+.movers { display: grid; gap: 6px; }
+.movers div { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; font-size: .84rem; }
+.status { font-size: .74rem; font-weight: 600; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.status.active { color: var(--up); background: var(--up-soft); } .status.pending { color: var(--warn); background: var(--warn-soft); } .status.revoked { color: var(--faint); background: var(--sunken); }
+.addform { display: grid; grid-template-columns: 2fr 1fr auto; gap: 8px; }
+@media (max-width: 700px) { .addform { grid-template-columns: 1fr; } }
+.addform input { border: 1px solid var(--line); background: var(--bg); border-radius: 9px; padding: 9px 11px; font-size: .86rem; min-width: 0; }
+.linkbtn { border: 0; background: none; color: var(--bad); font-weight: 600; font-size: .8rem; cursor: pointer; padding: 0; }
+.adminwallet { border: 1px solid var(--gold-mark); background: var(--gold-soft); border-radius: 14px; padding: 16px; display: grid; gap: 8px; }
+.adminwallet .full { font: .9rem/1.4 var(--mono); overflow-wrap: anywhere; }
+.apanel[hidden] { display: none; }
+</style>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="mark" aria-hidden="true"></span>BlockID</a>
+    <nav class="links" aria-label="Primary">
+      <a href="#how" data-i18n="nav.how">How it works</a>
+      <a href="#walk" data-i18n="nav.walk">Walkthrough</a>
+      <a href="#dash" data-i18n="nav.dash">Cap table</a>
+      <a href="#admin" data-i18n="nav.admin">Admin</a>
+    </nav>
+    <span class="grow"></span>
+    <span class="netchip"><i></i><span data-i18n="nav.net">Testnet</span></span>
+    <span class="langs" role="group" aria-label="Language">
+      <button type="button" id="lang-en" data-lang="en" aria-pressed="true">
+        <svg class="flag" viewBox="0 0 60 40" aria-hidden="true"><rect width="60" height="40" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="8"/><path d="M0 0l60 40M60 0L0 40" stroke="#C8102E" stroke-width="3"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="12"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="7"/></svg>EN</button>
+      <button type="button" id="lang-vi" data-lang="vi" aria-pressed="false">
+        <svg class="flag" viewBox="0 0 60 40" aria-hidden="true"><rect width="60" height="40" fill="#DA251D"/><path fill="#FFCD00" d="M30 9.5l2.6 8h8.4l-6.8 4.9 2.6 8-6.8-4.9-6.8 4.9 2.6-8-6.8-4.9h8.4z"/></svg>VI</button>
+    </span>
+    <a class="btn sm" href="#walk" data-i18n="cta.primary">Value my startup</a>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow" data-i18n="hero.eyebrow">AI valuation · Tokenized cap table · Testnet demo</span>
+      <h1 style="margin-top:16px"><span data-i18n="hero.h1a">Know what your startup is worth,</span> <em data-i18n="hero.h1b">and who owns it.</em></h1>
+      <p class="pitch" data-i18n="hero.pitch">Paste your website. AI agents research your company and its competitors, score it on 7 dimensions and cite every figure. Then turn your shareholder list into a verified cap table you can grow and pay dividends from.</p>
+      <div class="ctas">
+        <a class="btn" href="#walk" data-i18n="cta.primary">Value my startup</a>
+        <a class="btn ghost" href="#s3" id="sample-report" data-i18n="cta.secondary">See a sample report</a>
+      </div>
+      <p class="legal" data-i18n="hero.legal">Testnet demo. Not an offer of securities.</p>
+      <div class="chips">
+        <span class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.1">Every figure cites its source</span></span>
+        <span class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.2">7 dimensions · A–E grade · A$ range</span></span>
+        <span class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.3">Admin-approved, KYC-gated issuance</span></span>
+        <span class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3 3 7-7"/></svg><span data-i18n="chip.4">Cap table anchored on Ethereum</span></span>
+      </div>
+    </div>
+
+    <div class="device" aria-label="Product preview">
+      <div class="bar"><i></i><i></i><i></i><span>eth.blockid.au</span></div>
+      <div class="inner">
+        <div class="urlrow"><span class="muted">https://</span><span id="hero-url">harbourline.com.au</span><span class="caret" aria-hidden="true"></span></div>
+        <div class="stages" id="hero-stages">
+          <span class="on" data-i18n="hs.1">Research</span><span data-i18n="hs.2">Value</span><span data-i18n="hs.3">Issue</span><span data-i18n="hs.4">Anchor</span>
+        </div>
+        <div class="heroviz">
+          <div class="tile" id="ht-1">
+            <small data-i18n="ht.sources">Sources cited</small>
+            <div class="bigno" id="hero-src">23</div>
+            <div class="srcs"><b>asic.gov.au</b><b>ibisworld.com</b><b>crunchbase</b><b>afr.com</b><b>+19</b></div>
+          </div>
+          <div class="tile" id="ht-2">
+            <small data-i18n="ht.svi">SVI valuation</small>
+            <div class="gradeline"><span class="gradebadge">B</span><span class="bigno">A$3.36M</span></div>
+            <span class="muted" style="font-size:.78rem" data-i18n="ht.range">Range A$2.4M – A$4.3M · SVI 66.7</span>
+          </div>
+          <div class="tile" id="ht-3">
+            <small data-i18n="ht.token">Share token</small>
+            <span class="tick">HBL</span>
+            <span class="muted" style="font-size:.78rem" data-i18n="ht.holders">3,360,000 shares · A$1.00 each</span>
+          </div>
+          <div class="tile" id="ht-4">
+            <svg viewBox="0 0 120 120" width="96" height="96" role="img" aria-label="Ownership ring" id="hero-ring"></svg>
+            <span class="anchorline" data-i18n="ht.anchored">Anchored · Hoodi #3,694,512</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HOW ================= -->
+<section class="block" id="how">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow" data-i18n="how.eyebrow">How it works</span>
+      <h2 data-i18n="how.h2">AI does the research. People approve. Only one service holds keys.</h2>
+      <p data-i18n="how.p">Agents read public data and propose. Nothing reaches a blockchain until an admin signs the approval, and only the issuer service can send transactions.</p>
+    </div>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 1000 330" role="img" aria-label="Flow: website to AI agents to SVI valuation, admin approval, then the issuer service issues on BlockID Chain, anchors on Hoodi and delivers tokens to wallets">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+            <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--gold-mark)"/></marker>
+          </defs>
+          <!-- lane labels -->
+          <text x="14" y="26" font-size="11" font-weight="600" letter-spacing="1.2" fill="var(--muted)" data-i18n="d.lane1">AI AGENTS · READ-ONLY · NO KEYS</text>
+          <rect x="8" y="36" width="984" height="108" rx="14" fill="var(--sunken)"/>
+          <text x="14" y="190" font-size="11" font-weight="600" letter-spacing="1.2" fill="var(--gold)" data-i18n="d.lane2">ISSUER SERVICE · THE ONLY COMPONENT WITH KEYS</text>
+          <rect x="8" y="200" width="984" height="108" rx="14" fill="none" stroke="var(--gold-mark)" stroke-dasharray="6 5" stroke-width="1.5"/>
+          <!-- top lane nodes -->
+          <g font-size="13" text-anchor="middle">
+            <rect x="28" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)"/><text x="103" y="86" font-weight="600" fill="currentColor" data-i18n="d.n1">Your website</text><text x="103" y="104" font-size="11" fill="var(--muted)" data-i18n="d.n1s">public pages</text>
+            <rect x="222" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)"/><text x="297" y="86" font-weight="600" fill="currentColor" data-i18n="d.n2">Site intake</text><text x="297" y="104" font-size="11" fill="var(--muted)" data-i18n="d.n2s">company profile</text>
+            <rect x="416" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)"/><text x="491" y="86" font-weight="600" fill="currentColor" data-i18n="d.n3">Competitor search</text><text x="491" y="104" font-size="11" fill="var(--muted)">Brave Search</text>
+            <rect x="610" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)"/><text x="685" y="86" font-weight="600" fill="currentColor" data-i18n="d.n4">Market analysis</text><text x="685" y="104" font-size="11" fill="var(--muted)" data-i18n="d.n4s">cited findings</text>
+            <rect x="804" y="62" width="168" height="56" rx="10" fill="var(--accent)" /><text x="888" y="86" font-weight="700" fill="var(--accent-ink)" data-i18n="d.n5">SVI valuation</text><text x="888" y="104" font-size="11" fill="var(--accent-ink)" data-i18n="d.n5s">grade + A$ range</text>
+          </g>
+          <g stroke="currentColor" stroke-width="1.5" fill="none">
+            <line x1="178" y1="90" x2="218" y2="90" marker-end="url(#ar)"/>
+            <line x1="372" y1="90" x2="412" y2="90" marker-end="url(#ar)"/>
+            <line x1="566" y1="90" x2="606" y2="90" marker-end="url(#ar)"/>
+            <line x1="760" y1="90" x2="800" y2="90" marker-end="url(#ar)"/>
+          </g>
+          <g font-size="10.5" fill="var(--muted)" text-anchor="middle">
+            <text x="198" y="80" data-i18n="d.e1">reads</text><text x="392" y="80" data-i18n="d.e2">names</text><text x="586" y="80" data-i18n="d.e3">sources</text><text x="780" y="80" data-i18n="d.e4">scores</text>
+          </g>
+          <!-- approval hop -->
+          <path d="M888 118 V160 H888" fill="none"/>
+          <line x1="888" y1="118" x2="888" y2="222" stroke="var(--gold-mark)" stroke-width="2" marker-end="url(#arg)"/>
+          <rect x="802" y="150" width="172" height="26" rx="13" fill="var(--gold-soft)" stroke="var(--gold-mark)"/>
+          <text x="888" y="167" font-size="11.5" font-weight="700" text-anchor="middle" fill="var(--gold)" data-i18n="d.gate">admin signs approval</text>
+          <!-- bottom lane nodes (right to left) -->
+          <g font-size="13" text-anchor="middle">
+            <rect x="804" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--line)"/><text x="888" y="250" font-weight="600" fill="currentColor" data-i18n="d.b1">Issue on BlockID Chain</text><text x="888" y="268" font-size="11" fill="var(--muted)" data-i18n="d.b1s">KYC + mint, zero gas</text>
+            <rect x="560" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--gold-mark)"/><text x="644" y="250" font-weight="600" fill="currentColor" data-i18n="d.b2">Anchor on Hoodi</text><text x="644" y="268" font-size="11" fill="var(--muted)" data-i18n="d.b2s">Merkle root + mirror</text>
+            <rect x="316" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--line)"/><text x="400" y="250" font-weight="600" fill="currentColor" data-i18n="d.b3">Shareholder wallets</text><text x="400" y="268" font-size="11" fill="var(--muted)">MetaMask</text>
+            <rect x="72" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--line)"/><text x="156" y="250" font-weight="600" fill="currentColor" data-i18n="d.b4">Cap table &amp; dividends</text><text x="156" y="268" font-size="11" fill="var(--muted)" data-i18n="d.b4s">mint · claim · explorer</text>
+          </g>
+          <g stroke="currentColor" stroke-width="1.5" fill="none">
+            <line x1="804" y1="254" x2="732" y2="254" marker-end="url(#ar)"/>
+            <line x1="560" y1="254" x2="488" y2="254" marker-end="url(#ar)"/>
+            <line x1="316" y1="254" x2="244" y2="254" marker-end="url(#ar)"/>
+          </g>
+          <g font-size="10.5" fill="var(--muted)" text-anchor="middle">
+            <text x="768" y="244" data-i18n="d.f1">hash</text><text x="524" y="244" data-i18n="d.f2">add token</text><text x="280" y="244" data-i18n="d.f3">track</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption data-i18n="how.cap">The gold arrow is the only path from AI output to a blockchain. It needs an admin signature, and the dashed boundary marks the one service that can sign transactions.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================= WALKTHROUGH ================= -->
+<section class="block" id="walk">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow" data-i18n="walk.eyebrow">Walkthrough</span>
+      <h2 data-i18n="walk.h2">Eight steps from website to wallet</h2>
+      <p data-i18n="walk.p">Click through the flow with an example company. Gold steps need an admin approval before anything is written on-chain.</p>
+    </div>
+
+    <div class="stepnav" role="tablist" aria-label="Steps" id="stepnav"></div>
+
+    <!-- 1 -->
+    <div class="panel" id="s1" role="tabpanel">
+      <div class="ptitle"><div><h3 data-i18n="s1.h">Paste your website</h3><p data-i18n="s1.p">We read public pages only: product, team, pricing, press. No login or documents needed to start.</p></div></div>
+      <div class="field"><input id="url-input" type="url" value="https://harbourline.com.au" aria-label="Company website"><button class="btn" type="button" id="run-btn" data-i18n="s1.btn">Start valuation</button></div>
+      <div class="cols3">
+        <div class="card"><h4 data-i18n="s1.c1">What we read</h4><p class="sub" data-i18n="s1.c1p">Up to 20 public pages. robots.txt respected. Emails and phone numbers are stripped before any search.</p></div>
+        <div class="card"><h4 data-i18n="s1.c2">What you get</h4><p class="sub" data-i18n="s1.c2p">An SVI grade from A to E, an A$ valuation range and a competitor table, each figure linked to its source.</p></div>
+        <div class="card"><h4 data-i18n="s1.c3">Time and limits</h4><p class="sub" data-i18n="s1.c3p">About 2–4 minutes. 3 valuations per wallet per day on the testnet.</p></div>
+      </div>
+      <div class="pnav"><span></span><button class="btn" type="button" data-next data-i18n="nav.next">Next</button></div>
+    </div>
+
+    <!-- 2 -->
+    <div class="panel" id="s2" role="tabpanel" hidden>
+      <div class="ptitle"><div><h3 data-i18n="s2.h">AI agents at work</h3><p data-i18n="s2.p">Each agent reports as it finishes. You can close the tab; the link resumes the job.</p></div><button class="btn ghost sm" type="button" id="replay2" data-i18n="s2.replay">Replay</button></div>
+      <div class="cols">
+        <div class="log" id="agentlog"></div>
+        <div class="card">
+          <h4 data-i18n="s2.found">Collected so far</h4>
+          <div class="counter">
+            <div><b id="cnt-pages">0</b><small data-i18n="s2.pages">pages read</small></div>
+            <div><b id="cnt-comp">0</b><small data-i18n="s2.comp">competitors</small></div>
+            <div><b id="cnt-src">0</b><small data-i18n="s2.src">sources</small></div>
+          </div>
+          <p class="note" data-i18n="s2.note">Findings that cite a page the agent did not actually fetch are dropped automatically.</p>
+        </div>
+      </div>
+      <div class="pnav"><button class="btn ghost" type="button" data-prev data-i18n="nav.back">Back</button><button class="btn" type="button" data-next data-i18n="nav.next">Next</button></div>
+    </div>
+
+    <!-- 3 -->
+    <div class="panel" id="s3" role="tabpanel" hidden>
+      <div class="ptitle"><div><h3 data-i18n="s3.h">Valuation report</h3><p data-i18n="s3.p">Scores come from the model and from your numbers. The admin can adjust any AI score before approving.</p></div><span class="gatepill" data-i18n="gate.admin">Admin approval</span></div>
+      <div class="cols">
+        <div class="card">
+          <h4 data-i18n="s3.radar">SVI profile</h4>
+          <svg class="chart" viewBox="0 0 360 300" id="radar" role="img" aria-label="SVI radar chart across 7 dimensions"></svg>
+        </div>
+        <div class="card">
+          <h4 data-i18n="s3.build">How the index is built</h4>
+          <p class="sub" data-i18n="s3.buildp">Score × weight = contribution. The sum is the SVI index.</p>
+          <div class="contrib" id="contrib"></div>
+        </div>
+      </div>
+      <div class="cols">
+        <div class="card">
+          <h4 data-i18n="s3.range">Valuation range</h4>
+          <svg class="chart" viewBox="0 0 460 96" id="rangechart" role="img" aria-label="Valuation range A$2.4M to A$4.3M, mid A$3.36M"></svg>
+          <p class="sub" data-i18n="s3.method">Method: revenue × cited sector multiple (low · median · high) × SVI factor 1.17.</p>
+        </div>
+        <div class="card">
+          <h4 data-i18n="s3.comp">Competitors · capital raised (A$M)</h4>
+          <svg class="chart" viewBox="0 0 460 170" id="compchart" role="img" aria-label="Competitor funding bar chart"></svg>
+        </div>
+      </div>
+      <div class="pnav"><button class="btn ghost" type="button" data-prev data-i18n="nav.back">Back</button><button class="btn gold" type="button" data-next data-i18n="s3.approve">Approve valuation</button></div>
+    </div>
+
+    <!-- 4 -->
+    <div class="panel" id="s4" role="tabpanel" hidden>
+      <div class="ptitle"><div><h3 data-i18n="s4.h">Your share ticker</h3><p data-i18n="s4.p">Three letters with a clear link to your company name, in the style of ASX codes. Pick one or type your own.</p></div></div>
+      <div class="cols">
+        <div class="card">
+          <div class="tickers" id="tickers"></div>
+          <p class="sub"><span data-i18n="s4.name">Token name</span>: <b id="tk-name">Harbourline Logistics ORD (HBL)</b></p>
+        </div>
+        <div class="card">
+          <h4 data-i18n="s4.rules">How it was chosen</h4>
+          <ul class="rules">
+            <li><span class="ok">✓</span><span data-i18n="s4.r1">Drop "Pty Ltd" → HARBOURLINE LOGISTICS</span><span></span></li>
+            <li><span class="ok">✓</span><span data-i18n="s4.r2">First letter + next consonants</span><span class="mono">HBL</span></li>
+            <li><span class="ok">✓</span><span data-i18n="s4.r3">Not on the blocklist</span><span></span></li>
+            <li><span class="ok">✓</span><span data-i18n="s4.r4">Not used by another token on BlockID Chain</span><span></span></li>
+            <li><span class="no">✗</span><span data-i18n="s4.r5">HAR is taken (Harvest Agri)</span><span class="mono no">HAR</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="pnav"><button class="btn ghost" type="button" data-prev data-i18n="nav.back">Back</button><button class="btn" type="button" data-next data-i18n="nav.next">Next</button></div>
+    </div>
+
+    <!-- 5 -->
+    <div class="panel" id="s5" role="tabpanel" hidden>
+      <div class="ptitle"><div><h3 data-i18n="s5.h">Shareholders</h3><p data-i18n="s5.p">Shares are issued at A$1.00 each by default, so the total follows the approved valuation. Enter each holder's wallet and percentage; we convert to whole shares so the total is always exact.</p></div></div>
+      <div class="cols">
+        <div class="card">
+          <div class="field" style="align-items:center"><label for="supply" class="sub" data-i18n="s5.supply">Total shares</label><input id="supply" type="number" min="100" step="1000" value="3360000" style="max-width:180px"></div>
+          <div class="tbl"><table>
+            <thead><tr><th data-i18n="t.holder">Holder</th><th data-i18n="t.wallet">Wallet</th><th class="r">%</th><th class="r" data-i18n="t.shares">Shares</th></tr></thead>
+            <tbody id="holder-rows"></tbody>
+          </table></div>
+          <div class="totalrow" id="total-row"></div>
+        </div>
+        <div class="card">
+          <h4 data-i18n="s5.preview">Ownership preview</h4>
+          <div class="donutwrap"><svg class="chart" viewBox="0 0 260 260" id="donut" style="max-width:260px" role="img" aria-label="Ownership donut"></svg></div>
+          <div class="legendrow" id="donut-legend"></div>
+          <p class="note" data-i18n="s5.kyc">Every wallet is KYC-registered on-chain before shares are minted, and receives a small BLKD gas allowance.</p>
+        </div>
+      </div>
+      <div class="pnav"><button class="btn ghost" type="button" data-prev data-i18n="nav.back">Back</button><button class="btn" type="button" data-next data-i18n="s5.review">Review issuance</button></div>
+    </div>
+
+    <!-- 6 -->
+    <div class="panel" id="s6" role="tabpanel" hidden>
+      <div class="ptitle"><div><h3 data-i18n="s6.h">Approve and issue on BlockID Chain</h3><p data-i18n="s6.p">The admin sees every transaction before it is sent. After signing, the issuer service sends them on the zero-gas chain.</p></div><span class="gatepill" data-i18n="gate.admin">Admin approval</span></div>
+      <div class="cols">
+        <div class="approve">
+          <dl class="kv">
+            <dt data-i18n="s6.net">Network</dt><dd>BlockID Chain · 262626</dd>
+            <dt data-i18n="s6.token">Token</dt><dd>HBL · decimals 0 · 3,360,000 × A$1.00</dd>
+            <dt data-i18n="s6.txn">Transactions</dt><dd>3 deploy · 5 KYC · 5 gas · 5 mint · 1 valuation</dd>
+            <dt data-i18n="s6.signer">Signer</dt><dd>issuer-service 0x2567…5ddf</dd>
+          </dl>
+          <div class="field"><button class="btn gold" type="button" id="sign-issue" data-i18n="s6.sign">Sign approval &amp; issue</button><button class="btn ghost" type="button" data-i18n="s6.reject">Reject</button></div>
+        </div>
+        <div class="txs" id="txlist"></div>
+      </div>
+      <div class="pnav"><button class="btn ghost" type="button" data-prev data-i18n="nav.back">Back</button><button class="btn" type="button" data-next data-i18n="nav.next">Next</button></div>
+    </div>
+
+    <!-- 7 -->
+    <div class="panel" id="s7" role="tabpanel" hidden>
+      <div class="ptitle"><div><h3 data-i18n="s7.h">Anchor on Ethereum Hoodi</h3><p data-i18n="s7.p">Two things go to Hoodi: a fingerprint of the whole cap table, and a paused copy of the token so holders can see it in their wallet.</p></div><span class="gatepill" data-i18n="gate.admin">Admin approval</span></div>
+      <figure>
+        <div class="diagram">
+          <svg viewBox="0 0 1000 250" role="img" aria-label="Cap table rows are hashed into a Merkle root anchored on Hoodi; balances are also minted to a paused mirror token on Hoodi">
+            <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+            <marker id="ar2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--gold-mark)"/></marker></defs>
+            <text x="20" y="22" font-size="11" font-weight="600" letter-spacing="1.2" fill="var(--muted)">BLOCKID CHAIN · 262626</text>
+            <text x="700" y="22" font-size="11" font-weight="600" letter-spacing="1.2" fill="var(--gold)">ETHEREUM HOODI · 560048</text>
+            <line x1="660" y1="10" x2="660" y2="240" stroke="var(--line)" stroke-dasharray="4 4"/>
+            <rect x="20" y="36" width="210" height="196" rx="12" fill="var(--surface)" stroke="var(--line)"/>
+            <text x="36" y="62" font-size="13" font-weight="700" fill="currentColor">HBL ledger</text>
+            <g font-size="11.5" fill="var(--muted)" font-family="JetBrains Mono, monospace">
+              <text x="36" y="90">0x4B20… 1,411,200</text><text x="36" y="114">0x9F1d…   840,000</text><text x="36" y="138">0x77Ab…   504,000</text><text x="36" y="162">0x1C09…   336,000</text><text x="36" y="186">0x5aE3…   268,800</text>
+            </g>
+            <text x="36" y="216" font-size="11" fill="var(--muted)" data-i18n="a.block">at block 18,204</text>
+            <rect x="330" y="46" width="230" height="64" rx="12" fill="var(--sunken)" stroke="var(--line)"/>
+            <text x="445" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Merkle root</text>
+            <text x="445" y="94" text-anchor="middle" font-size="11.5" fill="var(--muted)" font-family="JetBrains Mono, monospace">0x9c41…e07b</text>
+            <line x1="230" y1="78" x2="326" y2="78" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+            <text x="278" y="68" text-anchor="middle" font-size="10.5" fill="var(--muted)" data-i18n="a.hash">hash rows</text>
+            <rect x="700" y="46" width="280" height="64" rx="12" fill="var(--gold-soft)" stroke="var(--gold-mark)"/>
+            <text x="840" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">CapTableAnchor</text>
+            <text x="840" y="94" text-anchor="middle" font-size="11" fill="var(--muted)">anchor(root, supply, block)</text>
+            <line x1="560" y1="78" x2="696" y2="78" stroke="var(--gold-mark)" stroke-width="2" marker-end="url(#ar2g)"/>
+            <text x="628" y="68" text-anchor="middle" font-size="10.5" fill="var(--gold)" data-i18n="a.anchor">anchor</text>
+            <rect x="700" y="152" width="280" height="64" rx="12" fill="var(--gold-soft)" stroke="var(--gold-mark)"/>
+            <text x="840" y="178" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor" data-i18n="a.mirror">HBL mirror token</text>
+            <text x="840" y="200" text-anchor="middle" font-size="11" fill="var(--muted)" data-i18n="a.paused">same balances · transfers paused</text>
+            <path d="M230 184 H696" stroke="var(--gold-mark)" stroke-width="2" fill="none" marker-end="url(#ar2g)"/>
+            <text x="460" y="174" text-anchor="middle" font-size="10.5" fill="var(--gold)" data-i18n="a.mint">mint same balances, then pause</text>
+          </svg>
+        </div>
+        <figcaption data-i18n="s7.cap">Any holder can prove their balance against the public root without revealing the full register. The mirror token exists so wallets and Etherscan can display it; the BlockID Chain ledger stays the source of truth.</figcaption>
+      </figure>
+      <div class="pnav"><button class="btn ghost" type="button" data-prev data-i18n="nav.back">Back</button><button class="btn gold" type="button" data-next data-i18n="s7.approve">Sign &amp; anchor</button></div>
+    </div>
+
+    <!-- 8 -->
+    <div class="panel" id="s8" role="tabpanel" hidden>
+      <div class="ptitle"><div><h3 data-i18n="s8.h">HBL is live. Add it to your wallet</h3><p data-i18n="s8.p">Use the button, or copy the contract address and import it in MetaMask yourself.</p></div></div>
+      <div class="cols">
+        <div class="addrcard">
+          <div><div class="lbl" data-i18n="s8.local">Token contract · BlockID Chain (262626)</div><div class="full" id="addr-local">0x7E21c4D09aB3F5e61C8d2a4417f0B39E5a6C11d4</div></div>
+          <div class="qr" aria-hidden="true"><svg viewBox="0 0 21 21" id="qr1"></svg></div>
+          <div class="acts"><button class="btn ghost sm" type="button" data-copy="addr-local" data-i18n="s8.copy">Copy address</button><a class="btn ghost sm" href="#s8" data-i18n="s8.scan">View on scan.blockid.au</a><button class="btn sm" type="button" data-watch="local" data-i18n="s8.add">Add to MetaMask</button></div>
+        </div>
+        <div class="addrcard hoodi">
+          <div><div class="lbl" data-i18n="s8.hoodi">Anchored copy · Ethereum Hoodi (560048)</div><div class="full" id="addr-hoodi">0x3aF90b17E8c2D4a5b6019fC7e2A84dB1c95E0f63</div></div>
+          <div class="qr" aria-hidden="true"><svg viewBox="0 0 21 21" id="qr2"></svg></div>
+          <div class="acts"><button class="btn ghost sm" type="button" data-copy="addr-hoodi" data-i18n="s8.copy">Copy address</button><a class="btn ghost sm" href="#s8" data-i18n="s8.ether">View on Etherscan</a><button class="btn gold sm" type="button" data-watch="hoodi" data-i18n="s8.add">Add to MetaMask</button></div>
+        </div>
+      </div>
+      <p class="toast" id="toast" role="status"></p>
+      <div class="cols">
+        <div class="card">
+          <h4 data-i18n="s8.manual">Add it manually</h4>
+          <ol class="steps">
+            <li data-i18n="s8.m1">Open MetaMask and choose the network: BlockID Chain or Ethereum Hoodi.</li>
+            <li data-i18n="s8.m2">Go to Tokens → Import tokens.</li>
+            <li data-i18n="s8.m3">Paste the contract address above. Symbol HBL and decimals 0 fill in automatically.</li>
+            <li data-i18n="s8.m4">Confirm. Your balance shows whole shares.</li>
+            <li data-i18n="s8.m5">On a phone, open this page inside the MetaMask app browser.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h4 data-i18n="s8.net">Network details</h4>
+          <dl class="kv">
+            <dt data-i18n="s8.name">Name</dt><dd>BlockID Chain</dd><dt>RPC</dt><dd>https://eth.blockid.au/rpc</dd><dt>Chain ID</dt><dd>262626</dd><dt data-i18n="s8.sym">Currency</dt><dd>BLKD</dd><dt>Explorer</dt><dd>https://scan.blockid.au</dd>
+          </dl>
+          <dl class="kv" style="border-top:1px solid var(--line);padding-top:10px">
+            <dt data-i18n="s8.name">Name</dt><dd>Ethereum Hoodi</dd><dt>RPC</dt><dd>https://ethereum-hoodi-rpc.publicnode.com</dd><dt>Chain ID</dt><dd>560048</dd><dt>Explorer</dt><dd>https://hoodi.etherscan.io</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="pnav"><button class="btn ghost" type="button" data-prev data-i18n="nav.back">Back</button><a class="btn" href="#dash" data-i18n="s8.dash">Open dashboard</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DASHBOARD ================= -->
+<section class="block" id="dash">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow" data-i18n="dash.eyebrow">After issuance</span>
+      <h2 data-i18n="dash.h2">Your cap table, always current</h2>
+      <p data-i18n="dash.p">Read straight from the chain. Model a new round before you mint, and pay dividends that holders claim without paying gas.</p>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small data-i18n="k.shares">Shares outstanding</small><b id="k-shares">3,360,000</b><span>HBL · decimals 0</span></div>
+      <div class="kpi"><small data-i18n="k.holders">Holders</small><b id="k-holders">5</b><span data-i18n="k.kyc">all KYC-verified</span></div>
+      <div class="kpi"><small data-i18n="k.price">Value per share</small><b>A$1.00</b><span data-i18n="k.pricesub">issue price · SVI mid A$3.36M</span></div>
+      <div class="kpi"><small data-i18n="k.anchor">Last anchor</small><b>#3,694,512</b><span>Ethereum Hoodi</span></div>
+    </div>
+    <div class="cols" style="margin-top:20px">
+      <div class="card" style="background:var(--surface)">
+        <h4 data-i18n="m.h">Model a new round</h4>
+        <p class="sub" data-i18n="m.p">New shares for an incoming investor. Existing holders are diluted pro rata.</p>
+        <label for="mint-slider" class="sub"><span data-i18n="m.new">New shares</span>: <b class="num" id="mint-val">500,000</b></label>
+        <input id="mint-slider" class="slider" type="range" min="0" max="2000000" step="10000" value="500000">
+        <div class="bars100" id="dilution"></div>
+        <div class="tbl"><table><thead><tr><th data-i18n="t.holder">Holder</th><th class="r" data-i18n="m.before">Before</th><th class="r" data-i18n="m.after">After</th><th class="r">Δ</th></tr></thead><tbody id="dil-rows"></tbody></table></div>
+        <button class="btn" type="button" data-i18n="m.request" style="justify-self:start">Request approval</button>
+      </div>
+      <div class="card" style="background:var(--surface)">
+        <h4 data-i18n="dv.h">Plan a dividend</h4>
+        <p class="sub" data-i18n="dv.p">Split pro rata at a record block, published as a Merkle root. Holders claim; the relayer pays their gas.</p>
+        <div class="field" style="align-items:center"><label for="div-amt" class="sub" data-i18n="dv.amt">Total (mAUD)</label><input id="div-amt" type="number" min="0" step="1000" value="50000" style="max-width:160px"></div>
+        <svg class="chart" viewBox="0 0 460 200" id="divchart" role="img" aria-label="Dividend per holder"></svg>
+        <div class="merkle"><span data-i18n="dv.root">Merkle root</span> <span id="div-root">0xbf8d…2024</span> · <span data-i18n="dv.deadline">claim deadline 30 days</span></div>
+        <button class="btn ghost" type="button" data-i18n="dv.request" style="justify-self:start">Send for approval</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ================= ADMIN ================= -->
+<section class="block admin-band" id="admin">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow" data-i18n="ad.eyebrow">Admin console</span>
+      <h2 data-i18n="ad.h2">Every tokenized company, one live view</h2>
+      <p data-i18n="ad.p">Approve issuer wallets, watch platform value and drill into each company's share mark. Sign in with an admin wallet or the admin account.</p>
+    </div>
+
+    <div class="login" id="login">
+      <h3 data-i18n="ad.signin">Sign in to admin</h3>
+      <div class="segs" role="tablist" aria-label="Sign-in method">
+        <button type="button" id="lm-wallet" role="tab" aria-selected="true" data-i18n="ad.m.wallet">MetaMask</button>
+        <button type="button" id="lm-pass" role="tab" aria-selected="false" data-i18n="ad.m.pass">Username</button>
+      </div>
+      <div id="lp-wallet" class="stack" style="display:grid;gap:12px">
+        <p class="sub muted" data-i18n="ad.walletp">Sign a one-time message (SIWE). Only wallets on the admin list can enter.</p>
+        <button class="btn" type="button" id="siwe-btn" data-i18n="ad.siwe">Sign in with MetaMask</button>
+      </div>
+      <form id="lp-pass" hidden style="display:grid;gap:12px" autocomplete="off">
+        <label class="lf" for="ad-user"><span data-i18n="ad.user">Username</span><input id="ad-user" type="text" autocomplete="username"></label>
+        <label class="lf" for="ad-pass"><span data-i18n="ad.pass">Password</span><input id="ad-pass" type="password" autocomplete="current-password"></label>
+        <button class="btn" type="submit" data-i18n="ad.enter">Sign in</button>
+        <p class="note" data-i18n="ad.demo">Demo account: admin / admin. You will be asked to change it after the first sign-in.</p>
+      </form>
+      <p class="err" id="ad-err" role="alert"></p>
+    </div>
+
+    <div class="console" id="console" hidden>
+      <div class="chead">
+        <div class="whoami"><span data-i18n="ad.signedas">Signed in as admin</span><span class="addrpill" id="who-addr">0xC400…a21F</span><button class="btn ghost sm" type="button" id="logout" data-i18n="ad.logout">Sign out</button></div>
+        <span class="live"><i></i><span id="live-txt">Live · updated 0s ago</span><span class="mono muted" id="live-block">#18,204</span></span>
+      </div>
+      <div class="atabs" role="tablist" aria-label="Admin sections">
+        <button type="button" role="tab" aria-selected="true" data-atab="ov" data-i18n="ad.t.ov">Overview</button>
+        <button type="button" role="tab" aria-selected="false" data-atab="co" data-i18n="ad.t.co">Companies</button>
+        <button type="button" role="tab" aria-selected="false" data-atab="wa" data-i18n="ad.t.wa">Issuer wallets</button>
+      </div>
+
+      <!-- overview -->
+      <div class="apanel" id="ap-ov" style="display:grid;gap:16px">
+        <div class="kgrid" id="kgrid"></div>
+        <div class="split">
+          <div class="pane">
+            <div class="phead"><h4 data-i18n="ad.pv">Platform value (marked)</h4><span class="ranges" id="pv-ranges"></span></div>
+            <svg class="chart" viewBox="0 0 640 240" id="pvchart" role="img" aria-label="Platform marked value over time"></svg>
+            <p class="note" data-i18n="ad.pvnote">Sum of each company's valuation mark. Steps happen on issuance and on approved SVI revaluations. Simulated values are never included.</p>
+          </div>
+          <div class="pane">
+            <h4 data-i18n="ad.grades">Companies by grade</h4>
+            <svg class="chart" viewBox="0 0 300 190" id="gradechart" role="img" aria-label="Company count by SVI grade"></svg>
+            <h4 data-i18n="ad.movers">Top movers · 30 days</h4>
+            <div class="movers" id="movers"></div>
+          </div>
+        </div>
+        <div class="split">
+          <div class="pane">
+            <div class="phead"><h4 data-i18n="ad.co">Tokenized companies</h4><span class="note" data-i18n="ad.clickrow">Click a row for detail</span></div>
+            <div class="tbl"><table class="ctable"><thead><tr>
+              <th data-i18n="ad.c.tk">Ticker</th><th data-i18n="ad.c.name">Company</th><th data-i18n="ad.c.grade">Grade</th><th class="r" data-i18n="ad.c.val">Valuation</th><th class="r" data-i18n="ad.c.mark">Mark</th><th class="r">7d</th><th class="r">30d</th><th data-i18n="ad.c.trend">30d trend</th><th class="r" data-i18n="ad.c.hold">Holders</th><th data-i18n="ad.c.anch">Anchor</th>
+            </tr></thead><tbody id="co-rows"></tbody></table></div>
+          </div>
+          <div class="pane">
+            <h4 data-i18n="ad.feed">Activity</h4>
+            <div class="feed" id="feed"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- company detail -->
+      <div class="apanel" id="ap-co" hidden style="display:grid;gap:16px">
+        <div class="pane">
+          <div class="detail-head">
+            <div class="stack" style="display:grid;gap:6px">
+              <span class="eyebrow" id="cd-name">HBL · Harbourline Logistics</span>
+              <span class="px" id="cd-px">A$1.00</span>
+              <span class="chg" id="cd-chg"></span>
+            </div>
+            <div class="stack" style="display:grid;gap:8px;justify-items:end">
+              <span class="ranges" id="cd-ranges"></span>
+              <label class="toggle" for="sim-toggle"><input type="checkbox" id="sim-toggle"><span data-i18n="ad.simt">Show simulated growth</span><span class="simbadge">SIMULATED</span></label>
+            </div>
+          </div>
+          <svg class="chart" viewBox="0 0 760 280" id="cdchart" role="img" aria-label="Share mark over time with events"></svg>
+          <div class="legendrow">
+            <span><i class="sw" style="background:var(--accent)"></i><span data-i18n="ad.l.mark">Mark (SVI-derived, A$ per share)</span></span>
+            <span><i class="sw" style="background:var(--c5);opacity:.5"></i><span data-i18n="ad.l.sim">Simulated · not a price (P10–P90 band)</span></span>
+            <span><i class="sw" style="background:var(--gold-mark)"></i><span data-i18n="ad.l.ev">Event: issuance, revaluation, mint, dividend</span></span>
+          </div>
+          <p class="note" id="cd-simnote"></p>
+        </div>
+        <div class="kgrid" id="cd-kpis"></div>
+      </div>
+
+      <!-- wallets -->
+      <div class="apanel" id="ap-wa" hidden style="display:grid;gap:16px">
+        <div class="adminwallet">
+          <span class="eyebrow" style="color:var(--gold)" data-i18n="ad.aw">Admin wallet · visible to admins only</span>
+          <span class="full">0xC40052702B48631C26AD7c88b499bF230faCa21F</span>
+          <span class="eyebrow" style="color:var(--gold);margin-top:6px" data-i18n="ad.aw2">Owner wallet · MetaMask</span>
+          <span class="full">0xc309691C60957A55bB619383A06d3F69A94f4585</span>
+          <span class="note" data-i18n="ad.awnote">Holds DEFAULT_ADMIN_ROLE on every registry. Grants and revokes below are sent from this wallet after you confirm.</span>
+        </div>
+        <div class="pane">
+          <div class="phead"><h4 data-i18n="ad.iw">Wallets approved to issue</h4><span class="note mono">ISSUER_ROLE</span></div>
+          <form class="addform" id="addform">
+            <input id="aw-addr" placeholder="0x… wallet address" aria-label="Wallet address">
+            <input id="aw-label" placeholder="Label" aria-label="Label">
+            <button class="btn sm" type="submit" data-i18n="ad.grant">Grant role</button>
+          </form>
+          <p class="err" id="aw-err"></p>
+          <div class="tbl"><table><thead><tr><th data-i18n="ad.w.label">Label</th><th data-i18n="t.wallet">Wallet</th><th data-i18n="ad.w.status">Status</th><th data-i18n="ad.w.since">Granted</th><th></th></tr></thead><tbody id="wa-rows"></tbody></table></div>
+        </div>
+        <div class="pane">
+          <h4 data-i18n="ad.audit">Audit log</h4>
+          <div class="feed" id="audit"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" style="border-top:0;padding-top:0">
+  <div class="wrap">
+    <div class="final">
+      <h2 data-i18n="fin.h">See your startup's number in minutes.</h2>
+      <p data-i18n="fin.p">Sign in with MetaMask, paste your website and get a cited valuation. Issuing shares is optional and always needs approval.</p>
+      <a class="btn" href="#walk" data-i18n="cta.primary">Value my startup</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>BlockID · eth.blockid.au</span>
+    <span data-i18n="foot.legal">Testnet demo. Not an offer of securities or financial advice. Example data shown.</span>
+  </div>
+</footer>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(function () {
+const T = {
+en: {
+ "nav.how":"How it works","nav.walk":"Walkthrough","nav.dash":"Cap table","nav.net":"Testnet","nav.next":"Next","nav.back":"Back",
+ "cta.primary":"Value my startup","cta.secondary":"See a sample report",
+ "hero.eyebrow":"AI valuation · Tokenized cap table · Testnet demo","hero.h1a":"Know what your startup is worth,","hero.h1b":"and who owns it.",
+ "hero.pitch":"Paste your website. AI agents research your company and its competitors, score it on 7 dimensions and cite every figure. Then turn your shareholder list into a verified cap table you can grow and pay dividends from.",
+ "hero.legal":"Testnet demo. Not an offer of securities.",
+ "chip.1":"Every figure cites its source","chip.2":"7 dimensions · A–E grade · A$ range","chip.3":"Admin-approved, KYC-gated issuance","chip.4":"Cap table anchored on Ethereum",
+ "hs.1":"Research","hs.2":"Value","hs.3":"Issue","hs.4":"Anchor",
+ "ht.sources":"Sources cited","ht.svi":"SVI valuation","ht.range":"Range A$2.4M – A$4.3M · SVI 66.7","ht.token":"Share token","ht.holders":"3,360,000 shares · A$1.00 each","ht.anchored":"Anchored · Hoodi #3,694,512",
+ "how.eyebrow":"How it works","how.h2":"AI does the research. People approve. Only one service holds keys.",
+ "how.p":"Agents read public data and propose. Nothing reaches a blockchain until an admin signs the approval, and only the issuer service can send transactions.",
+ "how.cap":"The gold arrow is the only path from AI output to a blockchain. It needs an admin signature, and the dashed boundary marks the one service that can sign transactions.",
+ "d.lane1":"AI AGENTS · READ-ONLY · NO KEYS","d.lane2":"ISSUER SERVICE · THE ONLY COMPONENT WITH KEYS",
+ "d.n1":"Your website","d.n1s":"public pages","d.n2":"Site intake","d.n2s":"company profile","d.n3":"Competitor search","d.n4":"Market analysis","d.n4s":"cited findings","d.n5":"SVI valuation","d.n5s":"grade + A$ range",
+ "d.e1":"reads","d.e2":"names","d.e3":"sources","d.e4":"scores","d.gate":"admin signs approval",
+ "d.b1":"Issue on BlockID Chain","d.b1s":"KYC + mint, zero gas","d.b2":"Anchor on Hoodi","d.b2s":"Merkle root + mirror","d.b3":"Shareholder wallets","d.b4":"Cap table & dividends","d.b4s":"mint · claim · explorer",
+ "d.f1":"hash","d.f2":"add token","d.f3":"track",
+ "walk.eyebrow":"Walkthrough","walk.h2":"Eight steps from website to wallet","walk.p":"Click through the flow with an example company. Gold steps need an admin approval before anything is written on-chain.",
+ "step.1":"Website","step.2":"AI research","step.3":"Valuation","step.4":"Ticker","step.5":"Shareholders","step.6":"Issue","step.7":"Anchor","step.8":"Wallet",
+ "gate.admin":"Admin approval",
+ "s1.h":"Paste your website","s1.p":"We read public pages only: product, team, pricing, press. No login or documents needed to start.","s1.btn":"Start valuation",
+ "s1.c1":"What we read","s1.c1p":"Up to 20 public pages. robots.txt respected. Emails and phone numbers are stripped before any search.",
+ "s1.c2":"What you get","s1.c2p":"An SVI grade from A to E, an A$ valuation range and a competitor table, each figure linked to its source.",
+ "s1.c3":"Time and limits","s1.c3p":"About 2–4 minutes. 3 valuations per wallet per day on the testnet.",
+ "s2.h":"AI agents at work","s2.p":"Each agent reports as it finishes. You can close the tab; the link resumes the job.","s2.replay":"Replay",
+ "s2.found":"Collected so far","s2.pages":"pages read","s2.comp":"competitors","s2.src":"sources","s2.note":"Findings that cite a page the agent did not actually fetch are dropped automatically.",
+ "log.1":"Read website","log.2":"Extract company profile","log.3":"Find competitors on Brave","log.4":"Analyse market with sources","log.5":"Score 7 SVI dimensions","log.6":"Write valuation narrative",
+ "s3.h":"Valuation report","s3.p":"Scores come from the model and from your numbers. The admin can adjust any AI score before approving.","s3.radar":"SVI profile",
+ "s3.build":"How the index is built","s3.buildp":"Score × weight = contribution. The sum is the SVI index.","s3.range":"Valuation range",
+ "s3.method":"Method: revenue × cited sector multiple (low · median · high) × SVI factor 1.17.","s3.comp":"Competitors · capital raised (A$M)","s3.approve":"Approve valuation","s3.total":"SVI index · grade B",
+ "dim.founder":"Founders","dim.product":"Product","dim.market":"Market","dim.revenue":"Revenue","dim.growth":"Growth","dim.ready":"Readiness","dim.trust":"Trust",
+ "s4.h":"Your share ticker","s4.p":"Three letters with a clear link to your company name, in the style of ASX codes. Pick one or type your own.","s4.name":"Token name","s4.rules":"How it was chosen",
+ "s4.r1":"Drop \"Pty Ltd\" → HARBOURLINE LOGISTICS","s4.r2":"First letter + next consonants","s4.r3":"Not on the blocklist","s4.r4":"Not used by another token on BlockID Chain","s4.r5":"HAR is taken (Harvest Agri)",
+ "s5.h":"Shareholders","s5.p":"Shares are issued at A$1.00 each by default, so the total follows the approved valuation. Enter each holder's wallet and percentage; we convert to whole shares so the total is always exact.",
+ "s5.supply":"Total shares","s5.preview":"Ownership preview","s5.kyc":"Every wallet is KYC-registered on-chain before shares are minted, and receives a small BLKD gas allowance.","s5.review":"Review issuance",
+ "s5.ok":"Total 100.00% · ready","s5.bad":"Total {p}% · must equal 100%",
+ "t.holder":"Holder","t.wallet":"Wallet","t.shares":"Shares",
+ "s6.h":"Approve and issue on BlockID Chain","s6.p":"The admin sees every transaction before it is sent. After signing, the issuer service sends them on the zero-gas chain.",
+ "s6.net":"Network","s6.token":"Token","s6.txn":"Transactions","s6.signer":"Signer","s6.sign":"Sign approval & issue","s6.reject":"Reject",
+ "tx.reg":"Deploy IdentityRegistry","tx.tok":"Deploy HBL share token","tx.div":"Deploy DividendDistributor","tx.kyc":"KYC 5 wallets","tx.gas":"Gas allowance to 5 wallets","tx.mint":"Mint 3,360,000 HBL","tx.val":"Anchor SVI report hash","tx.wait":"waiting for signature",
+ "s7.h":"Anchor on Ethereum Hoodi","s7.p":"Two things go to Hoodi: a fingerprint of the whole cap table, and a paused copy of the token so holders can see it in their wallet.",
+ "s7.cap":"Any holder can prove their balance against the public root without revealing the full register. The mirror token exists so wallets and Etherscan can display it; the BlockID Chain ledger stays the source of truth.","s7.approve":"Sign & anchor",
+ "a.block":"at block 18,204","a.hash":"hash rows","a.anchor":"anchor","a.mirror":"HBL mirror token","a.paused":"same balances · transfers paused","a.mint":"mint same balances, then pause",
+ "s8.h":"HBL is live. Add it to your wallet","s8.p":"Use the button, or copy the contract address and import it in MetaMask yourself.",
+ "s8.local":"Token contract · BlockID Chain (262626)","s8.hoodi":"Anchored copy · Ethereum Hoodi (560048)","s8.copy":"Copy address","s8.scan":"View on scan.blockid.au","s8.ether":"View on Etherscan","s8.add":"Add to MetaMask",
+ "s8.manual":"Add it manually","s8.m1":"Open MetaMask and choose the network: BlockID Chain or Ethereum Hoodi.","s8.m2":"Go to Tokens → Import tokens.","s8.m3":"Paste the contract address above. Symbol HBL and decimals 0 fill in automatically.","s8.m4":"Confirm. Your balance shows whole shares.","s8.m5":"On a phone, open this page inside the MetaMask app browser.",
+ "s8.net":"Network details","s8.name":"Name","s8.sym":"Currency","s8.dash":"Open dashboard",
+ "toast.copied":"Address copied.","toast.nomm":"MetaMask not found in this browser. Use the manual steps below.","toast.added":"Token added to MetaMask.",
+ "dash.eyebrow":"After issuance","dash.h2":"Your cap table, always current","dash.p":"Read straight from the chain. Model a new round before you mint, and pay dividends that holders claim without paying gas.",
+ "k.shares":"Shares outstanding","k.holders":"Holders","k.kyc":"all KYC-verified","k.price":"Value per share","k.pricesub":"issue price · SVI mid A$3.36M","k.anchor":"Last anchor",
+ "m.h":"Model a new round","m.p":"New shares for an incoming investor. Existing holders are diluted pro rata.","m.new":"New shares","m.before":"Before","m.after":"After","m.request":"Request approval","m.investor":"New investor",
+ "dv.h":"Plan a dividend","dv.p":"Split pro rata at a record block, published as a Merkle root. Holders claim; the relayer pays their gas.","dv.amt":"Total (mAUD)","dv.root":"Merkle root","dv.deadline":"claim deadline 30 days","dv.request":"Send for approval",
+ "fin.h":"See your startup's number in minutes.","fin.p":"Sign in with MetaMask, paste your website and get a cited valuation. Issuing shares is optional and always needs approval.",
+ "nav.admin":"Admin",
+ "ad.eyebrow":"Admin console",
+ "ad.h2":"Every tokenized company, one live view",
+ "ad.p":"Approve issuer wallets, watch platform value and drill into each company's share mark. Sign in with an admin wallet or the admin account.",
+ "ad.signin":"Sign in to admin",
+ "ad.m.wallet":"MetaMask",
+ "ad.m.pass":"Username",
+ "ad.walletp":"Sign a one-time message (SIWE). Only wallets on the admin list can enter.",
+ "ad.siwe":"Sign in with MetaMask",
+ "ad.user":"Username",
+ "ad.pass":"Password",
+ "ad.enter":"Sign in",
+ "ad.demo":"Demo account: admin / admin. You will be asked to change it after the first sign-in.",
+ "ad.signedas":"Signed in as",
+ "ad.logout":"Sign out",
+ "ad.t.ov":"Overview",
+ "ad.t.co":"Company detail",
+ "ad.t.wa":"Issuer wallets",
+ "ad.pv":"Platform value (marked)",
+ "ad.pvnote":"Sum of each company's valuation mark. Steps happen on issuance and on approved SVI revaluations. Simulated values are never included.",
+ "ad.grades":"Companies by grade",
+ "ad.movers":"Top movers · 30 days",
+ "ad.co":"Tokenized companies",
+ "ad.clickrow":"Click a row for detail",
+ "ad.c.tk":"Ticker",
+ "ad.c.name":"Company",
+ "ad.c.grade":"Grade",
+ "ad.c.val":"Valuation",
+ "ad.c.mark":"Mark / share",
+ "ad.c.trend":"30d trend",
+ "ad.c.hold":"Holders",
+ "ad.c.anch":"Anchor",
+ "ad.feed":"Activity",
+ "ad.simt":"Show simulated growth",
+ "ad.l.mark":"Mark (SVI-derived, A$ per share)",
+ "ad.l.sim":"Simulated · not a price (P10–P90 band)",
+ "ad.l.ev":"Event: issuance, revaluation",
+ "ad.aw":"Admin wallet · server keystore · visible to admins only",
+ "ad.aw2":"Owner wallet · MetaMask",
+ "ad.awnote":"Both hold DEFAULT_ADMIN_ROLE. Grants and revokes below are sent on-chain after you confirm, and appear here once the RoleGranted event is indexed.",
+ "ad.iw":"Wallets approved to issue",
+ "ad.grant":"Grant role",
+ "ad.w.label":"Label",
+ "ad.w.status":"Status",
+ "ad.w.since":"Since",
+ "ad.audit":"Audit log",
+ "ad.k.30d":"30d",
+ "ad.k.co":"Companies tokenized",
+ "ad.k.tok":"Token contracts",
+ "ad.k.toksub":"BlockID Chain + Hoodi mirrors",
+ "ad.k.sh":"Shares issued",
+ "ad.k.tx":"Transaction value",
+ "ad.k.val":"Total valuation",
+ "ad.k.avg":"Average valuation",
+ "ad.k.median":"median",
+ "ad.k.mult":"Avg mark vs A$1",
+ "ad.k.anch":"Cap tables anchored",
+ "ad.k.anchsub":"all roots match",
+ "ad.ev.iss":"issued",
+ "ad.ev.rv":"revalued",
+ "ad.ev.div":"dividend round",
+ "ad.today":"today",
+ "ad.ago":"{n}d ago",
+ "ad.range":"selected range",
+ "ad.cagr":"CAGR since issue",
+ "ad.issue1":"issue price A$1.00",
+ "ad.simnote":"Simulated with geometric Brownian motion for grade {g}: drift {mu}%/yr, volatility {sg}%/yr, 240 paths, seed {seed}. Illustration only, never used in totals.",
+ "ad.marknote":"The mark changes only on issuance and on approved SVI revaluations. Between events it stays flat.",
+ "ad.k.issued1":"issued at A$1.00",
+ "ad.k.kyc":"all KYC-verified",
+ "ad.k.simlive":"Simulated live",
+ "ad.k.mark":"Current mark",
+ "ad.k.asof":"as of last revaluation",
+ "ad.st.active":"Active",
+ "ad.st.pending":"Pending grant",
+ "ad.st.revoked":"Revoked",
+ "ad.confirm":"Confirm revoke",
+ "ad.revoke":"Revoke",
+ "au.grant":"granted ISSUER_ROLE to",
+ "au.revoke":"revoked ISSUER_ROLE from",
+ "au.req":"requested ISSUER_ROLE for",
+ "ad.bad.addr":"Enter a 0x address with 40 hex characters.",
+ "ad.bad.label":"Add a label so others know whose wallet this is.",
+ "ad.bad.pass":"Wrong username or password.",
+ "ad.bad.wallet":"This wallet is not on the admin list.",
+ "ad.live":"Live · updated {s}s ago",
+ "foot.legal":"Testnet demo. Not an offer of securities or financial advice. Example data shown."
+},
+vi: {
+ "nav.how":"Cách hoạt động","nav.walk":"Từng bước","nav.dash":"Sổ cổ đông","nav.net":"Testnet","nav.next":"Tiếp","nav.back":"Quay lại",
+ "cta.primary":"Định giá startup","cta.secondary":"Xem báo cáo mẫu",
+ "hero.eyebrow":"Định giá bằng AI · Sổ cổ đông số · Bản demo testnet","hero.h1a":"Biết startup của bạn đáng giá bao nhiêu,","hero.h1b":"và ai đang sở hữu nó.",
+ "hero.pitch":"Chỉ cần dán website. AI agent nghiên cứu công ty và đối thủ, chấm điểm trên 7 tiêu chí và dẫn nguồn cho từng con số. Sau đó biến danh sách cổ đông thành sổ cổ đông đã xác minh, sẵn sàng gọi vốn và chia cổ tức.",
+ "hero.legal":"Bản demo testnet. Không phải chào bán chứng khoán.",
+ "chip.1":"Mọi con số đều có nguồn","chip.2":"7 tiêu chí · hạng A–E · khoảng A$","chip.3":"Phát hành có admin duyệt và KYC","chip.4":"Sổ cổ đông neo trên Ethereum",
+ "hs.1":"Nghiên cứu","hs.2":"Định giá","hs.3":"Phát hành","hs.4":"Neo",
+ "ht.sources":"Nguồn trích dẫn","ht.svi":"Định giá SVI","ht.range":"Khoảng A$2,4 tr – A$4,3 tr · SVI 66,7","ht.token":"Token cổ phần","ht.holders":"3.360.000 cổ phần · A$1,00 mỗi cổ phần","ht.anchored":"Đã neo · Hoodi #3.694.512",
+ "how.eyebrow":"Cách hoạt động","how.h2":"AI nghiên cứu. Con người duyệt. Chỉ một service giữ key.",
+ "how.p":"Agent chỉ đọc dữ liệu công khai và đề xuất. Không gì lên blockchain cho tới khi admin ký duyệt, và chỉ issuer service mới gửi được giao dịch.",
+ "how.cap":"Mũi tên vàng là đường duy nhất từ kết quả AI tới blockchain. Nó cần chữ ký của admin; khung nét đứt là service duy nhất ký được giao dịch.",
+ "d.lane1":"AI AGENT · CHỈ ĐỌC · KHÔNG GIỮ KEY","d.lane2":"ISSUER SERVICE · THÀNH PHẦN DUY NHẤT GIỮ KEY",
+ "d.n1":"Website của bạn","d.n1s":"trang công khai","d.n2":"Đọc website","d.n2s":"hồ sơ công ty","d.n3":"Tìm đối thủ","d.n4":"Phân tích thị trường","d.n4s":"có dẫn nguồn","d.n5":"Định giá SVI","d.n5s":"hạng + khoảng A$",
+ "d.e1":"đọc","d.e2":"tên","d.e3":"nguồn","d.e4":"điểm","d.gate":"admin ký duyệt",
+ "d.b1":"Phát hành trên BlockID","d.b1s":"KYC + mint, 0 phí gas","d.b2":"Neo lên Hoodi","d.b2s":"Merkle root + bản sao","d.b3":"Ví cổ đông","d.b4":"Sổ cổ đông & cổ tức","d.b4s":"mint · nhận · explorer",
+ "d.f1":"băm","d.f2":"thêm token","d.f3":"theo dõi",
+ "walk.eyebrow":"Từng bước","walk.h2":"Tám bước từ website tới ví","walk.p":"Bấm qua luồng với một công ty ví dụ. Các bước màu vàng cần admin duyệt trước khi ghi lên chain.",
+ "step.1":"Website","step.2":"AI nghiên cứu","step.3":"Định giá","step.4":"Mã cổ phần","step.5":"Cổ đông","step.6":"Phát hành","step.7":"Neo","step.8":"Vào ví",
+ "gate.admin":"Admin duyệt",
+ "s1.h":"Dán website của bạn","s1.p":"Chúng tôi chỉ đọc trang công khai: sản phẩm, đội ngũ, bảng giá, báo chí. Không cần đăng nhập hay tài liệu để bắt đầu.","s1.btn":"Bắt đầu định giá",
+ "s1.c1":"Đọc những gì","s1.c1p":"Tối đa 20 trang công khai, tôn trọng robots.txt. Email và số điện thoại bị loại khỏi truy vấn tìm kiếm.",
+ "s1.c2":"Bạn nhận được","s1.c2p":"Hạng SVI từ A tới E, khoảng định giá A$ và bảng đối thủ, mỗi con số đều dẫn nguồn.",
+ "s1.c3":"Thời gian và giới hạn","s1.c3p":"Khoảng 2–4 phút. Mỗi ví 3 lượt định giá mỗi ngày trên testnet.",
+ "s2.h":"AI agent đang làm việc","s2.p":"Mỗi agent báo kết quả khi xong. Bạn có thể đóng tab; link này mở lại được tác vụ.","s2.replay":"Chạy lại",
+ "s2.found":"Đã thu thập","s2.pages":"trang đã đọc","s2.comp":"đối thủ","s2.src":"nguồn","s2.note":"Nhận định nào dẫn tới trang mà agent chưa thực sự tải sẽ bị loại tự động.",
+ "log.1":"Đọc website","log.2":"Trích hồ sơ công ty","log.3":"Tìm đối thủ qua Brave","log.4":"Phân tích thị trường có nguồn","log.5":"Chấm 7 tiêu chí SVI","log.6":"Viết nhận định định giá",
+ "s3.h":"Báo cáo định giá","s3.p":"Điểm đến từ mô hình và từ số liệu của bạn. Admin có thể chỉnh bất kỳ điểm nào do AI chấm trước khi duyệt.","s3.radar":"Hồ sơ SVI",
+ "s3.build":"Chỉ số được tính thế nào","s3.buildp":"Điểm × trọng số = đóng góp. Tổng là chỉ số SVI.","s3.range":"Khoảng định giá",
+ "s3.method":"Phương pháp: doanh thu × hệ số ngành có dẫn nguồn (thấp · trung vị · cao) × hệ số SVI 1,17.","s3.comp":"Đối thủ · vốn đã gọi (triệu A$)","s3.approve":"Duyệt định giá","s3.total":"Chỉ số SVI · hạng B",
+ "dim.founder":"Sáng lập","dim.product":"Sản phẩm","dim.market":"Thị trường","dim.revenue":"Doanh thu","dim.growth":"Tăng trưởng","dim.ready":"Sẵn sàng","dim.trust":"Tin cậy",
+ "s4.h":"Mã cổ phần của bạn","s4.p":"Ba chữ cái gắn rõ với tên công ty, theo kiểu mã ASX. Chọn một mã hoặc tự nhập.","s4.name":"Tên token","s4.rules":"Cách chọn mã",
+ "s4.r1":"Bỏ \"Pty Ltd\" → HARBOURLINE LOGISTICS","s4.r2":"Chữ đầu + các phụ âm tiếp theo","s4.r3":"Không nằm trong danh sách cấm","s4.r4":"Chưa có token nào dùng trên BlockID Chain","s4.r5":"HAR đã có người dùng (Harvest Agri)",
+ "s5.h":"Cổ đông","s5.p":"Mặc định mỗi cổ phần phát hành giá A$1,00, nên tổng số cổ phần bằng mức định giá đã duyệt. Nhập ví và tỷ lệ của từng cổ đông; hệ thống đổi sang số cổ phần nguyên để tổng luôn chính xác.",
+ "s5.supply":"Tổng cổ phần","s5.preview":"Xem trước sở hữu","s5.kyc":"Mỗi ví được đăng ký KYC on-chain trước khi mint, và được cấp một ít BLKD làm phí gas.","s5.review":"Xem lại phát hành",
+ "s5.ok":"Tổng 100,00% · sẵn sàng","s5.bad":"Tổng {p}% · phải bằng 100%",
+ "t.holder":"Cổ đông","t.wallet":"Ví","t.shares":"Cổ phần",
+ "s6.h":"Duyệt và phát hành trên BlockID Chain","s6.p":"Admin thấy từng giao dịch trước khi gửi. Sau khi ký, issuer service gửi chúng lên chain không phí gas.",
+ "s6.net":"Mạng","s6.token":"Token","s6.txn":"Giao dịch","s6.signer":"Người ký","s6.sign":"Ký duyệt & phát hành","s6.reject":"Từ chối",
+ "tx.reg":"Deploy IdentityRegistry","tx.tok":"Deploy token cổ phần HBL","tx.div":"Deploy DividendDistributor","tx.kyc":"KYC 5 ví","tx.gas":"Cấp phí gas cho 5 ví","tx.mint":"Mint 3.360.000 HBL","tx.val":"Neo hash báo cáo SVI","tx.wait":"chờ ký duyệt",
+ "s7.h":"Neo lên Ethereum Hoodi","s7.p":"Có hai thứ được đưa lên Hoodi: dấu vân tay của toàn bộ sổ cổ đông, và một bản sao token bị khoá để cổ đông thấy trong ví.",
+ "s7.cap":"Mỗi cổ đông có thể chứng minh số dư của mình với root công khai mà không lộ toàn bộ sổ. Token bản sao giúp ví và Etherscan hiển thị được; sổ trên BlockID Chain vẫn là nguồn gốc.","s7.approve":"Ký & neo",
+ "a.block":"tại block 18.204","a.hash":"băm từng dòng","a.anchor":"neo","a.mirror":"Token HBL bản sao","a.paused":"cùng số dư · khoá chuyển nhượng","a.mint":"mint cùng số dư, rồi khoá",
+ "s8.h":"HBL đã phát hành. Thêm vào ví của bạn","s8.p":"Bấm nút, hoặc sao chép contract address và tự nhập vào MetaMask.",
+ "s8.local":"Contract token · BlockID Chain (262626)","s8.hoodi":"Bản neo · Ethereum Hoodi (560048)","s8.copy":"Sao chép địa chỉ","s8.scan":"Xem trên scan.blockid.au","s8.ether":"Xem trên Etherscan","s8.add":"Thêm vào MetaMask",
+ "s8.manual":"Thêm thủ công","s8.m1":"Mở MetaMask và chọn mạng: BlockID Chain hoặc Ethereum Hoodi.","s8.m2":"Vào Tokens → Import tokens.","s8.m3":"Dán contract address ở trên. Symbol HBL và decimals 0 tự điền.","s8.m4":"Xác nhận. Số dư hiển thị số cổ phần nguyên.","s8.m5":"Trên điện thoại, mở trang này trong trình duyệt của app MetaMask.",
+ "s8.net":"Thông số mạng","s8.name":"Tên","s8.sym":"Đơn vị","s8.dash":"Mở dashboard",
+ "toast.copied":"Đã sao chép địa chỉ.","toast.nomm":"Không tìm thấy MetaMask trong trình duyệt này. Làm theo các bước thủ công bên dưới.","toast.added":"Đã thêm token vào MetaMask.",
+ "dash.eyebrow":"Sau khi phát hành","dash.h2":"Sổ cổ đông luôn cập nhật","dash.p":"Đọc trực tiếp từ chain. Mô phỏng vòng gọi vốn trước khi mint, và chia cổ tức mà cổ đông nhận không tốn phí gas.",
+ "k.shares":"Cổ phần lưu hành","k.holders":"Cổ đông","k.kyc":"đều đã KYC","k.price":"Giá trị mỗi cổ phần","k.pricesub":"giá phát hành · SVI giữa A$3,36 tr","k.anchor":"Lần neo gần nhất",
+ "m.h":"Mô phỏng vòng mới","m.p":"Cổ phần mới cho nhà đầu tư. Cổ đông hiện hữu bị pha loãng theo tỷ lệ.","m.new":"Cổ phần mới","m.before":"Trước","m.after":"Sau","m.request":"Gửi admin duyệt","m.investor":"Nhà đầu tư mới",
+ "dv.h":"Lập kế hoạch cổ tức","dv.p":"Chia theo tỷ lệ tại một block chốt, công bố dưới dạng Merkle root. Cổ đông tự nhận; relayer trả phí gas.","dv.amt":"Tổng (mAUD)","dv.root":"Merkle root","dv.deadline":"hạn nhận 30 ngày","dv.request":"Gửi duyệt",
+ "fin.h":"Biết con số của startup chỉ sau vài phút.","fin.p":"Đăng nhập bằng MetaMask, dán website và nhận báo cáo định giá có dẫn nguồn. Phát hành cổ phần là tuỳ chọn và luôn cần duyệt.",
+ "nav.admin":"Admin",
+ "ad.eyebrow":"Khu vực admin",
+ "ad.h2":"Mọi doanh nghiệp đã token hoá trong một màn hình",
+ "ad.p":"Duyệt ví phát hành, theo dõi tổng giá trị nền tảng và xem chi tiết giá cổ phần của từng doanh nghiệp. Đăng nhập bằng ví admin hoặc tài khoản admin.",
+ "ad.signin":"Đăng nhập admin",
+ "ad.m.wallet":"MetaMask",
+ "ad.m.pass":"Tài khoản",
+ "ad.walletp":"Ký một thông điệp dùng một lần (SIWE). Chỉ ví trong danh sách admin mới vào được.",
+ "ad.siwe":"Đăng nhập bằng MetaMask",
+ "ad.user":"Tên đăng nhập",
+ "ad.pass":"Mật khẩu",
+ "ad.enter":"Đăng nhập",
+ "ad.demo":"Tài khoản demo: admin / admin. Bạn sẽ được yêu cầu đổi mật khẩu sau lần đăng nhập đầu.",
+ "ad.signedas":"Đang đăng nhập",
+ "ad.logout":"Đăng xuất",
+ "ad.t.ov":"Tổng quan",
+ "ad.t.co":"Chi tiết doanh nghiệp",
+ "ad.t.wa":"Ví phát hành",
+ "ad.pv":"Tổng giá trị nền tảng (theo định giá)",
+ "ad.pvnote":"Tổng giá trị định giá của các doanh nghiệp. Chỉ thay đổi khi phát hành và khi định giá lại SVI được duyệt. Không bao gồm số liệu giả lập.",
+ "ad.grades":"Doanh nghiệp theo hạng",
+ "ad.movers":"Biến động mạnh · 30 ngày",
+ "ad.co":"Doanh nghiệp đã token hoá",
+ "ad.clickrow":"Bấm vào dòng để xem chi tiết",
+ "ad.c.tk":"Mã",
+ "ad.c.name":"Doanh nghiệp",
+ "ad.c.grade":"Hạng",
+ "ad.c.val":"Định giá",
+ "ad.c.mark":"Giá / cổ phần",
+ "ad.c.trend":"Xu hướng 30 ngày",
+ "ad.c.hold":"Cổ đông",
+ "ad.c.anch":"Neo",
+ "ad.feed":"Hoạt động",
+ "ad.simt":"Hiện tăng trưởng giả lập",
+ "ad.l.mark":"Giá định giá (theo SVI, A$ mỗi cổ phần)",
+ "ad.l.sim":"Giả lập · không phải giá (dải P10–P90)",
+ "ad.l.ev":"Sự kiện: phát hành, định giá lại",
+ "ad.aw":"Ví admin · keystore trên server · chỉ admin thấy",
+ "ad.aw2":"Ví chủ sở hữu · MetaMask",
+ "ad.awnote":"Cả hai giữ DEFAULT_ADMIN_ROLE. Cấp và thu hồi quyền bên dưới được gửi on-chain sau khi bạn xác nhận, và hiện ở đây khi sự kiện RoleGranted được index.",
+ "ad.iw":"Ví được quyền phát hành",
+ "ad.grant":"Cấp quyền",
+ "ad.w.label":"Nhãn",
+ "ad.w.status":"Trạng thái",
+ "ad.w.since":"Từ ngày",
+ "ad.audit":"Nhật ký kiểm toán",
+ "ad.k.30d":"30 ngày",
+ "ad.k.co":"Doanh nghiệp token hoá",
+ "ad.k.tok":"Hợp đồng token",
+ "ad.k.toksub":"BlockID Chain + bản sao Hoodi",
+ "ad.k.sh":"Cổ phần đã phát hành",
+ "ad.k.tx":"Giá trị giao dịch",
+ "ad.k.val":"Tổng định giá",
+ "ad.k.avg":"Định giá trung bình",
+ "ad.k.median":"trung vị",
+ "ad.k.mult":"Giá TB so với A$1",
+ "ad.k.anch":"Sổ cổ đông đã neo",
+ "ad.k.anchsub":"mọi root đều khớp",
+ "ad.ev.iss":"phát hành",
+ "ad.ev.rv":"định giá lại",
+ "ad.ev.div":"vòng cổ tức",
+ "ad.today":"hôm nay",
+ "ad.ago":"{n} ngày trước",
+ "ad.range":"khoảng đã chọn",
+ "ad.cagr":"tăng trưởng kép từ khi phát hành",
+ "ad.issue1":"giá phát hành A$1,00",
+ "ad.simnote":"Giả lập bằng chuyển động Brown hình học cho hạng {g}: xu hướng {mu}%/năm, biến động {sg}%/năm, 240 kịch bản, seed {seed}. Chỉ để minh hoạ, không cộng vào tổng.",
+ "ad.marknote":"Giá chỉ đổi khi phát hành và khi định giá lại SVI được duyệt. Giữa các sự kiện, giá đứng yên.",
+ "ad.k.issued1":"phát hành giá A$1,00",
+ "ad.k.kyc":"đều đã KYC",
+ "ad.k.simlive":"Giả lập trực tiếp",
+ "ad.k.mark":"Giá hiện tại",
+ "ad.k.asof":"theo lần định giá gần nhất",
+ "ad.st.active":"Đang hoạt động",
+ "ad.st.pending":"Chờ cấp quyền",
+ "ad.st.revoked":"Đã thu hồi",
+ "ad.confirm":"Xác nhận thu hồi",
+ "ad.revoke":"Thu hồi",
+ "au.grant":"cấp ISSUER_ROLE cho",
+ "au.revoke":"thu hồi ISSUER_ROLE của",
+ "au.req":"yêu cầu ISSUER_ROLE cho",
+ "ad.bad.addr":"Nhập địa chỉ 0x gồm 40 ký tự hex.",
+ "ad.bad.label":"Thêm nhãn để mọi người biết ví này của ai.",
+ "ad.bad.pass":"Sai tên đăng nhập hoặc mật khẩu.",
+ "ad.bad.wallet":"Ví này không có trong danh sách admin.",
+ "ad.live":"Trực tiếp · cập nhật {s} giây trước",
+ "foot.legal":"Bản demo testnet. Không phải chào bán chứng khoán hay tư vấn tài chính. Dữ liệu minh hoạ."
+}};
+
+let lang = "en";
+const t = (k) => (T[lang][k] ?? T.en[k] ?? k);
+const loc = () => (lang === "vi" ? "vi-VN" : "en-AU");
+const fmt = (n, d = 0) => new Intl.NumberFormat(loc(), { minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, txt) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; };
+
+/* ---------- tooltip ---------- */
+const tip = $("tip");
+function bindTip(node, text) {
+  node.addEventListener("pointerenter", () => { tip.textContent = typeof text === "function" ? text() : text; tip.hidden = false; });
+  node.addEventListener("pointermove", (e) => { tip.style.left = e.clientX + "px"; tip.style.top = e.clientY + "px"; });
+  node.addEventListener("pointerleave", () => { tip.hidden = true; });
+}
+
+/* ---------- data ---------- */
+const DIMS = [
+  { k: "dim.founder", s: 72, w: .20 }, { k: "dim.product", s: 68, w: .15 }, { k: "dim.market", s: 74, w: .20 },
+  { k: "dim.revenue", s: 55, w: .20 }, { k: "dim.growth", s: 61, w: .10 }, { k: "dim.ready", s: 70, w: .10 }, { k: "dim.trust", s: 64, w: .05 } ];
+const COMP = [ { n: "Shipit Freight", v: 12, src: 4 }, { n: "Loadlink AU", v: 5.5, src: 3 }, { n: "Freightmate", v: 3.2, src: 2 }, { n: "Cargo Hub", v: 1.1, src: 2 } ];
+const HOLDERS = [
+  { n: "Maya Chen", a: "0x4B20…91cE", p: 42, c: "--c1" }, { n: "Tom Nguyen", a: "0x9F1d…03aA", p: 25, c: "--c2" },
+  { n: "Seed Fund I", a: "0x77Ab…e5F2", p: 15, c: "--c3" }, { n: "ESOP pool", a: "0x1C09…4d7B", p: 10, c: "--c4" }, { n: "Angels", a: "0x5aE3…77b0", p: 8, c: "--c5" } ];
+
+/* ---------- i18n ---------- */
+function applyLang(l) {
+  lang = l;
+  document.documentElement.lang = l;
+  document.querySelectorAll("[data-i18n]").forEach((n) => { n.textContent = t(n.dataset.i18n); });
+  document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === l)));
+  try { localStorage.setItem("blockid-lang", l); } catch (e) {}
+  renderAll();
+}
+document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
+
+/* ---------- hero ---------- */
+function ring(svg, parts, r = 46, sw = 16, gapDeg = 1.2) {
+  svg.replaceChildren();
+  const C = 2 * Math.PI * r, total = parts.reduce((a, p) => a + p.v, 0);
+  let off = 0;
+  parts.forEach((p) => {
+    const len = (p.v / total) * C, gap = (gapDeg / 360) * C;
+    const c = el("circle", { cx: 60 * (svg.viewBox.baseVal.width / 120), cy: 60 * (svg.viewBox.baseVal.width / 120), r, fill: "none", stroke: css(p.c), "stroke-width": sw,
+      "stroke-dasharray": `${Math.max(len - gap, 0)} ${C}`, "stroke-dashoffset": -off, transform: `rotate(-90 ${60 * (svg.viewBox.baseVal.width / 120)} ${60 * (svg.viewBox.baseVal.width / 120)})` });
+    svg.appendChild(c); off += len; if (p.tip) bindTip(c, p.tip);
+  });
+  return svg;
+}
+let heroStage = 3;
+function heroPaint() {
+  const tiles = ["ht-1", "ht-2", "ht-3", "ht-4"];
+  tiles.forEach((id, i) => $(id).classList.toggle("dim", i > heroStage));
+  document.querySelectorAll("#hero-stages span").forEach((s, i) => s.classList.toggle("on", i <= heroStage));
+}
+ring($("hero-ring"), HOLDERS.map((h) => ({ v: h.p, c: h.c })), 44, 18);
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (!reduce) {
+  heroStage = 0; heroPaint();
+  setInterval(() => { heroStage = (heroStage + 1) % 5; if (heroStage === 4) heroStage = 3; heroPaint(); if (heroStage === 3) setTimeout(() => { heroStage = -1; }, 2600); }, 1500);
+}
+heroPaint();
+
+/* ---------- stepper ---------- */
+const GATES = [3, 6, 7];
+let cur = 1, maxDone = 0;
+function buildNav() {
+  const nav = $("stepnav"); nav.replaceChildren();
+  for (let i = 1; i <= 8; i++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "tab-" + i; b.setAttribute("role", "tab"); b.setAttribute("aria-controls", "s" + i);
+    b.setAttribute("aria-selected", String(i === cur));
+    if (i <= maxDone && i !== cur) b.classList.add("done");
+    if (GATES.includes(i)) b.classList.add("gate");
+    b.innerHTML = `<b>${String(i).padStart(2, "0")}</b><span></span>`;
+    b.querySelector("span").textContent = t("step." + i);
+    b.addEventListener("click", () => go(i));
+    nav.appendChild(b);
+  }
+}
+function go(i) {
+  maxDone = Math.max(maxDone, cur); cur = i;
+  for (let k = 1; k <= 8; k++) $("s" + k).hidden = k !== i;
+  buildNav();
+  if (i === 2) runAgents();
+  const top = $("stepnav").getBoundingClientRect().top;
+  if (top < 0 || top > window.innerHeight * .6) $("stepnav").scrollIntoView({ block: "start" });
+}
+document.querySelectorAll("[data-next]").forEach((b) => b.addEventListener("click", () => go(Math.min(8, cur + 1))));
+document.querySelectorAll("[data-prev]").forEach((b) => b.addEventListener("click", () => go(Math.max(1, cur - 1))));
+$("run-btn").addEventListener("click", () => go(2));
+$("sample-report").addEventListener("click", () => { go(3); });
+
+/* ---------- step 2 agents ---------- */
+let agentTimer = null, agentStep = 6;
+const LOG = [ { k: "log.1", t: "0:18", pg: 14 }, { k: "log.2", t: "0:31" }, { k: "log.3", t: "1:02", cp: 9 }, { k: "log.4", t: "1:40", src: 23 }, { k: "log.5", t: "2:05" }, { k: "log.6", t: "2:21" } ];
+function paintAgents() {
+  const box = $("agentlog"); box.replaceChildren();
+  let pg = 0, cp = 0, src = 0;
+  LOG.forEach((row, i) => {
+    const d = document.createElement("div");
+    const st = i < agentStep ? "ok" : i === agentStep ? "run" : "";
+    d.innerHTML = `<span class="dot ${st}"></span><span></span><em>${i < agentStep ? row.t : i === agentStep ? "…" : "–"}</em>`;
+    d.children[1].textContent = t(row.k);
+    box.appendChild(d);
+    if (i < agentStep) { pg = row.pg ?? pg; cp = row.cp ?? cp; src = row.src ?? src; }
+  });
+  $("cnt-pages").textContent = fmt(pg || (agentStep > 0 ? 14 : 0));
+  $("cnt-comp").textContent = fmt(agentStep > 2 ? 9 : 0);
+  $("cnt-src").textContent = fmt(agentStep > 3 ? 23 : 0);
+}
+function runAgents() {
+  if (reduce) { agentStep = 6; paintAgents(); return; }
+  clearInterval(agentTimer); agentStep = 0; paintAgents();
+  agentTimer = setInterval(() => { agentStep++; paintAgents(); if (agentStep >= 6) clearInterval(agentTimer); }, 800);
+}
+$("replay2").addEventListener("click", runAgents);
+
+/* ---------- step 3 charts ---------- */
+function drawRadar() {
+  const svg = $("radar"); svg.replaceChildren();
+  const cx = 180, cy = 150, R = 100, n = DIMS.length;
+  const pt = (i, r) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / n; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+  [25, 50, 75, 100].forEach((v) => {
+    svg.appendChild(el("polygon", { points: DIMS.map((_, i) => pt(i, (R * v) / 100).join(",")).join(" "), fill: "none", stroke: css("--line"), "stroke-width": 1 }));
+  });
+  svg.appendChild(el("text", { x: cx + 4, y: cy - R / 2 + 4, "font-size": 10, fill: css("--faint") }, "50"));
+  svg.appendChild(el("text", { x: cx + 4, y: cy - R + 4, "font-size": 10, fill: css("--faint") }, "100"));
+  DIMS.forEach((d, i) => {
+    const [x, y] = pt(i, R); svg.appendChild(el("line", { x1: cx, y1: cy, x2: x, y2: y, stroke: css("--line") }));
+    const [lx, ly] = pt(i, R + 22);
+    svg.appendChild(el("text", { x: lx, y: ly + 4, "font-size": 11.5, "text-anchor": Math.abs(lx - cx) < 8 ? "middle" : lx > cx ? "start" : "end", fill: css("--muted") }, t(d.k)));
+  });
+  svg.appendChild(el("polygon", { points: DIMS.map((d, i) => pt(i, (R * d.s) / 100).join(",")).join(" "), fill: css("--accent"), "fill-opacity": .16, stroke: css("--accent"), "stroke-width": 2, "stroke-linejoin": "round" }));
+  DIMS.forEach((d, i) => {
+    const [x, y] = pt(i, (R * d.s) / 100);
+    const hit = el("circle", { cx: x, cy: y, r: 12, fill: "transparent" });
+    svg.appendChild(el("circle", { cx: x, cy: y, r: 4.5, fill: css("--accent"), stroke: css("--surface"), "stroke-width": 2 }));
+    svg.appendChild(hit); bindTip(hit, () => `${t(d.k)} · ${fmt(d.s)}/100 · ${fmt(d.w * 100)}%`);
+  });
+}
+function drawContrib() {
+  const box = $("contrib"); box.replaceChildren(); let sum = 0;
+  DIMS.forEach((d) => {
+    const c = d.s * d.w; sum += c;
+    const r = document.createElement("div"); r.className = "r";
+    r.innerHTML = `<span></span><span class="t"><i style="width:${d.s}%"></i></span><span class="w">×${fmt(d.w, 2)}</span><span class="v">${fmt(c, 1)}</span>`;
+    r.firstChild.textContent = `${t(d.k)} · ${fmt(d.s)}`;
+    box.appendChild(r);
+  });
+  const s = document.createElement("div"); s.className = "r sum";
+  s.innerHTML = `<span></span><span></span><span></span><span class="v">${fmt(sum, 1)}</span>`; s.firstChild.textContent = t("s3.total");
+  box.appendChild(s);
+}
+function drawRange() {
+  const svg = $("rangechart"); svg.replaceChildren();
+  const x0 = 20, x1 = 440, max = 6, X = (v) => x0 + ((x1 - x0) * v) / max;
+  svg.appendChild(el("rect", { x: x0, y: 34, width: x1 - x0, height: 10, rx: 5, fill: css("--sunken") }));
+  svg.appendChild(el("rect", { x: X(2.4), y: 34, width: X(4.3) - X(2.4), height: 10, rx: 5, fill: css("--accent"), "fill-opacity": .35 }));
+  [0, 1, 2, 3, 4, 5, 6].forEach((v) => { svg.appendChild(el("text", { x: X(v), y: 88, "font-size": 10.5, "text-anchor": "middle", fill: css("--faint") }, "A$" + fmt(v) + "M")); });
+  [[2.4, "low"], [4.3, "high"]].forEach(([v]) => { svg.appendChild(el("line", { x1: X(v), x2: X(v), y1: 28, y2: 50, stroke: css("--accent"), "stroke-width": 2 })); });
+  svg.appendChild(el("circle", { cx: X(3.36), cy: 39, r: 8, fill: css("--accent"), stroke: css("--surface"), "stroke-width": 3 }));
+  svg.appendChild(el("text", { x: X(3.36), y: 20, "font-size": 13, "font-weight": 700, "text-anchor": "middle", fill: css("--ink") }, "A$" + fmt(3.36, 2) + "M"));
+  svg.appendChild(el("text", { x: X(2.4), y: 66, "font-size": 11, "text-anchor": "middle", fill: css("--muted") }, "A$" + fmt(2.4, 1) + "M"));
+  svg.appendChild(el("text", { x: X(4.3), y: 66, "font-size": 11, "text-anchor": "middle", fill: css("--muted") }, "A$" + fmt(4.3, 1) + "M"));
+}
+function drawComp() {
+  const svg = $("compchart"); svg.replaceChildren();
+  const x0 = 120, x1 = 420, max = 14, X = (v) => x0 + ((x1 - x0) * v) / max, rowH = 34;
+  [0, 5, 10].forEach((v) => { svg.appendChild(el("line", { x1: X(v), x2: X(v), y1: 6, y2: 146, stroke: css("--line"), "stroke-dasharray": v ? "3 4" : "" })); svg.appendChild(el("text", { x: X(v), y: 162, "font-size": 10.5, "text-anchor": "middle", fill: css("--faint") }, fmt(v))); });
+  COMP.forEach((c, i) => {
+    const y = 12 + i * rowH;
+    svg.appendChild(el("text", { x: x0 - 10, y: y + 15, "font-size": 12, "text-anchor": "end", fill: css("--ink") }, c.n));
+    const w = X(c.v) - x0;
+    svg.appendChild(el("path", { d: `M${x0} ${y + 4} h${w - 4} a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h${-(w - 4)} z`, fill: css("--c3") }));
+    svg.appendChild(el("text", { x: X(c.v) + 6, y: y + 15, "font-size": 11.5, "font-weight": 600, fill: css("--muted") }, fmt(c.v, 1)));
+    const hit = el("rect", { x: 0, y, width: 460, height: rowH - 4, fill: "transparent" }); svg.appendChild(hit);
+    bindTip(hit, () => `${c.n} · A$${fmt(c.v, 1)}M · ${c.src} sources`);
+  });
+}
+
+/* ---------- step 4 ---------- */
+let ticker = "HBL";
+function drawTickers() {
+  const box = $("tickers"); box.replaceChildren();
+  ["HBL", "HLL", "HLG"].forEach((tk) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "tk" + (tk === ticker ? "" : " alt"); b.textContent = tk;
+    b.setAttribute("aria-pressed", String(tk === ticker));
+    b.addEventListener("click", () => { ticker = tk; drawTickers(); });
+    box.appendChild(b);
+  });
+  $("tk-name").textContent = `Harbourline Logistics ORD (${ticker})`;
+}
+
+/* ---------- step 5 shareholders ---------- */
+function allocate(total, pcts) {
+  const raw = pcts.map((p) => (total * p) / 100), base = raw.map(Math.floor);
+  let left = total - base.reduce((a, b) => a + b, 0);
+  raw.map((r, i) => [r - base[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { base[i]++; left--; } });
+  return base;
+}
+function drawHolders(rebuild) {
+  const tb = $("holder-rows");
+  if (rebuild || !tb.children.length) {
+    tb.replaceChildren();
+    HOLDERS.forEach((h, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td><span class="sw" style="background:var(${h.c});margin-right:8px"></span><span></span></td><td class="mono" style="font-size:.8rem"></td><td class="r"><input type="number" step="0.01" min="0" max="100" id="pct-${i}" aria-label="${h.n} %"></td><td class="r" id="sh-${i}"></td>`;
+      tr.children[0].children[1].textContent = h.n; tr.children[1].textContent = h.a;
+      tr.querySelector("input").value = h.p;
+      tr.querySelector("input").addEventListener("input", (e) => { h.p = parseFloat(e.target.value) || 0; drawHolders(false); });
+      tb.appendChild(tr);
+    });
+  }
+  const total = Math.max(0, parseInt($("supply").value, 10) || 0), sumP = HOLDERS.reduce((a, h) => a + h.p, 0);
+  const ok = Math.abs(sumP - 100) < 1e-9;
+  const shares = ok ? allocate(total, HOLDERS.map((h) => h.p)) : HOLDERS.map((h) => Math.floor((total * h.p) / 100));
+  HOLDERS.forEach((h, i) => { h.shares = shares[i]; $("sh-" + i).textContent = fmt(shares[i]); });
+  const tr = $("total-row"); tr.className = "totalrow " + (ok ? "ok" : "bad");
+  tr.textContent = ok ? `${t("s5.ok")} · ${fmt(total)} ${t("t.shares").toLowerCase()}` : t("s5.bad").replace("{p}", fmt(sumP, 2));
+  drawDonut();
+}
+function drawDonut() {
+  const svg = $("donut"); svg.replaceChildren();
+  const cx = 130, cy = 130, r = 92, sw = 30, C = 2 * Math.PI * r, tot = HOLDERS.reduce((a, h) => a + Math.max(h.p, 0), 0) || 1;
+  let off = 0;
+  HOLDERS.forEach((h) => {
+    const len = (Math.max(h.p, 0) / tot) * C, gap = 2;
+    const c = el("circle", { cx, cy, r, fill: "none", stroke: css(h.c), "stroke-width": sw, "stroke-dasharray": `${Math.max(len - gap, 0)} ${C}`, "stroke-dashoffset": -off, transform: `rotate(-90 ${cx} ${cy})` });
+    svg.appendChild(c); bindTip(c, () => `${h.n} · ${fmt(h.p, 2)}% · ${fmt(h.shares || 0)}`); off += len;
+  });
+  svg.appendChild(el("text", { x: cx, y: cy - 4, "text-anchor": "middle", "font-size": 24, "font-weight": 800, fill: css("--ink"), "font-family": "Be Vietnam Pro, sans-serif" }, fmt((parseInt($("supply").value, 10) || 0) / 1e6, 1) + "M"));
+  svg.appendChild(el("text", { x: cx, y: cy + 18, "text-anchor": "middle", "font-size": 12, fill: css("--muted") }, ticker + " · " + t("t.shares").toLowerCase()));
+  const lg = $("donut-legend"); lg.replaceChildren();
+  HOLDERS.forEach((h) => { const s = document.createElement("span"); s.innerHTML = `<i class="sw" style="background:var(${h.c})"></i>`; s.append(`${h.n} ${fmt(h.p, 1)}%`); lg.appendChild(s); });
+}
+$("supply").addEventListener("input", () => drawHolders(false));
+
+/* ---------- step 6 transactions ---------- */
+const TXS = ["tx.reg", "tx.tok", "tx.div", "tx.kyc", "tx.gas", "tx.mint", "tx.val"];
+let txDone = 0, txTimer = null;
+function drawTx() {
+  const box = $("txlist"); box.replaceChildren();
+  TXS.forEach((k, i) => {
+    const d = document.createElement("div");
+    const st = i < txDone ? "ok" : (i === txDone && txTimer) ? "run" : "";
+    d.innerHTML = `<span class="dot ${st}"></span><span></span><span class="h">${i < txDone ? "#" + fmt(18198 + i) : ""}</span><span class="h">${i < txDone ? "0x" + (0xa1f3 + i * 977).toString(16) + "…" : ""}</span>`;
+    d.children[1].textContent = t(k) + (txDone === 0 && i === 0 && !txTimer ? " · " + t("tx.wait") : "");
+    box.appendChild(d);
+  });
+}
+$("sign-issue").addEventListener("click", () => {
+  if (reduce) { txDone = TXS.length; drawTx(); return; }
+  clearInterval(txTimer); txDone = 0; txTimer = setInterval(() => { txDone++; if (txDone >= TXS.length) { clearInterval(txTimer); txTimer = null; } drawTx(); }, 450); drawTx();
+});
+
+/* ---------- step 8 wallet ---------- */
+function qr(svg, seed) {
+  svg.replaceChildren(); let x = seed;
+  const rnd = () => (x = (x * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const finder = (ox, oy) => { svg.appendChild(el("rect", { x: ox, y: oy, width: 7, height: 7, fill: "currentColor" })); svg.appendChild(el("rect", { x: ox + 1, y: oy + 1, width: 5, height: 5, fill: css("--surface") })); svg.appendChild(el("rect", { x: ox + 2, y: oy + 2, width: 3, height: 3, fill: "currentColor" })); };
+  for (let i = 0; i < 21; i++) for (let j = 0; j < 21; j++) {
+    const inF = (i < 8 && j < 8) || (i > 12 && j < 8) || (i < 8 && j > 12); if (!inF && rnd() > .52) svg.appendChild(el("rect", { x: i, y: j, width: 1, height: 1, fill: "currentColor" }));
+  }
+  finder(0, 0); finder(14, 0); finder(0, 14);
+}
+const toast = (k) => { $("toast").textContent = t(k); };
+document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); toast("toast.copied"); } catch (e) { toast("toast.copied"); }
+}));
+document.querySelectorAll("[data-watch]").forEach((b) => b.addEventListener("click", async () => {
+  if (!window.ethereum) { toast("toast.nomm"); return; }
+  const isH = b.dataset.watch === "hoodi";
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: isH ? "0x88bb0" : "0x401e2" }] }).catch(() => {});
+    await window.ethereum.request({ method: "wallet_watchAsset", params: { type: "ERC20", options: { address: $(isH ? "addr-hoodi" : "addr-local").textContent, symbol: ticker, decimals: 0 } } });
+    toast("toast.added");
+  } catch (e) { $("toast").textContent = "MetaMask: " + (e.message || e); }
+}));
+
+/* ---------- dashboard ---------- */
+function drawDilution() {
+  const add = parseInt($("mint-slider").value, 10), base = parseInt($("supply").value, 10) || 3360000, after = base + add;
+  $("mint-val").textContent = fmt(add) + " · A$" + fmt(add) + " @ A$1.00";
+  const box = $("dilution"); box.replaceChildren();
+  const row = (label, parts) => {
+    const w = document.createElement("div"); w.className = "bars100";
+    w.innerHTML = `<div class="lab"><span></span><span class="num"></span></div><div class="s"></div>`;
+    w.querySelector(".lab span").textContent = label; w.querySelector(".lab .num").textContent = fmt(parts.reduce((a, p) => a + p.v, 0));
+    const s = w.querySelector(".s"); const tot = parts.reduce((a, p) => a + p.v, 0);
+    parts.forEach((p) => { if (!p.v) return; const i = document.createElement("i"); i.style.width = (p.v / tot) * 100 + "%"; i.style.background = `var(${p.c})`; s.appendChild(i); bindTip(i, () => `${p.n} · ${fmt((p.v / tot) * 100, 1)}%`); });
+    box.appendChild(w);
+  };
+  const cur = HOLDERS.map((h) => ({ n: h.n, v: Math.round((base * h.p) / 100), c: h.c }));
+  row(t("m.before"), cur);
+  row(t("m.after"), [...cur, { n: t("m.investor"), v: add, c: "--c6" }]);
+  const tb = $("dil-rows"); tb.replaceChildren();
+  [...cur, { n: t("m.investor"), v: 0, c: "--c6", nw: add }].forEach((h) => {
+    const b = h.v / base * 100, a = ((h.nw ?? h.v) / after) * 100, tr = document.createElement("tr");
+    tr.innerHTML = `<td><span class="sw" style="background:var(${h.c});margin-right:8px"></span><span></span></td><td class="r">${h.nw != null ? "–" : fmt(b, 1) + "%"}</td><td class="r">${fmt(a, 1)}%</td><td class="r">${(a - (h.nw != null ? 0 : b) >= 0 ? "+" : "−") + fmt(Math.abs(a - (h.nw != null ? 0 : b)), 1)}</td>`;
+    tr.children[0].children[1].textContent = h.n; tb.appendChild(tr);
+  });
+  $("k-shares").textContent = fmt(base);
+}
+function drawDividend() {
+  const amt = Math.max(0, parseFloat($("div-amt").value) || 0), svg = $("divchart"); svg.replaceChildren();
+  const x0 = 110, x1 = 390, max = Math.max(amt * .45, 1), X = (v) => x0 + ((x1 - x0) * v) / max, rowH = 36;
+  HOLDERS.forEach((h, i) => {
+    const pay = Math.floor((amt * h.p) / 100 * 100) / 100, y = 8 + i * rowH, w = Math.max(X(pay) - x0, 0);
+    svg.appendChild(el("text", { x: x0 - 10, y: y + 15, "font-size": 12, "text-anchor": "end", fill: css("--ink") }, h.n));
+    if (w > 4) svg.appendChild(el("path", { d: `M${x0} ${y + 4} h${w - 4} a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h${-(w - 4)} z`, fill: css(h.c) }));
+    svg.appendChild(el("text", { x: x0 + w + 6, y: y + 15, "font-size": 11.5, "font-weight": 600, fill: css("--muted") }, fmt(pay, 2)));
+    const hit = el("rect", { x: 0, y, width: 460, height: rowH - 4, fill: "transparent" }); svg.appendChild(hit);
+    bindTip(hit, () => `${h.n} · ${fmt(h.p, 1)}% · ${fmt(pay, 2)} mAUD`);
+  });
+  let hsh = 0; const s = String(amt) + HOLDERS.map((h) => h.p).join(","); for (const ch of s) hsh = (hsh * 31 + ch.charCodeAt(0)) >>> 0;
+  $("div-root").textContent = "0x" + hsh.toString(16).padStart(8, "0").slice(0, 4) + "…" + (hsh ^ 0x9e3779b9).toString(16).slice(-4);
+}
+$("mint-slider").addEventListener("input", drawDilution);
+$("div-amt").addEventListener("input", drawDividend);
+
+
+/* ================= ADMIN ================= */
+const ADMIN_WALLETS = ["0xc40052702b48631c26ad7c88b499bf230faca21f", "0xc309691c60957a55bb619383a06d3f69a94f4585"];
+const CO = [
+  { tk: "AGT", n: "Agritrac", g: "A", svi: 82.1, iss: 300, v0: 5.2, rv: [[180, 6.4], [60, 7.1], [12, 7.9]], h: 14 },
+  { tk: "VTR", n: "Vetra Robotics", g: "A", svi: 80.4, iss: 280, v0: 6.0, rv: [[150, 7.8], [40, 9.6]], h: 11 },
+  { tk: "MDX", n: "Medinexus", g: "B", svi: 71.4, iss: 250, v0: 4.0, rv: [[120, 4.6], [25, 5.2]], h: 9 },
+  { tk: "FNX", n: "Finnex Pay", g: "B", svi: 68.9, iss: 330, v0: 3.1, rv: [[200, 3.6], [100, 4.0], [5, 4.4]], h: 12 },
+  { tk: "HBL", n: "Harbourline Logistics", g: "B", svi: 66.7, iss: 40, v0: 3.36, rv: [], h: 5 },
+  { tk: "LUM", n: "Lumen Craft", g: "B", svi: 65.5, iss: 140, v0: 2.4, rv: [[35, 2.8]], h: 6 },
+  { tk: "SLR", n: "Solaris Grid", g: "C", svi: 58.3, iss: 210, v0: 2.6, rv: [[90, 2.3], [20, 2.1]], h: 8 },
+  { tk: "SAI", n: "Saigon Agritech", g: "C", svi: 55.0, iss: 90, v0: 1.2, rv: [[15, 1.6]], h: 7 },
+  { tk: "KAI", n: "Kairos Edu", g: "C", svi: 52.7, iss: 160, v0: 1.5, rv: [[28, 1.4]], h: 4 },
+  { tk: "OCN", n: "Oceanic Bio", g: "D", svi: 41.2, iss: 190, v0: 1.3, rv: [[110, 1.1], [9, 0.9]], h: 5 } ];
+const GRADE_C = { A: "--c1", B: "--c3", C: "--c4", D: "--c2", E: "--c6" };
+const GBM = { A: [.15, .25], B: [.10, .35], C: [.05, .50], D: [0, .65], E: [-.05, .80] };
+const valAt = (c, d) => { if (d > c.iss) return null; let v = c.v0; c.rv.slice().sort((a, b) => b[0] - a[0]).forEach(([dd, vv]) => { if (d <= dd) v = vv; }); return v; };
+const markAt = (c, d) => { const v = valAt(c, d); return v == null ? null : v / c.v0; };
+const chgPct = (c, n) => { const now = markAt(c, 0), then = markAt(c, n) ?? 1; return (now / then - 1) * 100; };
+const sumAt = (d, f) => CO.reduce((a, c) => { const v = f(c, d); return a + (v == null ? 0 : v); }, 0);
+const cntAt = (d) => CO.filter((c) => c.iss >= d).length;
+const moneyM = (v) => "A$" + fmt(v, v >= 10 ? 1 : 2) + "M";
+const arrow = (p) => (p > 0.005 ? "up" : p < -0.005 ? "down" : "flat");
+const chgTxt = (p) => { const k = arrow(p); return (k === "up" ? "▲ +" : k === "down" ? "▼ −" : "— ") + fmt(Math.abs(p), 2) + "%"; };
+const median = (a) => { const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+let adminOn = false, adminWho = "0xC400…a21F", lastPoll = Date.now(), block = 18204, pvRange = 365, cdRange = 0, cdSel = "AGT";
+const WALLETS = [
+  { l: "BlockID issuer service", a: "0x2567Bb502ac840cF93957C60A410160a8cCb5ddf", s: "active", d: "2026-09-25" },
+  { l: "Relayer (claims only)", a: "0x1B43f0d3297F79cE6c8BbA12F4FadFBE9112DA4a", s: "active", d: "2026-09-25" },
+  { l: "Agritrac CFO", a: "0x8aD1E4F0c21b9E7a33C5f6d2B19a7cE04F5b2c19", s: "revoked", d: "2026-07-02" } ];
+const AUDIT = [
+  { c: "--c1", k: "au.grant", x: "BlockID issuer service", t: "2026-09-25 15:54" },
+  { c: "--c1", k: "au.grant", x: "Relayer (claims only)", t: "2026-09-25 15:55" },
+  { c: "--c2", k: "au.revoke", x: "Agritrac CFO", t: "2026-07-02 09:12" } ];
+
+function spark(svg, vals, cls) {
+  svg.replaceChildren(); const w = +svg.getAttribute("viewBox").split(" ")[2], h = +svg.getAttribute("viewBox").split(" ")[3];
+  const mn = Math.min(...vals), mx = Math.max(...vals), Y = (v) => mx === mn ? h / 2 : h - 3 - ((v - mn) / (mx - mn)) * (h - 6);
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * (w - 4) + 2},${Y(v)}`).join(" ");
+  const col = css(cls === "up" ? "--up" : cls === "down" ? "--down" : "--faint");
+  svg.appendChild(el("polyline", { points: pts, fill: "none", stroke: col, "stroke-width": 1.8, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  const [lx, ly] = pts.split(" ").pop().split(",");
+  svg.appendChild(el("circle", { cx: lx, cy: ly, r: 2.4, fill: col }));
+}
+function kTile(box, label, value, p, series, sub) {
+  const d = document.createElement("div"); d.className = "ktile";
+  d.innerHTML = `<small></small><b></b><div class="foot"><span class="chg ${arrow(p)}"></span><svg viewBox="0 0 72 24" aria-hidden="true"></svg></div>`;
+  d.querySelector("small").textContent = label; d.querySelector("b").textContent = value;
+  d.querySelector(".chg").textContent = p == null ? sub : chgTxt(p) + " " + t("ad.k.30d");
+  spark(d.querySelector("svg"), series, arrow(p ?? 0)); box.appendChild(d);
+}
+const series90 = (f) => Array.from({ length: 19 }, (_, i) => f(90 - i * 5));
+function drawKpis() {
+  const box = $("kgrid"); box.replaceChildren();
+  const val = (d) => sumAt(d, valAt), shares = (d) => CO.reduce((a, c) => a + (c.iss >= d ? c.v0 : 0), 0);
+  const tx = (d) => shares(d) + (d <= 12 ? 0.18 : 0.06);
+  const pc = (f) => { const a = f(30), b = f(0); return a ? (b / a - 1) * 100 : 0; };
+  kTile(box, t("ad.k.co"), fmt(cntAt(0)), pc(cntAt), series90(cntAt));
+  kTile(box, t("ad.k.tok"), fmt(cntAt(0) * 2), null, series90((d) => cntAt(d) * 2), t("ad.k.toksub"));
+  kTile(box, t("ad.k.sh"), fmt(shares(0), 1) + "M", pc(shares), series90(shares));
+  kTile(box, t("ad.k.tx"), moneyM(tx(0)), pc(tx), series90(tx));
+  kTile(box, t("ad.k.val"), moneyM(val(0)), pc(val), series90(val));
+  const vals = CO.map((c) => valAt(c, 0));
+  kTile(box, t("ad.k.avg"), moneyM(vals.reduce((a, b) => a + b, 0) / vals.length), null, series90((d) => { const v = CO.filter((c) => c.iss >= d).map((c) => valAt(c, d)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; }), t("ad.k.median") + " " + moneyM(median(vals)));
+  const mult = (d) => { const m = CO.filter((c) => c.iss >= d).map((c) => markAt(c, d)); return m.length ? m.reduce((a, b) => a + b, 0) / m.length : 1; };
+  kTile(box, t("ad.k.mult"), fmt(mult(0), 2) + "×", pc(mult), series90(mult));
+  kTile(box, t("ad.k.anch"), "10 / 10", null, series90(cntAt), t("ad.k.anchsub"));
+}
+function axisY(svg, x0, x1, Y, ticks, fmtT) {
+  ticks.forEach((v) => { svg.appendChild(el("line", { x1: x0, x2: x1, y1: Y(v), y2: Y(v), stroke: css("--line"), "stroke-dasharray": "3 4" })); svg.appendChild(el("text", { x: x0 - 8, y: Y(v) + 4, "font-size": 10.5, "text-anchor": "end", fill: css("--faint") }, fmtT(v))); });
+}
+function niceTicks(mn, mx, n = 4) { const step = Math.pow(10, Math.floor(Math.log10((mx - mn) / n || 1))); const s = [1, 2, 2.5, 5, 10].map((m) => m * step).find((m) => (mx - mn) / m <= n) || step * 10; const out = []; for (let v = Math.floor(mn / s) * s; v <= mx + 1e-9; v += s) out.push(+v.toFixed(6)); return out; }
+function dateLbl(daysAgo) { const d = new Date(Date.UTC(2026, 8, 25) - daysAgo * 864e5); return new Intl.DateTimeFormat(loc(), { day: "numeric", month: "short" }).format(d); }
+function drawPV() {
+  const r = $("pv-ranges"); r.replaceChildren();
+  [["1M", 30], ["3M", 90], ["6M", 180], ["1Y", 365]].forEach(([l, v]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l; b.setAttribute("aria-pressed", String(v === pvRange)); b.onclick = () => { pvRange = v; drawPV(); }; r.appendChild(b); });
+  const svg = $("pvchart"); svg.replaceChildren();
+  const x0 = 56, x1 = 626, y0 = 16, y1 = 206, days = Array.from({ length: pvRange + 1 }, (_, i) => pvRange - i), vals = days.map((d) => sumAt(d, valAt));
+  const mx = Math.max(...vals) * 1.08, ticks = niceTicks(0, mx), top = ticks[ticks.length - 1], X = (i) => x0 + ((x1 - x0) * i) / (days.length - 1), Y = (v) => y1 - ((y1 - y0) * v) / top;
+  axisY(svg, x0, x1, Y, ticks, (v) => "A$" + fmt(v) + "M");
+  let d = `M${X(0)} ${Y(vals[0])}`; vals.forEach((v, i) => { if (i) d += ` H${X(i)} V${Y(v)}`; });
+  svg.appendChild(el("path", { d: d + ` V${y1} H${X(0)} Z`, fill: css("--accent"), "fill-opacity": .12 }));
+  svg.appendChild(el("path", { d, fill: "none", stroke: css("--accent"), "stroke-width": 2 }));
+  [0, .25, .5, .75, 1].forEach((f) => { const i = Math.round(f * (days.length - 1)); svg.appendChild(el("text", { x: X(i), y: 228, "font-size": 10.5, "text-anchor": f === 0 ? "start" : f === 1 ? "end" : "middle", fill: css("--faint") }, dateLbl(days[i]))); });
+  CO.forEach((c) => { if (c.iss <= pvRange) { const i = pvRange - c.iss; const p = el("circle", { cx: X(i), cy: Y(vals[i]), r: 4, fill: css("--gold-mark"), stroke: css("--surface"), "stroke-width": 2 }); svg.appendChild(p); const hit = el("circle", { cx: X(i), cy: Y(vals[i]), r: 11, fill: "transparent" }); svg.appendChild(hit); bindTip(hit, () => `${c.tk} ${t("ad.ev.iss")} · ${dateLbl(c.iss)} · ${moneyM(c.v0)}`); } });
+  svg.appendChild(el("circle", { cx: X(days.length - 1), cy: Y(vals[vals.length - 1]), r: 5, fill: css("--accent"), stroke: css("--surface"), "stroke-width": 2 }));
+  svg.appendChild(el("text", { x: X(days.length - 1) - 8, y: Y(vals[vals.length - 1]) - 10, "font-size": 12, "font-weight": 700, "text-anchor": "end", fill: css("--ink") }, moneyM(vals[vals.length - 1])));
+  const hover = el("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, fill: "transparent" }); svg.appendChild(hover);
+  hover.addEventListener("pointermove", (e) => { const b = svg.getBoundingClientRect(), fx = ((e.clientX - b.left) / b.width) * 640, i = Math.max(0, Math.min(days.length - 1, Math.round(((fx - x0) / (x1 - x0)) * (days.length - 1)))); tip.hidden = false; tip.textContent = `${dateLbl(days[i])} · ${moneyM(vals[i])}`; tip.style.left = e.clientX + "px"; tip.style.top = e.clientY + "px"; });
+  hover.addEventListener("pointerleave", () => { tip.hidden = true; });
+}
+function drawGrades() {
+  const svg = $("gradechart"); svg.replaceChildren(); const G = ["A", "B", "C", "D", "E"], n = G.map((g) => CO.filter((c) => c.g === g).length), mx = Math.max(...n, 1);
+  const x0 = 34, y1 = 150, bw = 38, gap = 16, H = 120;
+  G.forEach((g, i) => { const h = (n[i] / mx) * H, x = x0 + i * (bw + gap);
+    if (n[i]) svg.appendChild(el("path", { d: `M${x} ${y1} V${y1 - h + 4} a4 4 0 0 1 4 -4 h${bw - 8} a4 4 0 0 1 4 4 V${y1} Z`, fill: css(GRADE_C[g]) }));
+    svg.appendChild(el("text", { x: x + bw / 2, y: y1 - h - 6, "font-size": 12, "font-weight": 700, "text-anchor": "middle", fill: css("--ink") }, fmt(n[i])));
+    svg.appendChild(el("text", { x: x + bw / 2, y: y1 + 18, "font-size": 12, "text-anchor": "middle", fill: css("--muted") }, g));
+    const hit = el("rect", { x, y: y1 - H, width: bw, height: H, fill: "transparent" }); svg.appendChild(hit);
+    bindTip(hit, () => `${t("ad.c.grade")} ${g} · ${n[i]} · ${moneyM(CO.filter((c) => c.g === g).reduce((a, c) => a + valAt(c, 0), 0))}`); });
+  svg.appendChild(el("line", { x1: 26, x2: 290, y1: y1, y2: y1, stroke: css("--line") }));
+  const box = $("movers"); box.replaceChildren();
+  const s = CO.map((c) => ({ c, p: chgPct(c, 30) })).sort((a, b) => b.p - a.p);
+  [...s.slice(0, 3), ...s.slice(-2)].forEach(({ c, p }) => { const d = document.createElement("div"); d.innerHTML = `<b class="mono"></b><span></span><span class="chg ${arrow(p)}"></span>`; d.children[0].textContent = c.tk; d.children[1].textContent = c.n; d.children[2].textContent = chgTxt(p); box.appendChild(d); });
+}
+function drawCoTable() {
+  const tb = $("co-rows"); tb.replaceChildren();
+  CO.forEach((c) => {
+    const tr = document.createElement("tr"); tr.tabIndex = 0; tr.setAttribute("aria-selected", String(c.tk === cdSel));
+    const p7 = chgPct(c, 7), p30 = chgPct(c, 30);
+    tr.innerHTML = `<td class="mono" style="font-weight:600"></td><td></td><td><span class="gchip" style="background:var(${GRADE_C[c.g]})">${c.g}</span> <span class="muted">${fmt(c.svi, 1)}</span></td><td class="r">${moneyM(valAt(c, 0))}</td><td class="r">A$${fmt(markAt(c, 0), 3)}</td><td class="r"><span class="chg ${arrow(p7)}">${chgTxt(p7)}</span></td><td class="r"><span class="chg ${arrow(p30)}">${chgTxt(p30)}</span></td><td><svg class="spark" viewBox="0 0 88 26" aria-hidden="true"></svg></td><td class="r">${fmt(c.h)}</td><td><span class="anch">✓ Hoodi</span></td>`;
+    tr.children[0].textContent = c.tk; tr.children[1].textContent = c.n;
+    spark(tr.querySelector("svg"), Array.from({ length: 31 }, (_, i) => markAt(c, 30 - i) ?? 1), arrow(p30));
+    const open = () => { cdSel = c.tk; cdRange = 0; setATab("co"); };
+    tr.addEventListener("click", open); tr.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
+    tb.appendChild(tr);
+  });
+  const feed = $("feed"); feed.replaceChildren();
+  const ev = [];
+  CO.forEach((c) => { ev.push({ d: c.iss, c: "--gold-mark", txt: `${c.tk} · ${t("ad.ev.iss")} ${moneyM(c.v0)} @ A$1.00` }); c.rv.forEach(([d, v], i) => { const prev = i ? c.rv[i - 1][1] : c.v0; ev.push({ d, c: v >= prev ? "--up" : "--down", txt: `${c.tk} · ${t("ad.ev.rv")} ${moneyM(prev)} → ${moneyM(v)}` }); }); });
+  ev.push({ d: 12, c: "--c3", txt: `AGT · ${t("ad.ev.div")} 120,000 mAUD` });
+  ev.sort((a, b) => a.d - b.d).slice(0, 9).forEach((e) => { const d = document.createElement("div"); d.innerHTML = `<i style="background:var(${e.c})"></i><span></span><em></em>`; d.children[1].textContent = e.txt; d.children[2].textContent = e.d === 0 ? t("ad.today") : t("ad.ago").replace("{n}", e.d); feed.appendChild(d); });
+}
+/* seeded GBM fan */
+function fan(c, horizonDays, steps = 26, paths = 240) {
+  let s = [...c.tk].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7) >>> 0;
+  const rnd = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const gauss = () => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const [mu, sg] = GBM[c.g], dt = horizonDays / 365 / steps, m0 = markAt(c, 0), P = [];
+  for (let p = 0; p < paths; p++) { let x = m0; const row = [x]; for (let k = 0; k < steps; k++) { x *= Math.exp((mu - sg * sg / 2) * dt + sg * Math.sqrt(dt) * gauss()); row.push(x); } P.push(row); }
+  const q = (arr, f) => { const a = arr.slice().sort((x, y) => x - y); return a[Math.floor(f * (a.length - 1))]; };
+  return Array.from({ length: steps + 1 }, (_, k) => { const col = P.map((r) => r[k]); return { d: -(k * horizonDays) / steps, p10: q(col, .1), p25: q(col, .25), p50: q(col, .5), p75: q(col, .75), p90: q(col, .9) }; });
+}
+let simTick = 0;
+function drawDetail() {
+  const c = CO.find((x) => x.tk === cdSel), sim = $("sim-toggle").checked, since = cdRange || c.iss, H = 180;
+  $("cd-name").textContent = `${c.tk} · ${c.n} · ${t("ad.c.grade")} ${c.g} · SVI ${fmt(c.svi, 1)}`;
+  $("cd-px").textContent = "A$" + fmt(markAt(c, 0), 3);
+  const pAll = (markAt(c, 0) - 1) * 100, pR = chgPct(c, since), yrs = c.iss / 365, cagr = (Math.pow(markAt(c, 0), 1 / Math.max(yrs, 1 / 12)) - 1) * 100;
+  const cc = $("cd-chg"); cc.className = "chg " + arrow(pR); cc.textContent = `${chgTxt(pR)} · ${t("ad.range")} · ${t("ad.cagr")} ${fmt(cagr, 1)}%`;
+  const rr = $("cd-ranges"); rr.replaceChildren();
+  [["1M", 30], ["3M", 90], ["6M", 180], ["ALL", 0]].forEach(([l, v]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l; b.setAttribute("aria-pressed", String(v === cdRange)); b.onclick = () => { cdRange = v; drawDetail(); }; rr.appendChild(b); });
+  const svg = $("cdchart"); svg.replaceChildren();
+  const x0 = 58, x1 = 744, y0 = 18, y1 = 240, dMin = -(sim ? H : 0), dMax = since;
+  const X = (d) => x0 + ((x1 - x0) * (dMax - d)) / (dMax - dMin);
+  const hist = []; for (let d = since; d >= 0; d--) hist.push([d, markAt(c, d) ?? 1]);
+  const F = sim ? fan(c, H) : [];
+  const all = hist.map((h) => h[1]).concat(F.flatMap((f) => [f.p10, f.p90]));
+  const ticks = niceTicks(Math.min(...all) * .92, Math.max(...all) * 1.06), lo = ticks[0], hi = ticks[ticks.length - 1], Y = (v) => y1 - ((y1 - y0) * (v - lo)) / (hi - lo);
+  axisY(svg, x0, x1, Y, ticks, (v) => "A$" + fmt(v, 2));
+  svg.appendChild(el("line", { x1: x0, x2: x1, y1: Y(1), y2: Y(1), stroke: css("--muted"), "stroke-width": 1, "stroke-dasharray": "2 3" }));
+  svg.appendChild(el("text", { x: x1, y: Y(1) - 5, "font-size": 10, "text-anchor": "end", fill: css("--muted") }, t("ad.issue1")));
+  if (sim) {
+    const band = (a, b, op) => { let d = `M${X(F[0].d)} ${Y(F[0][a])}`; F.forEach((f) => { d += ` L${X(f.d)} ${Y(f[a])}`; }); F.slice().reverse().forEach((f) => { d += ` L${X(f.d)} ${Y(f[b])}`; }); svg.appendChild(el("path", { d: d + "Z", fill: css("--c5"), "fill-opacity": op })); };
+    band("p90", "p10", .12); band("p75", "p25", .2);
+    svg.appendChild(el("polyline", { points: F.map((f) => `${X(f.d)},${Y(f.p50)}`).join(" "), fill: "none", stroke: css("--c5"), "stroke-width": 2, "stroke-dasharray": "6 5" }));
+    svg.appendChild(el("line", { x1: X(0), x2: X(0), y1: y0, y2: y1, stroke: css("--line") }));
+    svg.appendChild(el("text", { x: X(0) + 6, y: y0 + 10, "font-size": 10, fill: css("--c5"), "font-weight": 700 }, "SIMULATED →"));
+    const last = F[F.length - 1];
+    svg.appendChild(el("text", { x: x1 - 2, y: Y(last.p50) - 8, "font-size": 11, "text-anchor": "end", fill: css("--c5") }, "P50 A$" + fmt(last.p50, 2)));
+  }
+  let d = `M${X(hist[0][0])} ${Y(hist[0][1])}`; hist.forEach(([dd, v], i) => { if (i) d += ` H${X(dd)} V${Y(v)}`; });
+  const up = markAt(c, 0) >= (markAt(c, since) ?? 1);
+  svg.appendChild(el("path", { d: d + ` V${y1} H${X(hist[0][0])} Z`, fill: css(up ? "--up" : "--down"), "fill-opacity": .08 }));
+  svg.appendChild(el("path", { d, fill: "none", stroke: css("--accent"), "stroke-width": 2.2 }));
+  const evs = [[c.iss, t("ad.ev.iss") + " · A$1.00"], ...c.rv.map(([dd, v], i) => [dd, `${t("ad.ev.rv")} · ${moneyM(i ? c.rv[i - 1][1] : c.v0)} → ${moneyM(v)} · A$${fmt(v / c.v0, 3)}`])];
+  evs.filter(([dd]) => dd <= since).forEach(([dd, lbl]) => { const x = X(dd), y = Y(markAt(c, dd)); svg.appendChild(el("line", { x1: x, x2: x, y1: y + 6, y2: y1, stroke: css("--gold-mark"), "stroke-dasharray": "2 3" })); svg.appendChild(el("circle", { cx: x, cy: y, r: 5, fill: css("--gold-mark"), stroke: css("--surface"), "stroke-width": 2 })); const hit = el("circle", { cx: x, cy: y, r: 12, fill: "transparent" }); svg.appendChild(hit); bindTip(hit, () => `${dateLbl(dd)} · ${lbl}`); });
+  svg.appendChild(el("circle", { cx: X(0), cy: Y(markAt(c, 0)), r: 5.5, fill: css("--accent"), stroke: css("--surface"), "stroke-width": 2 }));
+  [[since, "start"], [0, sim ? "middle" : "end"]].forEach(([dd, a]) => svg.appendChild(el("text", { x: X(dd), y: 262, "font-size": 10.5, "text-anchor": a, fill: css("--faint") }, dd === 0 ? t("ad.today") : dateLbl(dd))));
+  if (sim) svg.appendChild(el("text", { x: x1, y: 262, "font-size": 10.5, "text-anchor": "end", fill: css("--faint") }, "+180d"));
+  const [mu, sg] = GBM[c.g];
+  $("cd-simnote").textContent = sim ? t("ad.simnote").replace("{g}", c.g).replace("{mu}", fmt(mu * 100)).replace("{sg}", fmt(sg * 100)).replace("{seed}", c.tk) : t("ad.marknote");
+  const k = $("cd-kpis"); k.replaceChildren();
+  const ser = Array.from({ length: 19 }, (_, i) => markAt(c, Math.round(since * (1 - i / 18))) ?? 1);
+  kTile(k, t("ad.c.val"), moneyM(valAt(c, 0)), pAll, ser);
+  kTile(k, t("ad.k.sh"), fmt(c.v0 * 1e6), null, ser.map(() => 1), t("ad.k.issued1"));
+  kTile(k, t("ad.c.hold"), fmt(c.h), null, ser.map((_, i) => Math.min(c.h, 2 + i)), t("ad.k.kyc"));
+  const live = sim ? F[1].p50 * (1 + Math.sin(simTick / 3) * .004) : markAt(c, 0);
+  kTile(k, sim ? t("ad.k.simlive") : t("ad.k.mark"), "A$" + fmt(live, 3), sim ? (live / markAt(c, 0) - 1) * 100 : null, ser, sim ? "" : t("ad.k.asof"));
+}
+function drawWallets() {
+  const tb = $("wa-rows"); tb.replaceChildren();
+  WALLETS.forEach((w, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td></td><td class="mono" style="font-size:.8rem"></td><td><span class="status ${w.s}"></span></td><td class="muted"></td><td class="r"></td>`;
+    tr.children[0].textContent = w.l; tr.children[1].textContent = w.a.slice(0, 6) + "…" + w.a.slice(-4); tr.children[1].title = w.a;
+    tr.querySelector(".status").textContent = t("ad.st." + w.s); tr.children[3].textContent = w.d;
+    if (w.s === "active") { const b = document.createElement("button"); b.type = "button"; b.className = "linkbtn"; b.textContent = w.confirm ? t("ad.confirm") : t("ad.revoke");
+      b.onclick = () => { if (!w.confirm) { w.confirm = true; drawWallets(); return; } w.s = "revoked"; w.confirm = false; AUDIT.unshift({ c: "--c2", k: "au.revoke", x: w.l, t: new Date().toISOString().slice(0, 16).replace("T", " ") }); drawWallets(); };
+      tr.children[4].appendChild(b); }
+    tb.appendChild(tr);
+  });
+  const au = $("audit"); au.replaceChildren();
+  AUDIT.forEach((a) => { const d = document.createElement("div"); d.innerHTML = `<i style="background:var(${a.c})"></i><span></span><em></em>`; d.children[1].textContent = `${adminWho} · ${t(a.k)} · ${a.x}`; d.children[2].textContent = a.t; au.appendChild(d); });
+}
+$("addform").addEventListener("submit", (e) => {
+  e.preventDefault(); const a = $("aw-addr").value.trim(), l = $("aw-label").value.trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(a)) { $("aw-err").textContent = t("ad.bad.addr"); return; }
+  if (!l) { $("aw-err").textContent = t("ad.bad.label"); return; }
+  $("aw-err").textContent = ""; const w = { l, a, s: "pending", d: new Date().toISOString().slice(0, 10) }; WALLETS.unshift(w);
+  AUDIT.unshift({ c: "--c4", k: "au.req", x: l, t: new Date().toISOString().slice(0, 16).replace("T", " ") });
+  $("aw-addr").value = ""; $("aw-label").value = ""; drawWallets();
+  setTimeout(() => { w.s = "active"; AUDIT.unshift({ c: "--c1", k: "au.grant", x: l, t: new Date().toISOString().slice(0, 16).replace("T", " ") }); drawWallets(); }, 2500);
+});
+function setATab(k) {
+  document.querySelectorAll("[data-atab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.atab === k)));
+  ["ov", "co", "wa"].forEach((x) => { $("ap-" + x).hidden = x !== k; });
+  if (k === "co") drawDetail();
+}
+document.querySelectorAll("[data-atab]").forEach((b) => b.addEventListener("click", () => setATab(b.dataset.atab)));
+$("sim-toggle").addEventListener("change", drawDetail);
+function renderAdmin() { if (!adminOn) return; $("who-addr").textContent = adminWho; drawKpis(); drawPV(); drawGrades(); drawCoTable(); drawDetail(); drawWallets(); }
+function enterAdmin(who) { adminOn = true; adminWho = who; $("login").hidden = true; $("console").hidden = false; lastPoll = Date.now(); renderAdmin(); }
+const seg = (m) => { $("lm-wallet").setAttribute("aria-selected", String(m === "w")); $("lm-pass").setAttribute("aria-selected", String(m === "p")); $("lp-wallet").hidden = m !== "w"; $("lp-pass").hidden = m !== "p"; $("ad-err").textContent = ""; };
+$("lm-wallet").onclick = () => seg("w"); $("lm-pass").onclick = () => seg("p");
+$("lp-pass").addEventListener("submit", (e) => { e.preventDefault(); if ($("ad-user").value === "admin" && $("ad-pass").value === "admin") { $("ad-pass").value = ""; enterAdmin("admin · 0xC400…a21F"); } else $("ad-err").textContent = t("ad.bad.pass"); });
+$("siwe-btn").addEventListener("click", async () => {
+  if (!window.ethereum) { $("ad-err").textContent = t("toast.nomm"); return; }
+  try { const [acc] = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const msg = `eth.blockid.au wants you to sign in with your Ethereum account:\n${acc}\n\nSign in to BlockID admin.\n\nURI: https://eth.blockid.au\nVersion: 1\nChain ID: 262626\nNonce: ${Math.random().toString(36).slice(2, 10)}\nIssued At: ${new Date().toISOString()}`;
+    await window.ethereum.request({ method: "personal_sign", params: [msg, acc] });
+    if (!ADMIN_WALLETS.includes(acc.toLowerCase())) { $("ad-err").textContent = t("ad.bad.wallet"); return; }
+    enterAdmin(acc.slice(0, 6) + "…" + acc.slice(-4));
+  } catch (err) { $("ad-err").textContent = "MetaMask: " + (err.message || err); }
+});
+$("logout").onclick = () => { adminOn = false; $("console").hidden = true; $("login").hidden = false; };
+setInterval(() => {
+  if (!adminOn || document.hidden) return;
+  const s = Math.round((Date.now() - lastPoll) / 1000);
+  if (s >= 12) { lastPoll = Date.now(); block += 2; $("live-block").textContent = "#" + fmt(block); }
+  $("live-txt").textContent = t("ad.live").replace("{s}", Math.round((Date.now() - lastPoll) / 1000));
+  if ($("sim-toggle").checked && !$("ap-co").hidden) { simTick++; if (simTick % 3 === 0) drawDetail(); }
+}, 1000);
+seg("w");
+
+function renderAll() {
+  buildNav(); paintAgents(); drawRadar(); drawContrib(); drawRange(); drawComp(); drawTickers(); drawHolders(true); drawTx(); drawDilution(); drawDividend(); renderAdmin();
+}
+qr($("qr1"), 7); qr($("qr2"), 13);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+let saved = "en"; try { saved = localStorage.getItem("blockid-lang") === "vi" ? "vi" : "en"; } catch (e) {}
+applyLang(saved);
+})();
+</script>

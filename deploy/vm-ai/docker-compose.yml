@@ -1,0 +1,55 @@
+# VM-B (blockid-ai, Singapore) — local model + LLM gateway.
+# Started on demand by the worker; stops itself when idle (idle-shutdown.sh via systemd timer).
+#
+# GPU sizing:
+#   g2-standard-8  (L4 24GB)        -> 4-bit AWQ/GPTQ build of Qwen3.8-27B (~17-19GB), ~32K context
+#   g4-standard-48 (RTX PRO 6000)   -> FP8 build (~28GB) with long context and more concurrency
+# Set MODEL_ID in /opt/blockid/ai.env to an exact Hugging Face repo you have verified.
+name: blockid-ai
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest   # pin a tested tag before production
+    restart: unless-stopped
+    runtime: nvidia
+    ipc: host
+    env_file: /opt/blockid/ai.env    # MODEL_ID, SERVED_NAME, MAX_LEN, HF_TOKEN (from Secret Manager)
+    volumes:
+      - /opt/blockid/hf-cache:/root/.cache/huggingface
+    command: >
+      --model ${MODEL_ID}
+      --served-model-name ${SERVED_NAME:-qwen3.8-27b}
+      --max-model-len ${MAX_LEN:-32768}
+      --gpu-memory-utilization 0.92
+      --enable-prefix-caching
+      --enable-auto-tool-choice --tool-call-parser hermes
+      --host 0.0.0.0 --port 8000
+    expose: ["8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 40
+      start_period: 600s   # first boot downloads weights
+
+  embeddings:
+    # CPU-only so the GPU is fully available to the LLM. Used for RAG over data rooms and evidence.
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
+    restart: unless-stopped
+    command: --model-id ${EMBED_MODEL_ID:-Qwen/Qwen3-Embedding-0.6B} --port 8080
+    volumes:
+      - /opt/blockid/hf-cache:/data
+    expose: ["8080"]
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable   # pin a tested tag before production
+    restart: unless-stopped
+    depends_on:
+      vllm:
+        condition: service_healthy
+    env_file: /opt/blockid/litellm.env   # ANTHROPIC_API_KEY, LITELLM_MASTER_KEY, LITELLM_CLIENT_KEY
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+    command: --config /app/config.yaml --port 4000
+    ports:
+      - "10.20.0.10:4000:4000"   # internal VPC address only

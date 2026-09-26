@@ -1,0 +1,14 @@
+{
+  "name": "Demo Startup Pty Ltd ORD",
+  "symbol": "DEMO-ORD",
+  "companyName": "Demo Startup Pty Ltd",
+  "companyNumber": "ACN 000 000 000",
+  "shareClass": "ORD",
+  "issuerSafe": "0x1111111111111111111111111111111111111111",
+  "transferAgent": "0x2222222222222222222222222222222222222222",
+  "kycAgent": "0x3333333333333333333333333333333333333333",
+  "identityRegistry": "0x0000000000000000000000000000000000000000",
+  "lockupUntil": 1790000000,
+  "maxShareholders": 50,
+  "legalDocHash": "0x0000000000000000000000000000000000000000000000000000000000000001"
+}

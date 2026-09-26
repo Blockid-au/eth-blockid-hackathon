@@ -1,0 +1,14 @@
+# Máy đơn (không Caddy): nginx trên host giữ 80/443 và reverse proxy vào các cổng localhost này.
+services:
+  web:
+    ports: ["127.0.0.1:8081:80"]
+  agents-api:
+    ports: ["127.0.0.1:8080:8080"]
+  evmd:
+    ports: !override
+      - "127.0.0.1:8545:8545"
+      - "127.0.0.1:8546:8546"
+      - "127.0.0.1:1317:1317"
+      - "127.0.0.1:26657:26657"
+  explorer:
+    ports: ["127.0.0.1:8082:80"]

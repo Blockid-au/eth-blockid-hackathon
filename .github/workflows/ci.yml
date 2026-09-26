@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Install contract libraries
+        run: forge install OpenZeppelin/openzeppelin-contracts@v5.4.0 foundry-rs/forge-std --no-git
+      - name: Build & test (incl. fuzz)
+        run: forge test -vv
+      - name: Deploy dry-run with example params
+        run: PARAMS_FILE=deployments/params/example-demo-startup.json forge script script/DeployCompany.s.sol
+      - name: Slither (fail on medium+)
+        uses: crytic/slither-action@v0.4.0
+        with:
+          target: contracts
+          fail-on: medium
+          slither-args: --filter-paths "lib|test|script" --exclude-dependencies
+
+  agents:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: foundry-rs/foundry-toolchain@v1   # for the cast cross-check test
+      - run: pip install -e "agents[dev]"
+      - run: ruff check agents/src
+      - run: pytest agents -q
+      - name: Offline end-to-end demo
+        run: cd agents && python -m blockid_agents demo

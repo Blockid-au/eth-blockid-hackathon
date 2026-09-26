@@ -1,0 +1,43 @@
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Agents API (async jobs). Protected by API key; put Google IAP / Cloudflare Access in front for staff UIs.
+	handle_path /api/* {
+		reverse_proxy agents-api:8080
+	}
+
+	# Public EVM JSON-RPC for MetaMask (transactions are always signed in the user's own wallet).
+	handle_path /rpc {
+		reverse_proxy evmd:8545
+	}
+
+	# Explorer runs in the browser, so it needs public read access to REST + CometBFT RPC.
+	handle_path /lcd/* {
+		reverse_proxy evmd:1317
+	}
+	handle_path /cometbft/* {
+		reverse_proxy evmd:26657
+	}
+
+	handle_path /explorer/* {
+		reverse_proxy explorer:80
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+	}
+}

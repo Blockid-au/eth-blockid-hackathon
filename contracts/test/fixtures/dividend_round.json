@@ -1,0 +1,29 @@
+{
+  "root": "0xfc8f39522a635e9188e860dbc8d1d827c9c354f52e8beb3e53b12e24b805de5f",
+  "total": 999999999,
+  "holders": [
+    {
+      "account": "0x1000000000000000000000000000000000000001",
+      "amount": 600000000,
+      "proof": [
+        "0x088a6e6e3c23f2b9c6d0a1e277bb4829dd93dfa6c5bc5f454b8d2f11dd98c69e",
+        "0x9f4ad7b4f3803db0a682c8f45ea64e04a5298f9ba493a09396f9945e12198d5a"
+      ]
+    },
+    {
+      "account": "0x2000000000000000000000000000000000000002",
+      "amount": 300000000,
+      "proof": [
+        "0x4b613b6a7d24db0949ddaa3dc149feda679b6a20c66536fa7fc73f94e8f60154",
+        "0x9f4ad7b4f3803db0a682c8f45ea64e04a5298f9ba493a09396f9945e12198d5a"
+      ]
+    },
+    {
+      "account": "0x3000000000000000000000000000000000000003",
+      "amount": 99999999,
+      "proof": [
+        "0x88fa92a2ca2d427d7be75c508b57d0922a3a38cd776a95a67f4e64f4df2133e0"
+      ]
+    }
+  ]
+}

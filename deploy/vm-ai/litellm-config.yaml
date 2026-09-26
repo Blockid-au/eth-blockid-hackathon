@@ -1,0 +1,43 @@
+# LiteLLM gateway: the ONLY place model names live. Agents call tiers (local / cloud / cloud_max).
+# Swap a model = edit one line here, no code change.
+
+model_list:
+  # ---- local tier: private data (KYC, data rooms), research analysis, bulk batch work
+  - model_name: local-qwen
+    litellm_params:
+      model: hosted_vllm/qwen3.8-27b
+      api_base: http://vllm:8000/v1
+      timeout: 1800            # batch mode: long generations are fine
+      max_parallel_requests: 8
+
+  - model_name: embeddings
+    litellm_params:
+      model: huggingface/Qwen/Qwen3-Embedding-0.6B
+      api_base: http://embeddings:8080
+
+  # ---- cloud tier: redacted inputs only (contract parameter review, hard reasoning)
+  - model_name: cloud-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: cloud-opus
+    litellm_params:
+      model: anthropic/claude-opus-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+router_settings:
+  # IMPORTANT: no fallback from local-qwen to a cloud model. If the local model is down the job
+  # waits and retries — personal data must never silently leave the server.
+  fallbacks: []
+  num_retries: 2
+
+litellm_settings:
+  drop_params: true
+  cache: false
+  # Monthly guardrail on cloud spend (USD). Requests fail closed once exceeded.
+  max_budget: 200
+  budget_duration: 30d
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

@@ -1,0 +1,96 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { api, ApiError, type Me } from "./api";
+import type { DictKey } from "./dict";
+
+interface AuthState {
+  me: Me | null;
+  loading: boolean;
+  busy: boolean;
+  refresh: () => Promise<Me | null>;
+  connect: () => Promise<Me | null>;
+  login: (u: string, p: string) => Promise<Me>;
+  logout: () => Promise<void>;
+  setMe: (m: Me | null) => void;
+}
+
+const Ctx = createContext<AuthState | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [me, setMe] = useState<Me | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      const m = await api.me();
+      setMe(m);
+      return m;
+    } catch {
+      setMe(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const connect = useCallback(async () => {
+    setBusy(true);
+    try {
+      const { signInWithEthereum } = await import("./wallet");
+      const r = await signInWithEthereum();
+      const m = (await refresh()) ?? { address: r.address, role: r.role };
+      setMe(m);
+      return m;
+    } finally {
+      setBusy(false);
+    }
+  }, [refresh]);
+
+  const login = useCallback(async (u: string, p: string) => {
+    const r = await api.login(u, p);
+    const m: Me = (await refresh()) ?? { username: u, role: r.role, must_change: r.must_change };
+    if (r.must_change && !m.must_change) m.must_change = true;
+    setMe({ ...m });
+    return m;
+  }, [refresh]);
+
+  const logout = useCallback(async () => {
+    try {
+      await api.logout();
+    } catch {
+      /* ignore */
+    }
+    setMe(null);
+  }, []);
+
+  const value = useMemo(() => ({ me, loading, busy, refresh, connect, login, logout, setMe }), [me, loading, busy, refresh, connect, login, logout]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useAuth(): AuthState {
+  const v = useContext(Ctx);
+  if (!v) throw new Error("AuthProvider missing");
+  return v;
+}
+
+/** Map any thrown error to a translatable message key, or a raw string from the API. */
+export function errText(e: unknown, t: (k: DictKey) => string): string {
+  if (e instanceof Error && e.name === "WalletError") {
+    const code = (e as Error & { code?: string }).code;
+    if (code === "nomm") return t("toast.nomm");
+    if (code === "rejected") return t("err.rejected");
+    return "MetaMask: " + e.message;
+  }
+  if (e instanceof ApiError) {
+    if (e.status === 0) return t("err.network");
+    if (e.status === 401) return e.message && e.message !== "Unauthorized" ? e.message : t("err.unauth");
+    if (e.status === 403) return e.message && e.message !== "Forbidden" ? e.message : t("err.forbidden");
+    if (e.status === 429) return e.message && e.message !== "Too Many Requests" ? e.message : t("err.rate");
+    return e.message;
+  }
+  return e instanceof Error ? e.message : String(e);
+}

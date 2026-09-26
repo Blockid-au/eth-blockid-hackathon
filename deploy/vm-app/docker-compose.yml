@@ -1,0 +1,129 @@
+# VM-A (blockid-app, Sydney) — eth.blockid.au web, agents API/worker, Postgres, Cosmos EVM node, explorer.
+# Run: docker compose --env-file /opt/blockid/app.env up -d --build
+# Data lives on the attached SSD mounted at /mnt/app-data (daily snapshots via Terraform).
+name: blockid-app
+
+x-agents-env: &agents-env
+  BLOCKID_DATA_DIR: /data
+  DATABASE_URL: postgresql://blockid:${POSTGRES_PASSWORD}@postgres:5432/blockid
+  LLM_GATEWAY_URL: http://10.20.0.10:4000/v1
+  LLM_GATEWAY_KEY: ${LITELLM_CLIENT_KEY}
+  BRAVE_API_KEY: ${BRAVE_API_KEY}
+  BRAVE_MAX_RPS: ${BRAVE_MAX_RPS:-1}
+  BRAVE_CACHE_TTL_HOURS: ${BRAVE_CACHE_TTL_HOURS:-72}
+  # LLM_BACKEND=hosted: cloud tiers -> Claude CLI (if enabled) then DeepInfra; local tier stays on the GPU gateway
+  LLM_BACKEND: ${LLM_BACKEND:-gateway}
+  SVI_TIER: ${SVI_TIER:-local}
+  CLAUDE_CLI_ENABLED: ${CLAUDE_CLI_ENABLED:-false}
+  DEEPINFRA_API_KEY: ${DEEPINFRA_API_KEY:-}
+  DEEPINFRA_MODELS: ${DEEPINFRA_MODELS:-}
+  BLOCKID_API_KEY: ${BLOCKID_API_KEY}
+  BLOCKID_CHAIN_ID: ${BLOCKID_CHAIN_ID:-262626}
+  BLOCKID_CHAIN_RPC: http://evmd:8545
+  CONTRACTS_DIR: /app/contracts
+  GCP_PROJECT: ${GCP_PROJECT}
+  AI_VM_ZONE: ${AI_VM_ZONE:-asia-southeast1-c}
+  AI_VM_NAME: blockid-ai
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:-eth.blockid.au}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /mnt/app-data/caddy:/data
+    depends_on: [web, agents-api, explorer]
+
+  web:
+    build: ../../web          # replace with the real eth.blockid.au frontend
+    restart: unless-stopped
+    expose: ["80"]
+
+  agents-api:
+    build:
+      context: ../..
+      dockerfile: agents/Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "blockid_agents", "api"]
+    env_file: [/opt/blockid/app.env, /opt/blockid/issuer.env]
+    networks: [default, issuer]
+    environment: *agents-env
+    volumes: ["/mnt/app-data/agents:/data"]
+    expose: ["8080"]
+    depends_on: [postgres]
+
+  agents-worker:
+    build:
+      context: ../..
+      dockerfile: agents/Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "blockid_agents", "worker"]
+    env_file: [/opt/blockid/app.env]
+    environment:
+      <<: *agents-env
+      GPU_AUTOSTART: "false"  # no GPU VM on this single-host setup; cloud tiers run on DeepInfra
+    volumes: ["/mnt/app-data/agents:/data"]
+    depends_on: [postgres]
+
+  issuer:
+    # The ONLY component holding keys (encrypted keystores, read-only). Acts only on admin-approved rows in
+    # studio.* (see docs/IMPLEMENTATION.md). Networks: `issuer` (reachable only by agents-api) and
+    # `issuer-backend` (postgres + evmd). It is NOT on `default`, so agents-worker (untrusted web input) cannot reach it.
+    build:
+      context: ../..
+      dockerfile: agents/Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "blockid_agents", "issuer"]
+    env_file: [/opt/blockid/app.env, /opt/blockid/issuer.env]
+    networks: [issuer, issuer-backend, issuer-egress]   # egress: Hoodi RPC over the internet
+    environment: *agents-env
+    volumes:
+      - /opt/blockid/keys:/keys:ro
+      - /mnt/app-data/agents:/data
+    expose: ["8090"]
+    depends_on: [postgres, evmd]
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: blockid
+      POSTGRES_USER: blockid
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["/mnt/app-data/postgres:/var/lib/postgresql/data"]
+    expose: ["5432"]
+    networks: [default, issuer-backend]
+
+  evmd:
+    # Cosmos EVM node (zero-gas enterprise chain). Single validator = demo/testnet only;
+    # production needs >= 4 independent validators (BFT tolerates 1 faulty node in 4).
+    build: ./chain
+    restart: unless-stopped
+    networks: [default, issuer-backend]
+    environment:
+      CHAIN_ID: ${COSMOS_CHAIN_ID:-blockid_262626-1}
+      EVM_CHAIN_ID: ${BLOCKID_CHAIN_ID:-262626}
+      KEYRING_PASSWORD: ${EVMD_KEYRING_PASSWORD}
+    volumes: ["/mnt/app-data/evmd:/root/.evmd"]
+    ports:
+      - "26656:26656"        # CometBFT P2P (firewall: partner validators only)
+    expose: ["8545", "8546", "26657", "1317", "9090"]
+
+  explorer:
+    # Open-source Cosmos explorer (Ping.pub) — configured for the local chain in ./chain/explorer
+    build:
+      context: ./chain
+      dockerfile: explorer.Dockerfile
+    restart: unless-stopped
+    expose: ["80"]
+
+networks:
+  default: {}
+  issuer:
+    internal: true
+  issuer-backend:
+    internal: true
+  issuer-egress: {}     # only the issuer is attached: outbound internet for Hoodi RPC

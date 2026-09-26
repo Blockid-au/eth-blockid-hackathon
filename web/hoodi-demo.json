@@ -1,0 +1,27 @@
+{
+  "chainId": 560048,
+  "claimDeadline": 1792944492,
+  "dividendDistributor": "0x112C26D5f5d602293f1a00029f5E375763e70282",
+  "dividendTotal": 999999999,
+  "identityRegistry": "0x6B96bcE8937e1416Ec1DAC4ADAdD71FE879F8e84",
+  "operator": "0x2567Bb502ac840cF93957C60A410160a8cCb5ddf",
+  "payToken": "0xB8F96Eb528C563bFf04661F4062A5799A97D0FcA",
+  "relayer": "0x1B43f0d3297F79cE6c8BbA12F4FadFBE9112DA4a",
+  "roundId": 0,
+  "shareToken": "0xf3156Ad6eA559096D4aF350b39984408c764698E",
+  "holders": [
+    {
+      "account": "0x1000000000000000000000000000000000000001",
+      "amount": 600000000
+    },
+    {
+      "account": "0x2000000000000000000000000000000000000002",
+      "amount": 300000000
+    },
+    {
+      "account": "0x3000000000000000000000000000000000000003",
+      "amount": 99999999
+    }
+  ],
+  "merkleRoot": "0xfc8f39522a635e9188e860dbc8d1d827c9c354f52e8beb3e53b12e24b805de5f"
+}

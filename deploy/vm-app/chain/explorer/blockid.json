@@ -1,0 +1,14 @@
+{
+  "chain_name": "blockid",
+  "registry_name": "blockid",
+  "api": [{ "provider": "BlockID", "address": "https://eth.blockid.au/lcd" }],
+  "rpc": [{ "provider": "BlockID", "address": "https://eth.blockid.au/cometbft" }],
+  "sdk_version": "0.50",
+  "coin_type": "60",
+  "min_tx_fee": "0",
+  "addr_prefix": "cosmos",
+  "logo": "/logos/blockid.png",
+  "assets": [
+    { "base": "ablkd", "symbol": "BLKD", "exponent": "18", "coingecko_id": "", "logo": "/logos/blockid.png" }
+  ]
+}

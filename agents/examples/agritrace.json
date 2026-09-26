@@ -1,0 +1,16 @@
+{
+  "company_name": "AgriTrace Pty Ltd",
+  "country": "AU",
+  "sector": "agri-food supply chain traceability",
+  "stage": "seed",
+  "description": "Blockchain traceability SaaS for Australian food exporters",
+  "founders": [
+    {"name": "Founder A", "role": "CEO", "years_experience": 12, "prior_exits": 1, "domain_expertise": true},
+    {"name": "Founder B", "role": "CTO", "years_experience": 9}
+  ],
+  "metrics": {"revenue_ttm_aud": 480000, "revenue_growth_yoy_pct": 140, "gross_margin_pct": 72,
+              "burn_monthly_aud": 60000, "runway_months": 14, "paying_customers": 23},
+  "competitors": ["TE-FOOD", "OpenSC"],
+  "search_keywords": ["food traceability software", "agtech"],
+  "missing_items": ["audited financial statements", "IP assignment deeds"]
+}

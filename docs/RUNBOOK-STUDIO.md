@@ -1,0 +1,59 @@
+# Runbook: BlockID Issuance Studio (single host, eth.blockid.au)
+
+Spec: [IMPLEMENTATION.md](IMPLEMENTATION.md). Testnet only.
+
+## What runs where
+
+| Piece | Where | Notes |
+|---|---|---|
+| Web app (SPA) | `web/dist`, served by host nginx | source `web/app`; build: see below |
+| API | container `agents-api` → `127.0.0.1:8080`, public at `https://eth.blockid.au/api/` | FastAPI; studio tables in Postgres schema `studio` |
+| AI worker | container `agents-worker` | runs `site_valuation` jobs (DeepInfra + Brave, fallback without Brave) |
+| Issuer | container `issuer`, internal `:8090` only | the only holder of keys (`/opt/blockid/keys`, read-only, uid 10001) |
+| BlockID Chain | container `evmd`, RPC `127.0.0.1:8545`, public `https://eth.blockid.au/rpc` | EVM chain id 262626, gas price 0 |
+| Blockscout | `deploy/blockscout`, `https://scan.blockid.au` | backend :8200, frontend :8201 |
+| Ping.pub (Cosmos) | container `explorer`, `/explorer/` | Cosmos view of the same chain |
+
+Compose: `cd deploy/vm-app && sudo docker compose --env-file /opt/blockid/app.env <cmd>`.
+Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid/blockscout.env <cmd>`.
+
+## Secrets and keys
+
+- `/opt/blockid/app.env` (root, 600): DB, API keys (DeepInfra, Brave), admin hash, session secret, issuer token, contract addresses.
+  Values containing `$` (the bcrypt hash) must be single-quoted.
+- Keystores (encrypted, Foundry format): `~/.foundry/keystores/blockid-{deployer,relayer,admin}`, passwords in `~/.blockid/*.password` (600).
+  Copies for the issuer: `/opt/blockid/keys` (owned by uid 10001, read-only mount).
+- Wallets: issuer/deployer `0x2567…5ddf`, relayer `0x1B43…DA4a`, server admin `0xC400…a21F`, owner admin (MetaMask) `0xc309…4585`.
+- Admin login: `admin` / `admin` (testnet demo; change with `POST /api/v1/auth/change-password` before any real use).
+- Platform contracts: CapTableAnchor (Hoodi) `0xF3dC95D5d207dE9f2aC98184Fd32b45B72334263`, DemoAUD (BlockID) `0x286C1eD22A741F4939A3C7637011B0fAE2C7FFBc`.
+
+## Common tasks
+
+| Task | Command |
+|---|---|
+| Rebuild + restart backend | `sudo docker compose --env-file /opt/blockid/app.env build agents-api agents-worker issuer && sudo docker compose --env-file /opt/blockid/app.env up -d --no-build agents-api agents-worker issuer` |
+| Build web app | `sudo docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp -v ~/blockid-eth-platform/web:/w -w /w/app node:20 npm run build` |
+| Backend tests | `cd agents && .venv/bin/python -m pytest -q` (Postgres flows need `TEST_DATABASE_URL`) |
+| Contract tests | `cd contracts && ~/.foundry/bin/forge test` |
+| Issuer health | `curl -s https://eth.blockid.au/api/v1/admin/wallets` with an admin session |
+| Logs | `sudo docker compose --env-file /opt/blockid/app.env logs -f agents-worker issuer` |
+| Seed real companies | `scripts/seed-companies.sh "https://site|Name|revalue_pct" ...` |
+| Hoodi-only demo | `scripts/hoodi-demo.sh` |
+
+## Funding
+
+- **Hoodi ETH** for the issuer `0x2567…5ddf`: about 0.004 ETH per company (mirror + anchor). Faucet: https://hoodi-faucet.pk910.de.
+- **BLKD** on BlockID Chain (gas is 0, but accounts need a balance for some wallets): send from the validator key inside `evmd`:
+  `evmd debug addr <0x…>` → bech32, then `evmd tx bank send validator <bech32> <amount>ablkd --keyring-backend file --home /root/.evmd --chain-id blockid_262626-1 --gas-prices 10000000000ablkd -y`
+  (keyring password = `EVMD_KEYRING_PASSWORD`). The issuer drips 0.01 BLKD to new holder wallets automatically.
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| Valuation shows "Search unavailable" warning | Brave quota exhausted or key missing; competitors come from the model and are verified by fetching their sites |
+| Company stuck `issuing`/`anchoring` | `logs issuer`; the status turns `failed` with `companies.error` on any revert; admin can retry from Approvals |
+| Approve returns 502 | issuer container down: `up -d issuer` |
+| Admin endpoints 403 "password change required" | `must_change` is true for the admin account |
+| Blockscout lags | `logs backend` in `deploy/blockscout`; it indexes from genesis and catches up in minutes |
+| Page 404 on reload | nginx must keep `try_files $uri /index.html` for `/` |
