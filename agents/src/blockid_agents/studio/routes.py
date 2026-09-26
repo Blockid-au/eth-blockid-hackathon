@@ -655,7 +655,9 @@ def build_router(ctx: StudioContext) -> APIRouter:
         hs = db.all("SELECT name, wallet, shares FROM studio.holders WHERE company_id=%s ORDER BY id", (c["id"],))
         extra = db.all("SELECT DISTINCT ON (lower(to_wallet)) to_wallet AS wallet, holder_name AS name "
                        "FROM studio.mints "
-                       "WHERE company_id=%s AND status='minted'", (c["id"],))
+                       "WHERE company_id=%s AND status='minted' "
+                       "UNION ALL SELECT DISTINCT ON (lower(to_wallet)) to_wallet, to_name FROM studio.transfers "
+                       "WHERE company_id=%s AND status='done'", (c["id"], c["id"]))
         names = {h["wallet"].lower(): h["name"] for h in hs}
 
         def db_rows() -> list[dict]:

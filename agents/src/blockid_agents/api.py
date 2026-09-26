@@ -94,6 +94,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     """`studio` (db.Studio), `chain` (ChainReader), `issuer` (IssuerClient) and `runner_factory`
     are injectable for tests; by default they are built from settings."""
     from .studio.routes import build_router
+    from .studio.transfers import build_transfer_router
     from .studio.verify import build_verify_router
 
     s = settings or get_settings()
@@ -129,6 +130,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     app.state.studio = ctx
     app.include_router(build_router(ctx))
     app.include_router(build_verify_router(ctx))
+    app.include_router(build_transfer_router(ctx))
 
     def auth(x_api_key: str = Header(default="")) -> None:
         if not s.api_key or not hmac.compare_digest(x_api_key, s.api_key):

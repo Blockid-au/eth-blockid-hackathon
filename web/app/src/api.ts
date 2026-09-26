@@ -285,7 +285,7 @@ export const isMock: boolean = (() => {
 type MockHandler = (method: string, path: string, body: unknown) => Promise<unknown>;
 let mockHandler: Promise<MockHandler> | null = null;
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   if (isMock) {
     mockHandler ??= import("./mock").then((m) => m.handle);
     const h = await mockHandler;

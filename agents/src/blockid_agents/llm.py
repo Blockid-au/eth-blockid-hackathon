@@ -9,7 +9,8 @@ vendor model name, so models can be swapped in one config line (deploy/vm-ai/lit
 
 With LLM_BACKEND=hosted (see `build_llm`) the cloud tiers bypass the gateway and run on a fallback
 chain: the Claude CLI (headless `claude -p --json-schema`, when CLAUDE_CLI_ENABLED), then the providers
-in LLM_PROVIDER_ORDER (default "sambanova,deepinfra"; providers without a key are skipped). A backend
+in LLM_PROVIDER_ORDER (default "sambanova,deepinfra"; "claude_bridge" adds the host bridge's Claude; providers
+without a key are skipped). A backend
 that fails, times out, is rate-limited or returns invalid output falls through to the next one. `local` always stays on the gateway,
 so PII-handling agents never reach a hosted provider.
 
@@ -289,6 +290,43 @@ class ClaudeCliLLM:
             raise LLMError(f"claude CLI output did not match {schema.__name__}: {e}") from e
 
 
+class ClaudeBridgeLLM:
+    """The host bridge's POST /complete (deploy/search-bridge): headless Claude with no tools and our JSON schema,
+    billed to the signed-in Claude subscription. Any bridge failure (cap reached, timeout, CLI error) parks it for
+    COOLDOWN_S so the chain falls through to the next provider without waiting."""
+
+    COOLDOWN_S = 600
+
+    def __init__(self, url: str, token: str, timeout: float = 260, transport=None):
+        import httpx
+
+        self.url = url.rstrip("/") + "/complete"
+        self.http = httpx.Client(timeout=timeout, transport=transport, trust_env=False,
+                                 headers={"X-Bridge-Token": token, "Accept": "application/json"})
+        self.until = 0.0
+
+    def complete_json(self, tier: Tier, system: str, user: str, schema: type[T]) -> T:
+        import httpx
+
+        if time.monotonic() < self.until:
+            raise LLMError("claude bridge cooling down")
+        try:
+            r = self.http.post(self.url, json={"system": system, "user": user, "schema": schema.model_json_schema()})
+        except httpx.HTTPError as e:
+            self.until = time.monotonic() + self.COOLDOWN_S
+            raise LLMError(f"claude bridge unreachable: {type(e).__name__}") from e
+        if r.status_code != 200:
+            if r.status_code in (401, 404, 429) or r.status_code >= 500:
+                self.until = time.monotonic() + self.COOLDOWN_S
+            raise LLMError(f"claude bridge HTTP {r.status_code}: {r.text[:300]}")
+        data = r.json()
+        log.info("claude bridge %s -> %s, $%s (subscription)", data.get("model"), schema.__name__, data.get("cost_usd"))
+        try:
+            return schema.model_validate(data.get("structured_output"))
+        except ValidationError as e:
+            raise LLMError(f"claude bridge output did not match {schema.__name__}: {e}") from e
+
+
 class FallbackLLM:
     """Try each backend in order; the first valid answer wins. Every failure is logged."""
 
@@ -336,6 +374,9 @@ def cloud_chain(s: Settings) -> list[tuple[str, LLMClient]]:
                 ClaudeCliLLM({"cloud": s.claude_model_cloud, "cloud_max": s.claude_model_cloud_max},
                              s.claude_cli_path, s.claude_cli_timeout),
             ))
+        elif name == "claude_bridge" and s.claude_search_url and s.claude_search_token:
+            chain.append(("claude-bridge",
+                          ClaudeBridgeLLM(s.claude_search_url, s.claude_search_token, s.claude_complete_timeout)))
         elif name == "sambanova" and s.sambanova_api_key:
             for m in s.sambanova_models:
                 chain.append((f"sambanova:{m}",
@@ -347,7 +388,7 @@ def cloud_chain(s: Settings) -> list[tuple[str, LLMClient]]:
                     OpenAICompatLLM(s.deepinfra_base_url, s.deepinfra_api_key, {"cloud": m, "cloud_max": m},
                                     max_retries=1, timeout=300),
                 ))
-        elif name not in ("claude", "sambanova", "deepinfra"):
+        elif name not in ("claude", "claude_bridge", "sambanova", "deepinfra"):
             log.warning("unknown LLM provider %r in LLM_PROVIDER_ORDER (ignored)", name)
     return chain
 

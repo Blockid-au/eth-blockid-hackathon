@@ -356,3 +356,40 @@ def test_fallback_records_which_provider_answered():
     finally:
         untrack_providers(tok)
     assert used[-1] == "deepinfra:qwen"
+
+
+def test_claude_bridge_llm_answers_and_cools_down_on_failure():
+    import httpx
+
+    from blockid_agents.llm import ClaudeBridgeLLM, LLMError
+    from blockid_agents.schemas import Narrative
+
+    seen = []
+
+    def ok(req):
+        seen.append(json.loads(req.content))
+        return httpx.Response(200, json={"structured_output": {"summary": "s", "strengths": [], "concerns": []},
+                                         "model": "sonnet", "cost_usd": 0.01})
+
+    llm = ClaudeBridgeLLM("http://bridge:8765", "tok", transport=httpx.MockTransport(ok))
+    assert llm.complete_json("cloud", "sys", "user", Narrative).summary == "s"
+    assert seen[0]["user"] == "user" and seen[0]["schema"]["title"] == "Narrative"
+
+    calls = []
+    busy = ClaudeBridgeLLM("http://bridge:8765", "tok", transport=httpx.MockTransport(
+        lambda r: calls.append(1) or httpx.Response(429, json={"detail": "cap"})))
+    with pytest.raises(LLMError):
+        busy.complete_json("cloud", "s", "u", Narrative)
+    with pytest.raises(LLMError, match="cooling down"):  # parked: no second HTTP call
+        busy.complete_json("cloud", "s", "u", Narrative)
+    assert len(calls) == 1
+
+
+def test_claude_bridge_sits_between_free_and_paid_providers():
+    s = replace(get_settings(), claude_cli_enabled=False, sambanova_api_key="s", deepinfra_api_key="d",
+                sambanova_models=("gpt-oss-120b",), deepinfra_models=("deepseek-ai/DeepSeek-V4-Flash",),
+                claude_search_url="http://bridge:8765", claude_search_token="t",
+                llm_provider_order=("sambanova", "claude_bridge", "deepinfra"))
+    assert [n for n, _ in cloud_chain(s)] == ["sambanova:gpt-oss-120b", "claude-bridge",
+                                            "deepinfra:deepseek-ai/DeepSeek-V4-Flash"]
+    assert "claude-bridge" not in [n for n, _ in cloud_chain(replace(s, claude_search_token=""))]

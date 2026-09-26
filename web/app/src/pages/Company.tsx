@@ -12,6 +12,7 @@ import { colorAt, foldParts, GRADE_C } from "../lib/math";
 import { CHAINS, chainOf, isAddressValid, shortAddr } from "../wallet";
 import type { DictKey } from "../dict";
 import { Tracker } from "../components/Tracker";
+import { TransferPanel } from "./Transfers";
 
 const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring", "partially_anchored"];
 const RUNNING: CoStatus[] = ["issuing", "anchoring"];
@@ -317,6 +318,7 @@ export default function CompanyPage() {
         ) : null}
 
         <CapTable rows={holders} ticker={c.ticker} source={c.cap_table_source} block={c.cap_table_block} />
+        {live && localToken && <TransferPanel c={c} onDone={() => void q.reload()} />}
 
         <div className="panel">
           <div className="ptitle"><div><h3>{t("s8.h").replace("HBL", c.ticker)}</h3><p>{t("s8.p")}</p></div></div>

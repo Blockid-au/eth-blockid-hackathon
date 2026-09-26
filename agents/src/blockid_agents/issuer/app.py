@@ -31,6 +31,14 @@ class DividendReq(BaseModel):
     dividend_id: int
 
 
+class TransferReq(BaseModel):
+    transfer_id: int
+
+
+class KycReq(BaseModel):
+    kyc_id: int
+
+
 class DripReq(BaseModel):
     wallet: str
     company_id: int | None = None
@@ -116,6 +124,33 @@ def create_app(service=None, cfg: IssuerConfig | None = None) -> FastAPI:
             raise HTTPException(422, "invalid wallet")
         s = svc()
         return submit("drip", lambda: s.drip(r.wallet, r.company_id), wallet=Web3.to_checksum_address(r.wallet))
+
+    # ---------------------------------------------------------------- secondary transfers (issuer/transfers.py)
+    @app.post("/reanchor", status_code=202, dependencies=[Depends(auth)])
+    def reanchor(r: CompanyReq) -> dict:
+        s = svc()
+        return submit("reanchor", lambda: s.reanchor(r.company_id), company_id=r.company_id)
+
+    @app.post("/transfer", status_code=202, dependencies=[Depends(auth)])
+    def transfer(r: TransferReq) -> dict:
+        from . import transfers
+
+        s = svc()
+        return submit("transfer", lambda: transfers.transfer(s, r.transfer_id), transfer_id=r.transfer_id)
+
+    @app.post("/kyc", status_code=202, dependencies=[Depends(auth)])
+    def kyc(r: KycReq) -> dict:
+        from . import transfers
+
+        s = svc()
+        return submit("kyc", lambda: transfers.kyc(s, r.kyc_id), kyc_id=r.kyc_id)
+
+    @app.post("/transfer-mode", status_code=202, dependencies=[Depends(auth)])
+    def transfer_mode(r: CompanyReq) -> dict:
+        from . import transfers
+
+        s = svc()
+        return submit("transfer-mode", lambda: transfers.transfer_mode(s, r.company_id), company_id=r.company_id)
 
     app.state.issuer = state
     app.state.pool = pool

@@ -15,6 +15,7 @@ import { bandGrade } from "../lib/svi";
 import { CHAINS, chainOf, isAddressValid, shortAddr } from "../wallet";
 import type { DictKey } from "../dict";
 import { SyncChips } from "../components/Tracker";
+import { AdminTransfersTab, useTx } from "./Transfers";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
@@ -443,6 +444,13 @@ function CompaniesTab({ sel, setSel, onChanged }: { sel: string | null; setSel: 
   );
 }
 
+function TransfersTab({ onChanged }: { onChanged: () => void }) {
+  const all = useAsync(() => api.adminCompanies(), [], POLL);
+  const rows = (all.data ?? []).map((c) => ({ id: c.id, ticker: c.ticker, name: c.name, local_token: c.local_token,
+    transfer_mode: (c as { transfer_mode?: "free" | "approval" }).transfer_mode }));
+  return <AdminTransfersTab companies={rows} onChanged={() => { void all.reload(); onChanged(); }} />;
+}
+
 /* ================= wallets ================= */
 function WalletsTab() {
   const { t, date, fmt } = useI18n();
@@ -553,7 +561,7 @@ function AuditTab() {
 }
 
 /* ================= console ================= */
-type Tab = "ov" | "ap" | "co" | "wa" | "au";
+type Tab = "ov" | "ap" | "co" | "tr" | "wa" | "au";
 
 function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const { t, fmt } = useI18n();
@@ -573,6 +581,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const who = me?.address ? shortAddr(me.address) : me?.username ?? "admin";
   const tabs: [Tab, DictKey][] = [["ov", "ad.t.ov"], ["ap", "ad.t.ap"], ["co", "ad.t.cos"], ["wa", "ad.t.wa"], ["au", "ad.t.au"]];
   const refreshAll = () => { void stats.reload(); void cos.reload(); void ap.reload(); };
+  const txL = useTx();
   return (
     <div className="console">
       <div className="chead">
@@ -589,8 +598,10 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
             {t(l)}{k === "ap" && nAp > 0 ? <span className="badge-n" aria-label={`${nAp}`}>{nAp}</span> : null}
           </button>
         ))}
+        <button type="button" role="tab" id="tab-tr" aria-controls="panel-tr" aria-selected={tab === "tr"} onClick={() => setTab("tr")}>{txL.h}</button>
       </div>
       <div role="tabpanel" id={"panel-" + tab} aria-labelledby={"tab-" + tab}>
+        {tab === "tr" && <TransfersTab onChanged={refreshAll} />}
         {tab === "ov" && <Overview stats={stats} cos={cos} onPick={(tk) => { setSel(tk); setTab("co"); }} />}
         {tab === "ap" && <ApprovalsTab ap={ap} signer={wallets.data?.issuer?.address} onChanged={refreshAll} />}
         {tab === "co" && <CompaniesTab sel={sel} setSel={setSel} onChanged={refreshAll} />}

@@ -51,10 +51,12 @@ class Settings:
     sambanova_api_key: str = field(default_factory=lambda: _env("SAMBANOVA_API_KEY"))
     sambanova_base_url: str = field(default_factory=lambda: _env("SAMBANOVA_BASE_URL", "https://api.sambanova.ai/v1"))
     sambanova_models: tuple[str, ...] = field(default_factory=lambda: _csv(
-        "SAMBANOVA_MODELS", "gpt-oss-120b,DeepSeek-V3.1,gemma-4-31B-it"))
+        "SAMBANOVA_MODELS", "gpt-oss-120b,DeepSeek-V3.1,DeepSeek-V3.2,Meta-Llama-3.3-70B-Instruct,gemma-4-31B-it"))
     sambanova_timeout: float = field(default_factory=lambda: float(_env("SAMBANOVA_TIMEOUT", "60")))
     # Cloud-tier fallback chain after the Claude CLI (when CLAUDE_CLI_ENABLED; list "claude" to place it
-    # elsewhere). Providers without an API key are skipped.
+    # elsewhere). Providers without an API key are skipped. "claude_bridge" = the host bridge's /complete endpoint
+    # (Claude subscription, no tools); it uses CLAUDE_SEARCH_URL/TOKEN. Recommended: sambanova,claude_bridge,deepinfra
+    # (free first, then subscription, then paid).
     llm_provider_order: tuple[str, ...] = field(default_factory=lambda: tuple(
         x.lower() for x in _csv("LLM_PROVIDER_ORDER", "sambanova,deepinfra")))
 
@@ -64,6 +66,7 @@ class Settings:
     claude_search_url: str = field(default_factory=lambda: _env("CLAUDE_SEARCH_URL"))  # host bridge, e.g. :8765
     claude_search_token: str = field(default_factory=lambda: _env("CLAUDE_SEARCH_TOKEN"))
     claude_search_timeout: float = field(default_factory=lambda: float(_env("CLAUDE_SEARCH_TIMEOUT", "150")))
+    claude_complete_timeout: float = field(default_factory=lambda: float(_env("CLAUDE_COMPLETE_TIMEOUT", "260")))
     # Research budget per valuation ("good enough for a mid-point valuation")
     search_max_queries: int = field(default_factory=lambda: int(_env("SEARCH_MAX_QUERIES", "3")))
     search_fetch_per_query: int = field(default_factory=lambda: int(_env("SEARCH_FETCH_PER_QUERY", "2")))

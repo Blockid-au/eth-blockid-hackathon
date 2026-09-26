@@ -8,8 +8,14 @@ Each request runs `claude -p` headless with ONLY the WebSearch tool (no files, s
 settings) and a JSON schema for the answer, so the caller gets search results and nothing else.
 Guards: shared token, query length cap, per-day request cap, one search at a time.
 
+POST /complete runs `claude -p` with NO tools at all and the caller's JSON schema: it lets the worker use the
+signed-in Claude subscription as one step of its LLM fallback chain (see agents/.../llm.py ClaudeBridgeLLM).
+It has its own lock and daily cap, so valuations never queue behind searches (or the reverse).
+
 Env: BRIDGE_TOKEN (required), BRIDGE_HOST (172.18.0.1), BRIDGE_PORT (8765), BRIDGE_MAX_PER_DAY (150),
-     CLAUDE_CLI_PATH (auto-detected), CLAUDE_SEARCH_MODEL (haiku), BRIDGE_TIMEOUT (120), BRIDGE_MAX_BUDGET_USD (0.25).
+     CLAUDE_CLI_PATH (auto-detected), CLAUDE_SEARCH_MODEL (haiku), BRIDGE_TIMEOUT (120), BRIDGE_MAX_BUDGET_USD (0.25),
+     CLAUDE_COMPLETE_MODEL (sonnet), BRIDGE_COMPLETE_MAX_PER_DAY (300), BRIDGE_COMPLETE_TIMEOUT (240),
+     BRIDGE_COMPLETE_BUDGET_USD (0.5).
 """
 from __future__ import annotations
 
@@ -33,6 +39,11 @@ MAX_PER_DAY = int(os.environ.get("BRIDGE_MAX_PER_DAY", "150"))
 MODEL = os.environ.get("CLAUDE_SEARCH_MODEL", "haiku")
 TIMEOUT = float(os.environ.get("BRIDGE_TIMEOUT", "120"))
 MAX_BUDGET = os.environ.get("BRIDGE_MAX_BUDGET_USD", "0.25")
+COMPLETE_MODEL = os.environ.get("CLAUDE_COMPLETE_MODEL", "sonnet")
+COMPLETE_MAX_PER_DAY = int(os.environ.get("BRIDGE_COMPLETE_MAX_PER_DAY", "300"))
+COMPLETE_TIMEOUT = float(os.environ.get("BRIDGE_COMPLETE_TIMEOUT", "240"))
+COMPLETE_BUDGET = os.environ.get("BRIDGE_COMPLETE_BUDGET_USD", "0.5")
+COMPLETE_MAX_BYTES = 600_000  # a market analysis prompt with 30 evidence pages is ~150 KB
 
 SCHEMA = {
     "type": "object",
@@ -56,6 +67,8 @@ SYSTEM = (
 
 _lock = threading.Lock()          # one CLI run at a time (cost + rate control)
 _count = {"day": "", "n": 0}
+_complete_lock = threading.Lock()  # separate queue for /complete
+_complete_count = {"day": "", "n": 0}
 
 
 def cli_path() -> str:
@@ -84,6 +97,31 @@ def run_search(query: str, count: int) -> dict:
     return {"results": results, "cost_usd": out.get("total_cost_usd"), "model": MODEL}
 
 
+def run_complete(system: str, user: str, schema: dict) -> dict:
+    cmd = [cli_path(), "-p", "--output-format", "json", "--model", COMPLETE_MODEL,
+           "--tools", "", "--strict-mcp-config", "--setting-sources", "",
+           "--no-session-persistence", "--max-budget-usd", COMPLETE_BUDGET,
+           "--system-prompt", system, "--json-schema", json.dumps(schema)]
+    with tempfile.TemporaryDirectory(prefix="bid-complete-") as cwd:
+        proc = subprocess.run(cmd, input=user, capture_output=True, text=True, timeout=COMPLETE_TIMEOUT, cwd=cwd)
+    out = json.loads(proc.stdout or "{}")
+    if proc.returncode != 0 or out.get("is_error") or out.get("structured_output") is None:
+        raise RuntimeError(f"claude exit {proc.returncode} ({out.get('subtype')}): "
+                           f"{str(out.get('result') or proc.stderr)[:300]}")
+    return {"structured_output": out["structured_output"], "cost_usd": out.get("total_cost_usd"),
+            "model": COMPLETE_MODEL}
+
+
+def _take(counter: dict, cap: int) -> bool:
+    today = dt.date.today().isoformat()
+    if counter["day"] != today:
+        counter.update(day=today, n=0)
+    if counter["n"] >= cap:
+        return False
+    counter["n"] += 1
+    return True
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code: int, body: dict) -> None:
         raw = json.dumps(body).encode()
@@ -98,14 +136,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/healthz":
-            return self._send(200, {"ok": True, "today": _count["n"], "max_per_day": MAX_PER_DAY})
+            return self._send(200, {"ok": True, "today": _count["n"], "max_per_day": MAX_PER_DAY,
+                                    "complete_today": _complete_count["n"], "complete_max_per_day": COMPLETE_MAX_PER_DAY,
+                                    "complete_model": COMPLETE_MODEL})
         self._send(404, {"detail": "not found"})
 
     def do_POST(self):
-        if self.path != "/search":
+        if self.path not in ("/search", "/complete"):
             return self._send(404, {"detail": "not found"})
         if not hmac.compare_digest(self.headers.get("X-Bridge-Token", ""), TOKEN):
             return self._send(401, {"detail": "bad token"})
+        if self.path == "/complete":
+            return self._complete()
         try:
             length = min(int(self.headers.get("content-length", "0")), 4096)
             req = json.loads(self.rfile.read(length) or b"{}")
@@ -130,6 +172,30 @@ class Handler(BaseHTTPRequestHandler):
                 log.warning("search failed: %s", e)
                 return self._send(502, {"detail": f"search failed: {e}"[:300]})
         log.info("search ok: %d results, $%s", len(res["results"]), res.get("cost_usd"))
+        self._send(200, res)
+
+    def _complete(self):
+        try:
+            length = int(self.headers.get("content-length", "0"))
+            if length > COMPLETE_MAX_BYTES:
+                return self._send(413, {"detail": "request too large"})
+            req = json.loads(self.rfile.read(length) or b"{}")
+            system, user, schema = str(req["system"]), str(req["user"]), req["schema"]
+            if not isinstance(schema, dict) or not user.strip():
+                raise ValueError
+        except Exception:
+            return self._send(400, {"detail": "bad request: need system, user, schema"})
+        with _complete_lock:
+            if not _take(_complete_count, COMPLETE_MAX_PER_DAY):
+                return self._send(429, {"detail": "daily completion cap reached"})
+            try:
+                res = run_complete(system, user, schema)
+            except subprocess.TimeoutExpired:
+                return self._send(504, {"detail": "completion timed out"})
+            except Exception as e:  # noqa: BLE001
+                log.warning("completion failed: %s", e)
+                return self._send(502, {"detail": f"completion failed: {e}"[:300]})
+        log.info("complete ok: model %s, $%s", res["model"], res.get("cost_usd"))
         self._send(200, res)
 
 
