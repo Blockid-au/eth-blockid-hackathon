@@ -1,0 +1,136 @@
+erDiagram
+  valuations ||--o{ companies : "valuation_id"
+  companies ||--o{ holders : "company_id"
+  companies ||--o{ marks : "company_id"
+  companies ||--o{ events : "company_id"
+  companies ||--o{ mints : "company_id"
+  companies ||--o{ dividends : "company_id"
+  companies ||--o{ transfers : "company_id"
+  companies ||--o{ kyc_requests : "company_id"
+
+  valuations {
+    text id PK
+    text url
+    text requested_by
+    text status "queued running waiting_approval approved rejected failed"
+    jsonb steps
+    jsonb result "profile competitors market svi evidence"
+    jsonb self_reported
+    text error
+  }
+  companies {
+    serial id PK
+    text ticker UK
+    text name
+    text valuation_id FK
+    numeric svi
+    text grade
+    numeric valuation_aud
+    numeric share_price_aud
+    bigint total_shares
+    text status
+    text created_by
+    text local_registry
+    text local_token
+    text local_distributor
+    bigint local_block
+    text hoodi_registry
+    text hoodi_token
+    text hoodi_anchor_tx
+    text merkle_root
+    text hsk_registry
+    text hsk_token
+    text hsk_anchor_tx
+    text hsk_merkle_root
+    jsonb sync "per-chain state"
+    text valuation_report_hash
+    text transfer_mode "free or approval"
+    text error
+  }
+  holders {
+    serial id PK
+    int company_id FK
+    text name
+    text wallet
+    numeric pct
+    bigint shares
+  }
+  marks {
+    serial id PK
+    int company_id FK
+    numeric valuation_aud
+    numeric mark_aud
+    text source "issuance or revaluation"
+  }
+  events {
+    serial id PK
+    int company_id FK
+    text kind
+    text chain "blockid hoodi hsk"
+    text tx_hash
+    bigint block
+    jsonb data
+  }
+  mints {
+    serial id PK
+    int company_id FK
+    text to_wallet
+    bigint shares
+    text status "pending approved minting minted failed rejected"
+    text tx_hash
+  }
+  dividends {
+    serial id PK
+    int company_id FK
+    bigint total_units
+    text merkle_root
+    jsonb claims
+    text status "pending approved paying ..."
+    int round_id
+    text tx_hash
+  }
+  transfers {
+    serial id PK
+    int company_id FK
+    text from_wallet
+    text to_wallet
+    bigint shares
+    text mode
+    text status
+    text tx_hash UK
+  }
+  kyc_requests {
+    serial id PK
+    int company_id FK
+    text wallet
+    text name
+    text status
+    text tx_hash
+  }
+  admin_users {
+    text username PK
+    text password_hash
+    boolean must_change
+  }
+  sessions {
+    text id PK
+    text address
+    text username
+    text role "user or admin"
+    timestamptz expires_at
+  }
+  nonces {
+    text nonce PK
+  }
+  issuer_wallets {
+    text address PK
+    text label
+    text status "active or revoked"
+  }
+  audit {
+    serial id PK
+    text actor
+    text action
+    text target
+    jsonb detail
+  }

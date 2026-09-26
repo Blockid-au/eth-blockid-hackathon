@@ -1,0 +1,61 @@
+sequenceDiagram
+  autonumber
+  actor F as Founder (browser)
+  actor A as Admin (browser)
+  participant API as agents-api
+  participant DB as Postgres studio.*
+  participant I as issuer (keys)
+  participant L as BlockID EVM 262626
+  participant H as Ethereum Hoodi 560048
+  participant K as HashKey testnet 133
+
+  F->>API: POST /v1/studio/companies {valuation_id, name, ticker, holders}
+  API->>DB: insert company (draft) + holders<br/>checks: approved valuation, pct sum 100, EIP-55, unique ticker
+  F->>API: POST /v1/studio/companies/{id}/submit (admin or active issuer wallet)
+  API->>DB: status = pending_issue
+  A->>API: POST /v1/admin/companies/{id}/approve-issue<br/>(admin session: SIWE or password, Origin allowlisted)
+  API->>DB: single UPDATE ... WHERE status = pending_issue<br/>OR (failed AND local_block IS NULL) → issuing
+  API->>DB: audit + event issue_approved
+  API->>I: POST /issue {company_id} (X-Internal-Token, internal network)
+  I-->>API: 202 Accepted (work runs in background thread)
+  Note over API,I: if the issuer call fails the API reverts the status and returns 502
+
+  I->>DB: re-read company inside per-company lock, require issuing
+  rect rgb(235, 244, 255)
+    Note over I,L: BlockID Chain (register of record)
+    I->>L: deploy IdentityRegistry, grant KYC_AGENT_ROLE
+    I->>L: deploy BlockIDShareToken (decimals 0, max 500 holders)
+    I->>L: deploy DividendDistributor
+    loop each holder
+      I->>L: registerInvestor(wallet, 36, now+1y, keccak(name))
+      I->>L: drip 0.01 BLKD if balance < 0.001
+      I->>L: issue(wallet, shares - balance, keccak("studio-issue:id"))
+    end
+    I->>L: anchorValuation(reportHash = keccak256(canonical report), cents)
+    I->>DB: events kyc / drip / issued / valuation_anchored, mark 1.00, status issued, sync.blockid = done
+  end
+  I->>DB: status = anchoring
+  rect rgb(240, 250, 240)
+    Note over I,H: Sync Hoodi (preflight: chain id + enough ETH for gas)
+    I->>L: snapshot balances at block N (sum must equal totalSupply)
+    I->>H: deploy mirror IdentityRegistry + BlockIDShareToken (if missing)
+    I->>H: KYC + issue / cancel to match balances, anchorValuation(same hash), pause()
+    I->>H: CapTableAnchor.anchor(ticker, localToken, 262626, N, merkleRoot, supply, uri)
+    I->>DB: events hoodi_mirrored + anchored, hoodi_* columns, sync.hoodi = done or failed
+  end
+  rect rgb(255, 246, 235)
+    Note over I,K: Sync HSK, same steps, with a read-lag guard that waits until the RPC read path sees each receipt block
+    I->>K: mirror registry + token, balances, anchorValuation, pause()
+    I->>K: CapTableAnchor.anchor(...)
+    I->>DB: events hsk_mirrored + anchored, hsk_* columns, sync.hsk = done or failed
+  end
+  I->>DB: status = anchored (all done) / partially_anchored (some) / issued (none)
+
+  loop every 3 s while issuing or anchoring
+    F->>API: GET /v1/companies/{ticker}
+    API-->>F: status, sync {blockid, hoodi, hsk, step, errors}, events
+  end
+  opt a chain failed
+    A->>API: POST /v1/admin/companies/{id}/approve-anchor (re-sync)
+    API->>I: POST /anchor → re-runs only missing or failed chains (idempotent)
+  end

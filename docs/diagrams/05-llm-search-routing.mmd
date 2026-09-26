@@ -1,0 +1,22 @@
+flowchart TD
+  call["deps.ask(agent, tier, schema)<br/>policy.guard(): allowed tier + tools"] --> tier{"tier"}
+  tier -->|local| gw["LiteLLM gateway (GPU VM)<br/>PII agents only, never falls back to cloud"]
+  tier -->|"cloud / cloud_max<br/>(SVI_TIER=cloud: all valuation steps)"| chain
+
+  subgraph chain["FallbackLLM: LLM_PROVIDER_ORDER = sambanova, claude_bridge, deepinfra"]
+    s1["sambanova: gpt-oss-120b"] -->|fail| s2["sambanova: DeepSeek-V3.1"]
+    s2 -->|fail| s3["sambanova: DeepSeek-V3.2"]
+    s3 -->|fail| s4["sambanova: Llama-3.3-70B"]
+    s4 -->|fail| s5["sambanova: gemma-4-31B-it"]
+    s5 -->|fail| cb["claude-bridge POST /complete<br/>Sonnet, no tools, 300 / day"]
+    cb -->|fail| d1["deepinfra: DeepSeek-V4-Flash"]
+    d1 -->|fail| d2["deepinfra: gpt-oss-120b"]
+  end
+  d2 -->|fail| err[("LLMError → step failed")]
+  s1 & s2 & s3 & s4 & s5 & cb & d1 & d2 -->|"first answer that validates<br/>against the Pydantic schema"| out[("typed result<br/>+ llm_providers_used")]
+  note1["SambaNova: 429 or 402 parks that model 10 min;<br/>timeout / 5xx = one retry; JSON mode falls back to prompt-only JSON<br/>Claude bridge: any failure parks it 10 min"] -.- chain
+
+  subgraph search["SearchChain: SEARCH_PROVIDERS = brave, claude (budget 3 queries / valuation)"]
+    b["Brave Search API<br/>1 req/s, 72 h cache"] -->|"quota / error / empty"| cs["claude bridge POST /search<br/>Haiku + WebSearch only, 150 / day"]
+  end
+  cs -->|"all fail → SearchUnavailable"| fbk["fallback: model-suggested competitors<br/>verified by homepage fetch; market from own sites"]

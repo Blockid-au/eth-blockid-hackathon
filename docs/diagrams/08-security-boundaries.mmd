@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph z0["Untrusted: internet"]
+    web["Websites being valued<br/>(prompt-injection risk)"]
+    usr["Browsers, wallets,<br/>scripts"]
+  end
+
+  subgraph z1["Edge"]
+    cf["Cloudflare<br/>TLS, proxy"]
+    ng["nginx: real IP from CF-Connecting-IP only for CF ranges<br/>CSP (self + hashed bootstrap), HSTS, X-Frame DENY, nosniff<br/>/rpc and /cometbft allowlists"]
+  end
+
+  subgraph z2["Application zone (network: default)"]
+    api["agents-api<br/>SIWE (EIP-4361, single-use nonce, domain/chain checks)<br/>or bcrypt password + lockout by real IP<br/>__Host- cookie, HttpOnly, Secure, SameSite=Lax<br/>CSRF: Origin/Referer allowlist on writes<br/>valuation rate limits, API docs off"]
+    wk["agents-worker (no keys, no issuer token)<br/>policy.guard(): per-agent tools + tiers<br/>FORBIDDEN: sign_tx, send_tx, read_private_key,<br/>deploy_contract, shell<br/>web text wrapped in &lt;data&gt;, Pydantic outputs,<br/>uncited claims dropped"]
+    sf["SafeFetcher (SSRF guard)<br/>public IPs only, DNS pinned,<br/>per-hop redirect checks, size/time caps"]
+    db[("Postgres studio.*<br/>approval states, audit")]
+  end
+
+  subgraph z3["Key zone (internal networks issuer + issuer-backend, egress-only net)"]
+    is["issuer<br/>X-Internal-Token, acts only on<br/>admin-approved rows (atomic claim)<br/>checks chain state before retry"]
+    ks[/"keystores, read-only, uid 10001"/]
+  end
+
+  usr --> cf --> ng --> api
+  web -->|HTML| sf --> wk
+  wk -->|results, status| db
+  api --> db
+  api -->|approved actions only| is
+  is --> db
+  ks --> is
+  is -->|signed txs| chains[("BlockID EVM · Hoodi · HSK")]
+  wk -. "blocked: no network path" .-x is
+  sf -. "blocked: private / internal hosts<br/>(issuer, postgres, 10.x, 127.x)" .-x db

@@ -1,0 +1,21 @@
+flowchart LR
+  subgraph llm["LLM (suggests only, labelled ai_suggested)"]
+    f["founder_quality · w 0.20"]
+    p["product_strength · w 0.15"]
+    m["market_attractiveness · w 0.20"]
+    i["investment_readiness · w 0.10"]
+    t["trust_verification · w 0.05"]
+  end
+  subgraph code["Code (tools/svi.py, deterministic)"]
+    r["revenue_performance · w 0.20<br/>0.7 × log-scale revenue vs stage benchmark<br/>+ 0.3 × gross margin"]
+    g["growth_capability · w 0.10<br/>0.6 × (YoY growth / 2)<br/>+ 0.4 × (runway / 24 months)"]
+  end
+  metrics[/"profile metrics<br/>website facts or founder self_reported"/] --> r & g
+  f & p & m & i & t & r & g --> idx["index = round(Σ weight × score, 2)"]
+  idx --> band["grade band<br/>A ≥ 80 · B ≥ 65 · C ≥ 50 · D ≥ 35 · E &lt; 35"]
+  idx --> fac["factor = 0.5 + index / 100"]
+  fac --> val{"revenue &gt; 0 and cited<br/>median revenue multiple?"}
+  val -->|yes| rm["low / mid / high = revenue × (multiple_low | median | multiple_high) × factor<br/>(low defaults to 0.6 × median, high to 1.5 × median)"]
+  val -->|no| st["low / mid / high = stage benchmark range × factor<br/>(idea, pre-seed, seed, series-a, growth)"]
+  rm & st --> round["rounded to nearest A$1,000<br/>total_shares = mid / A$1.00"]
+  human(["Admin override"]) -. "replaces ai_suggested score,<br/>basis = human" .-> llm

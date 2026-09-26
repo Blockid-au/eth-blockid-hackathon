@@ -1,0 +1,53 @@
+flowchart TB
+  user(["Browsers / wallets"]) --> cf["Cloudflare edge"]
+  cf -->|HTTPS 443| nginx
+
+  subgraph host["Host VM"]
+    nginx["host nginx :443<br/>real_ip from CF-Connecting-IP<br/>CSP / HSTS / X-Frame-Options"]
+    dist[/"web/dist<br/>React SPA (static)"/]
+    bridge["claude-search-bridge (systemd)<br/>172.18.0.1:8765 = gateway of default net<br/>/search: Haiku + WebSearch<br/>/complete: Sonnet, no tools"]
+    keys[/"/opt/blockid/keys<br/>encrypted keystores"/]
+  end
+
+  subgraph compose["docker compose project blockid-app"]
+    api["agents-api :8080<br/>nets: default + issuer"]
+    worker["agents-worker<br/>nets: default only"]
+    issuer["issuer :8090 (ONLY key holder)<br/>nets: issuer + issuer-backend<br/>+ issuer-egress"]
+    pg[("postgres :5432<br/>nets: default + issuer-backend")]
+    evmd["evmd (BlockID EVM 262626)<br/>:8545 :8546 :26657 :1317<br/>nets: default + issuer-backend"]
+    explorer["explorer (Ping.pub)<br/>nets: default"]
+  end
+
+  subgraph bs["docker compose project blockscout"]
+    bsfront["frontend :3000"]
+    bsback["backend :4000<br/>nets: blockscout_default<br/>+ blockid-app_default"]
+    bsdb[("bs-db + bs-redis")]
+  end
+
+  nginx -->|"eth.blockid.au /"| dist
+  nginx -->|"/api/ → 127.0.0.1:8080"| api
+  nginx -->|"/rpc → :8080/v1/rpc<br/>(eth_ / net_ / web3_ allowlist)"| api
+  nginx -->|"/cometbft/ read-only routes<br/>(others 403), /lcd/ → :1317"| evmd
+  nginx -->|"/explorer/ → :8082"| explorer
+  nginx -->|"scan.blockid.au /api, /socket → :8200"| bsback
+  nginx -->|"scan.blockid.au / → :8201"| bsfront
+
+  api -->|SQL| pg
+  api -->|"JSON-RPC proxy, reads"| evmd
+  api -->|"POST /issue /anchor /mint ...<br/>X-Internal-Token (issuer net)"| issuer
+  worker -->|"claim jobs, write results"| pg
+  worker -->|"POST /search, /complete<br/>X-Bridge-Token"| bridge
+  issuer -->|"SQL (issuer-backend)"| pg
+  issuer -->|"signed txs (issuer-backend)"| evmd
+  keys -. "read-only mount /keys" .-> issuer
+  bsfront --> bsback
+  bsback --> bsdb
+  bsback -->|"index via evmd:8545"| evmd
+  explorer -. "browser calls /cometbft, /lcd" .-> nginx
+
+  worker -. "NO route: not on issuer networks,<br/>no ISSUER_INTERNAL_TOKEN" .-x issuer
+
+  issuer -->|"issuer-egress"| extc[("Ethereum Hoodi RPC<br/>HashKey testnet RPC")]
+  worker -->|"default egress"| extw["SambaNova, DeepInfra,<br/>Brave, startup websites"]
+  api -->|"default egress (/verify reads)"| extc
+  bridge --> anth["Anthropic (Claude CLI)"]

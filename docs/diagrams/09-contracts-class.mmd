@@ -1,0 +1,76 @@
+classDiagram
+  direction LR
+  class IdentityRegistry {
+    <<AccessControl>>
+    +KYC_AGENT_ROLE
+    -mapping investors: verified, country, expiresAt, kycRef
+    +countryBlocked(uint16) bool
+    +registerInvestor(wallet, country, expiresAt, kycRef)
+    +revokeInvestor(wallet)
+    +setCountryBlocked(country, blocked)
+    +isVerified(wallet) bool
+    +investorOf(wallet) Investor
+  }
+  class BlockIDShareToken {
+    <<ERC20 + AccessControl + Pausable>>
+    +ISSUER_ROLE
+    +TRANSFER_AGENT_ROLE
+    +PAUSER_ROLE
+    +decimals() 0
+    +lockupUntil
+    +maxShareholders
+    +valuationReportHash bytes32
+    +valuationPerShareCents
+    +legalDocHash bytes32
+    +issue(to, amount, resolutionRef)
+    +cancel(from, amount, resolutionRef)
+    +anchorValuation(reportHash, perShareCents)
+    +setLegalDocHash(docHash)
+    +pause() / unpause()
+    +setFrozen(wallet, frozen)
+    +forcedTransfer(from, to, amount, reason)
+    #_update() KYC, freeze, lock-up, pause, holder cap
+  }
+  class DividendDistributor {
+    <<AccessControl + ReentrancyGuard>>
+    +ISSUER_ROLE
+    +shareToken
+    +createRound(merkleRoot, payToken, total, recordBlock, deadline, resolutionRef) roundId
+    +claim(roundId, amount, proof)
+    +claimFor(roundId, account, amount, proof)
+    +closeRound(roundId, to)
+    +hasClaimed(roundId, account) bool
+  }
+  class CapTableAnchor {
+    <<AccessControl>>
+    +ANCHOR_ROLE
+    -history per ticker: Anchor[]
+    +anchor(ticker, localToken, localChainId, localBlock, merkleRoot, totalSupply, uri) index
+    +latest(ticker) Anchor
+    +anchorCount(ticker)
+    +anchorAt(ticker, index)
+    +verify(ticker, holder, balance, proof) bool
+  }
+  class AgentProvenance {
+    <<AccessControl>>
+    +REGISTRAR_ROLE
+    +RECORDER_ROLE
+    +APPROVER_ROLE
+    +registerAgent(agentId, name, policyHash)
+    +setAgentActive(agentId, active)
+    +propose(agentId, kind, contentHash, modelId, uri) id
+    +approve(id) approver != recorder
+    +reject(id, reason)
+    +markExecuted(id, executionRef) only if Approved
+    +verify(id, contentHash) bool
+  }
+  class DemoAUD {
+    <<ERC20 + Ownable>>
+    +decimals() 6
+    +mint(to, amount) onlyOwner
+  }
+  BlockIDShareToken --> IdentityRegistry : isVerified() on every transfer
+  DividendDistributor --> BlockIDShareToken : shareToken (record block)
+  DividendDistributor --> DemoAUD : payToken (mAUD)
+  CapTableAnchor ..> BlockIDShareToken : anchors Merkle root of (holder, balance)
+  AgentProvenance ..> BlockIDShareToken : HSK demo - issue guarded by verify()

@@ -1,0 +1,22 @@
+stateDiagram-v2
+  [*] --> draft : founder POST /studio/companies
+  draft --> pending_issue : submit (admin or active issuer wallet)
+  pending_issue --> issuing : admin approve-issue (atomic UPDATE)
+  issuing --> pending_issue : issuer unreachable (API reverts, 502)
+  issuing --> issued : BlockID Chain done
+  issuing --> failed : revert / error on BlockID Chain
+  failed --> issuing : approve-issue again (local_block IS NULL, idempotent)
+  issued --> anchoring : automatic, same approval
+  anchoring --> anchored : Hoodi and HSK done
+  anchoring --> partially_anchored : one external chain failed
+  anchoring --> issued : no external chain done
+  partially_anchored --> anchoring : admin approve-anchor (re-sync missing chains)
+  issued --> anchoring : admin approve-anchor
+  anchored --> anchoring : re-anchor after mint / revaluation
+  failed --> anchoring : approve-anchor (local_block set)
+  draft --> rejected : admin reject
+  pending_issue --> rejected : admin reject
+  issued --> rejected : admin reject
+  failed --> rejected : admin reject
+  anchored --> [*]
+  rejected --> [*]

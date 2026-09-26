@@ -1,0 +1,19 @@
+stateDiagram-v2
+  direction LR
+  state "companies.sync.blockid" as B {
+    [*] --> b_pending
+    b_pending --> b_running : issue starts
+    b_running --> b_done : registry, token, distributor,<br/>KYC, issue, anchorValuation
+    b_running --> b_failed : error (company failed)
+    b_failed --> b_running : approve-issue retry
+  }
+  state "companies.sync.hoodi / companies.sync.hsk (run in order: Hoodi, then HSK)" as X {
+    [*] --> x_pending
+    x_pending --> x_skipped : RPC or CapTableAnchor not configured
+    x_pending --> x_running : BlockID done
+    x_running --> x_done : mirror + pause + CapTableAnchor.anchor
+    x_running --> x_failed : preflight (gas, chain id) or tx error<br/>(does not block the next chain)
+    x_failed --> x_running : approve-anchor re-sync
+    x_done --> x_running : re-anchor after mint / revaluation
+  }
+  B --> X

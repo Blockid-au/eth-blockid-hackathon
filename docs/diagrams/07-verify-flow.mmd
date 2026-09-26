@@ -1,0 +1,28 @@
+sequenceDiagram
+  autonumber
+  actor V as Verifier (browser /verify/:ticker)
+  participant API as agents-api /v1/verify
+  participant DB as Postgres
+  participant L as BlockID EVM
+  participant H as Hoodi
+  participant K as HashKey testnet
+
+  V->>API: GET /v1/verify/{ticker}
+  API->>DB: company (on-chain status) + stored valuation row
+  API->>API: report = {url, profile, competitors, market, svi, self_reported}<br/>canonical JSON: keys sorted, separators (",", ":"), no ASCII escaping<br/>report_hash = keccak256(utf8(json)), recompute SVI with the public formula
+  par read the anchored hash on each chain
+    API->>L: token.valuationReportHash()
+  and
+    API->>H: mirror.valuationReportHash()
+  and
+    API->>K: mirror.valuationReportHash()
+  end
+  API-->>V: report (raw JSON text), report_hash, formula, recomputed, onchain[{chain, hash, match}]
+  V->>V: parse losslessly (number lexemes kept)<br/>canonicalJson + keccak256 in the browser (viem)
+  V->>API: POST /v1/verify/hash {report} (same text, debounced)
+  API-->>V: server keccak256 (Python)
+  V->>V: verdict OK only if browser hash = server hash<br/>= every on-chain valuationReportHash
+  opt Tamper test
+    V->>V: change founder_quality score by 1 → both hashes change → verdict "Mismatch"
+    V->>V: Reset → original text → verdict OK again
+  end

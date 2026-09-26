@@ -1,0 +1,42 @@
+flowchart LR
+  founder["Founder / SME owner<br/>MetaMask + SIWE"]
+  investor["Investor / shareholder<br/>MetaMask wallet"]
+  admin["Admin / approver<br/>SIWE admin wallet or<br/>username + password"]
+  judge["Judge / public verifier<br/>no login"]
+
+  cf["Cloudflare<br/>DNS, TLS edge, proxy<br/>CF-Connecting-IP"]
+
+  subgraph sys["BlockID Startup Passport (single GCP VM)"]
+    app["eth.blockid.au<br/>SPA + agents API + worker<br/>+ isolated issuer"]
+    scan["scan.blockid.au<br/>Blockscout explorer"]
+    chain[("BlockID EVM<br/>chain 262626, gas 0<br/>register of record")]
+  end
+
+  sites["Startup + competitor<br/>public websites"]
+  samba["SambaNova Cloud<br/>free LLMs (primary)"]
+  deepinfra["DeepInfra<br/>paid LLMs (last resort)"]
+  brave["Brave Search API"]
+  claude["Claude CLI on host<br/>(Anthropic subscription)<br/>web search + completion"]
+  hoodi[("Ethereum Hoodi<br/>chain 560048")]
+  hsk[("HashKey Chain testnet<br/>chain 133")]
+
+  founder -->|submit website, cap table| cf
+  investor -->|view holdings, transfers, dividends| cf
+  admin -->|approve valuation / issue / mint / dividend| cf
+  judge -->|/verify, /hsk, company pages| cf
+  cf --> app
+  cf --> scan
+  founder -. add network / token .-> chain
+  investor -. wallet RPC via /rpc .-> chain
+
+  app -->|SafeFetcher crawl| sites
+  app -->|LLM calls| samba
+  app -->|LLM fallback| deepinfra
+  app -->|web search #1| brave
+  app -->|web search #2 + LLM fallback<br/>via host bridge| claude
+  app -->|issue, KYC, dividends| chain
+  app -->|mirror + CapTableAnchor| hoodi
+  app -->|mirror + CapTableAnchor| hsk
+  scan -->|index| chain
+  judge -. check txs .-> hoodi
+  judge -. check txs .-> hsk

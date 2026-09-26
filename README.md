@@ -1,6 +1,6 @@
 # BlockID Startup Passport
 
-![BlockID Startup Passport](docs/images/cover.png)
+![BlockID Startup Passport](docs/images/banner.png)
 
 ### Agents propose. Humans approve. Chains prove.
 
@@ -75,7 +75,28 @@ an isolated issuer signs, and every step is verifiable on-chain.**
 - **Wallet-native UX.** MetaMask Sign-In with Ethereum (EIP-4361), add-network / add-token buttons, EN default
   with a Vietnamese toggle.
 
+## Documentation
+
+| Doc | What is inside |
+|---|---|
+| [Feature gallery](docs/FEATURES.md) | Every feature with screenshots from the live app (desktop, mobile, EN/VI) |
+| [Architecture diagrams](docs/ARCHITECTURE-DIAGRAMS.md) | 12 diagrams: system context, deployment topology, valuation pipeline, SVI scoring, LLM/search routing, issuance sequence, `/verify`, security boundaries, contracts, data model, state machines |
+| [Upgrade roadmap](docs/ROADMAP-RESEARCH.md) | Sourced research: Safe multisig, invariant CI, monitoring, eval harness, EAS, valuation calibration, AU legal path, KYC, ERC-8004 |
+| [Security](docs/SECURITY.md) · [Runbook](docs/RUNBOOK-STUDIO.md) · [Demo script](docs/DEMO.md) · [Hackathon write-up](docs/HACKATHON.md) | Operations and judging material |
+
+<p align="center">
+  <a href="docs/FEATURES.md"><img src="docs/screenshots/01-home-hero.png" width="49%" alt="Home"></a>
+  <a href="docs/FEATURES.md"><img src="docs/screenshots/19-company-eba-contract-cards.png" width="49%" alt="Contract address cards on three chains"></a>
+</p>
+
 ## Architecture
+
+Detailed diagrams (rendered from Mermaid, sources in [`docs/diagrams/`](docs/diagrams/)):
+
+![Deployment topology](docs/diagrams/02-deployment-topology.png)
+
+![Issuance sequence: one approval, three chains](docs/diagrams/06-issuance-sequence.png)
+
 
 ```
  Founder / investor (MetaMask, SIWE)            Admin / approver (own wallet)

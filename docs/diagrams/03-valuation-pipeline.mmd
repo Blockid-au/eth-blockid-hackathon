@@ -1,0 +1,26 @@
+flowchart TD
+  req["POST /v1/studio/valuations {url, metrics?}<br/>limits: 3 / wallet / day, 60 / day global, 5 active"] --> q[("studio.valuations<br/>status = queued")]
+  q -->|"worker claims row<br/>FOR UPDATE SKIP LOCKED → running"| rs
+
+  subgraph graph["LangGraph site_valuation (fixed order in code, checkpointed in Postgres)"]
+    rs["read_site<br/>SafeFetcher: same site, ≤ 6 pages (SITE_MAX_PAGES)<br/>robots.txt, public IPs only, 2 MB / 20 s per page, 120 s crawl<br/>emails + phones stripped"]
+    pr["profile<br/>LLM → StartupProfile (facts on pages only;<br/>unknown numbers stay 0)"]
+    co["competitors<br/>search 1/3: '&lt;name&gt; competitors alternatives &lt;country&gt;'<br/>fetch top 2 results → LLM names ≤ 9<br/>keep only names present in fetched text<br/>fetch homepages; funding only with verbatim quote"]
+    fb{"&lt; 3 competitors<br/>or search down?"}
+    sg["model-suggested competitors<br/>kept only if fetched homepage<br/>is that brand and on-topic"]
+    mk["market<br/>search 2/3: '&lt;sector&gt; market size growth'<br/>search 3/3: '&lt;sector&gt; startup funding valuation<br/>revenue multiple' → LLM MarketAnalysis<br/>findings citing unknown URLs are dropped"]
+    mfb["no search results: analyse only the company's<br/>and competitors' own sites (warning shown)"]
+    sv["svi<br/>LLM suggests 5 qualitative scores (ai_suggested)<br/>code computes revenue + growth, index, band,<br/>valuation low / mid / high, report_sha256"]
+    na["narrative<br/>LLM → investor-memo summary"]
+    gate[["gate_valuation<br/>LangGraph interrupt()"]]
+  end
+
+  rs --> pr --> co --> fb
+  fb -->|yes| sg --> mk
+  fb -->|no| mk
+  mk -. "0 search pages" .-> mfb -.-> sv
+  mk --> sv --> na --> gate
+  gate -->|"status = waiting_approval"| adm{"Admin decision<br/>POST .../decision"}
+  adm -->|"approve (+ optional overrides → basis human)"| ok[("approved<br/>→ founder can create company")]
+  adm -->|reject| rej[("rejected")]
+  rs & pr & co & mk & sv & na -. "any step fails" .-> fail[("failed")]
