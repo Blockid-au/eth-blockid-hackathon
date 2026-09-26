@@ -14,6 +14,7 @@ isolated issuer service execute.
 | | |
 |---|---|
 | Live app | https://eth.blockid.au |
+| Demo video (59 s) | [docs/video/blockid-startup-passport-demo.mp4](docs/video/blockid-startup-passport-demo.mp4) · https://eth.blockid.au/demo.mp4 |
 | HashKey Chain demo page | https://eth.blockid.au/hsk |
 | BlockID EVM explorer (Blockscout) | https://scan.blockid.au |
 | Hackathon technical doc | [docs/HACKATHON.md](docs/HACKATHON.md) |
