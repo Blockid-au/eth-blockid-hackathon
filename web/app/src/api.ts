@@ -106,6 +106,15 @@ export interface SyncInfo {
 }
 export interface ChainDeploy { chain_id?: number; registry?: string | null; token?: string | null; anchor_tx?: string | null; merkle_root?: string | null; block?: number | null; anchored_at?: string | null }
 
+/** Server classification of an issuer error (studio/errors.py): what happened, what fixes it, where to look. */
+export interface ErrorInfo {
+  code: string;
+  action: "refresh" | "top_up" | "configure" | "retry_item" | "approve_issue" | "resync";
+  target: "cap-table" | "issuer-wallets" | "sync" | "approvals" | "tracker";
+  detail?: { on_chain_in_table?: number; total_supply?: number; missing?: number };
+  chains?: Record<string, ErrorInfo>;
+}
+
 export interface CompanySummary {
   id?: number;
   ticker: string;
@@ -129,6 +138,7 @@ export interface CompanySummary {
   sync?: SyncInfo | null;
   created_at?: string;
   error?: string | null;
+  error_info?: ErrorInfo | null;
   valuation_id?: string | null;
 }
 export interface CapRow {
@@ -258,7 +268,7 @@ export interface AdminWallets {
 }
 
 /** Raw studio.companies row + holders (GET /admin/companies, /studio/companies, approvals). */
-export type AdminCompany = ApprovalCompany & { local_token?: string | null; hoodi_token?: string | null; hsk_token?: string | null; error?: string | null; created_at?: string; updated_at?: string };
+export type AdminCompany = ApprovalCompany & { local_token?: string | null; hoodi_token?: string | null; hsk_token?: string | null; error?: string | null; error_info?: ErrorInfo | null; created_at?: string; updated_at?: string };
 type Val = Valuation;
 
 export class ApiError extends Error {
@@ -359,6 +369,8 @@ export const api = {
   rejectDividend: (id: number, reason: string) => request<unknown>("POST", `/v1/admin/dividends/${id}/reject`, { reason }),
   approveIssue: (id: number) => request<unknown>("POST", `/v1/admin/companies/${id}/approve-issue`),
   approveAnchor: (id: number) => request<unknown>("POST", `/v1/admin/companies/${id}/approve-anchor`),
+  /** Clear the error, rebuild the cap table from BlockID Chain balances, re-sync Hoodi + HSK. */
+  refreshCompany: (id: number) => request<unknown>("POST", `/v1/admin/companies/${id}/refresh`),
   rejectCompany: (id: number, reason: string) => request<unknown>("POST", `/v1/admin/companies/${id}/reject`, { reason }),
   revalue: (id: number, valuation_aud: number, note: string) => request<{ mark_aud: number; issuer?: string; valuation_aud?: number }>("POST", `/v1/admin/companies/${id}/revalue`, { valuation_aud, note }),
   approveMint: (id: number) => request<unknown>("POST", `/v1/admin/mints/${id}/approve`),

@@ -22,6 +22,7 @@ import { AdminTransfersTab, tapi } from "./Transfers";
 import { Crumbs, RailGroup, RailItem, SideLayout, StepHead } from "../components/Shell";
 import { QUEUES, queueCounts, queueItems, type QueueKey } from "../lib/flow";
 import { CompanyAdminsPanel } from "../components/CompanyAdmins";
+import { ErrorFix } from "../components/ErrorFix";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
@@ -292,7 +293,7 @@ function IssuanceItem({ c, signer, wallets, act }: { c: ApprovalCompany; signer?
       </div>
       <p className="note">{t("trk.approve")}: BlockID Chain → Ethereum Hoodi → HashKey Chain testnet</p>
       <LowBalanceBanner wallets={wallets} compact />
-      {c.error && <p className="banner bad">{c.error}</p>}
+      {c.error && <ErrorFix error={c.error} info={c.error_info} ticker={c.ticker} companyId={c.local_token ? c.id : null} />}
       <IssueReview c={c} signer={signer} onAct={(fn) => act(fn)} />
     </div>
   );
@@ -307,8 +308,11 @@ function SyncItem({ c, busy, act }: { c: ApprovalCompany; busy: boolean; act: Ac
         <Link className="btn ghost sm" to={`/c/${c.ticker}/sync`}>{t("ad.co.open")}</Link>
       </div>
       <SyncChips sync={c.sync} />
-      {c.error && <p className="banner bad">{c.error}</p>}
-      <div className="row"><span className="grow" /><button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.approveAnchor(c.id))}>{t("trk.resync")}</button></div>
+      {c.error ? (
+        <ErrorFix error={c.error} info={c.error_info} ticker={c.ticker} companyId={c.id} onDone={() => void act(async () => undefined)} />
+      ) : (
+        <div className="row"><span className="grow" /><button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.approveAnchor(c.id))}>{t("trk.resync")}</button></div>
+      )}
     </div>
   );
 }
@@ -545,11 +549,15 @@ function CompanyDetailPane({ tk, row, onChanged }: { tk: string; row?: AdminComp
           {id != null && (status === "issued" || status === "pending_anchor" || status === "partially_anchored" || (status === "anchored" && c?.sync && (c.sync.hoodi !== "done" || c.sync.hsk !== "done"))) && <button className="btn gold sm" type="button" onClick={() => act(() => api.approveAnchor(id))}>{t("trk.resync")}</button>}
           {id != null && status === "failed" && <button className="btn gold sm" type="button" onClick={() => act(() => (c?.local?.block ? api.approveAnchor(id) : api.approveIssue(id)))}>{t("common.retry")}</button>}
           {id != null && status && ["draft", "pending_issue", "issued", "pending_anchor", "failed"].includes(status) && <button className="btn danger sm" type="button" onClick={() => act(() => api.rejectCompany(id, "rejected by admin"))}>{t("ap.reject")}</button>}
+          {id != null && localToken && status !== "issuing" && <button className="btn ghost sm" type="button" onClick={() => act(() => api.refreshCompany(id))}>{t("fix.refresh")}</button>}
           <Link className="btn ghost sm" to={`/c/${tk}`}>{t("ad.co.open")}</Link>
         </span>
       </div>
       {msg && <p className={"banner " + (msg.ok ? "ok" : "bad")} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
-      {(c?.error || row?.error) && <p className="banner bad">{c?.error || row?.error}</p>}
+      {(c?.error || row?.error) && (
+        <ErrorFix error={c?.error || row?.error} info={c?.error_info ?? row?.error_info ?? null} ticker={tk}
+          companyId={localToken ? id : null} onDone={() => { void d.reload(); onChanged(); }} />
+      )}
       {d.error && !c ? <ErrorBox error={d.error} retry={d.reload} /> : null}
       {c && c.marks?.length ? (
         <MarkPanel kpis ticker={c.ticker} name={c.name} grade={c.grade ?? "C"} svi={c.svi} marks={c.marks} events={c.events} valuation={c.valuation_aud} totalShares={c.total_shares} holders={c.cap_table?.length ?? c.holders ?? 0} />

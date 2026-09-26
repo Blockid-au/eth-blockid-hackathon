@@ -19,6 +19,7 @@ import { CompanyAdminsPanel, CompanyApprovals } from "../components/CompanyAdmin
 import { useMyCompanies } from "../lib/companyAdmins";
 import { Crumbs, FlowRail, Pager, RailGroup, RailItem, SideLayout, StepHead } from "../components/Shell";
 import { CO_SEG, CO_STEP, coGate, coReach, coStep, LIVE, valPath, WS, type WsSection } from "../lib/flow";
+import { ErrorFix } from "../components/ErrorFix";
 
 const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring", "partially_anchored"];
 const RUNNING: CoStatus[] = ["issuing", "anchoring"];
@@ -57,11 +58,14 @@ function Timeline({ status }: { status: CoStatus }) {
 /* ---------- cap table ---------- */
 function CapTable({ rows, ticker, source, block }: { rows: CapRow[]; ticker: string; source?: string; block?: number | null }) {
   const { t, fmt } = useI18n();
+  const fix = useLocation().hash === "#fix"; // arrived from an error's "Show the cap table" link
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (fix) box.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [fix]);
   const total = rows.reduce((a, r) => a + Number(r.shares), 0);
   const pct = (r: CapRow) => (r.pct != null ? Number(r.pct) : total ? (Number(r.shares) / total) * 100 : 0);
   if (!rows.length) return <p className="empty">{t("c.cap.empty")}</p>;
   return (
-    <div className="cols">
+    <div className={"cols" + (fix ? " fix-flash" : "")} ref={box}>
       <div className="card solid">
         <h4>{t("c.cap")}</h4>
         <p className="sub">{source === "db" ? t("c.cap.db") : block ? t("c.cap.chain", { b: fmt(block) }) : t("c.cap.p")}</p>
@@ -439,6 +443,10 @@ export default function CompanyPage() {
       </div>
       <StepHead eyebrow={flowN ? t("flow.stepof", { n: flowN, p: t("flow.ph.c") }) : t("ws.h")} title={flowN ? t(("step." + flowN) as DictKey) : t(("ws." + sec) as DictKey)} desc={t((flowN ? "flow.d" + flowN : "ws.d." + sec) as DictKey)} />
       {flash && <p className="banner gold" role="status">{flash}</p>}
+      {c.error && c.status !== "rejected" && !(sec === "sync" && Object.keys(c.sync?.errors ?? {}).length) && !(sec === "issue" && c.status === "failed") && (
+        <ErrorFix error={c.error} info={c.error_info} ticker={c.ticker} companyId={c.local?.token ? c.id : null}
+          onDone={() => void q.reload()} hideLink={c.error_info?.target === sec} />
+      )}
 
       {sec === "issue" && (
         <>

@@ -312,7 +312,16 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
 
   const submit = async () => {
     setTouched(true);
-    if (!valid) { setErr(t("v.sh.need")); return; }
+    if (!valid) {
+      setErr(t("v.sh.need"));
+      // take the person to the first thing to fix: a bad row, else the % column of the last row
+      const bad = rowErr.findIndex((e) => !!e);
+      const i = bad >= 0 ? bad : rows.length - 1;
+      const el = document.querySelector<HTMLInputElement>(`[data-caprow="${i}"] ${bad >= 0 && rowErr[bad] !== "%" ? "input" : "input[type=number]"}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.focus({ preventScroll: true });
+      return;
+    }
     setBusy(true); setErr(""); setStage("creating");
     try {
       const holders = rows.map((r, i) => ({ name: r.name.trim(), wallet: isAddressValid(r.wallet)!, pct: Math.round(pcts[i] * 100) / 100 }));
@@ -346,7 +355,7 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
             <button type="button" className="btn ghost sm" onClick={() => setTotal(String(mid))}>{money(mid)}</button>
           </div>
           <span className="hint">{t("v.sh.default", { n: fmt(mid) })}</span>
-          <div className="tbl">
+          <div className="tbl captbl">
             <table>
               <thead><tr><th>{t("t.holder")}</th><th>{t("t.wallet")}</th><th className="r">%</th><th className="r">{t("t.shares")}</th><th><span className="sr-only">{t("v.sh.remove", { n: "" })}</span></th></tr></thead>
               <tbody>
@@ -354,7 +363,7 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
                   const e = touched || r.wallet ? rowErr[i] : "";
                   const addrBad = !!r.wallet && !isAddressValid(r.wallet);
                   return (
-                    <tr key={r.id}>
+                    <tr key={r.id} data-caprow={i}>
                       <td><span className="sw" style={{ background: `var(${colorAt(i)})`, marginRight: 8 }} /><input className={"w-name" + (touched && !r.name.trim() ? " bad" : "")} value={r.name} placeholder={t("v.sh.name")} aria-label={`${t("t.holder")} ${i + 1}`} onChange={(x) => upd(r.id, "name", x.target.value)} /></td>
                       <td>
                         <input className={"w-addr" + (addrBad || (touched && e) ? " bad" : "")} value={r.wallet} placeholder="0x…" spellCheck={false} aria-label={`${t("t.wallet")} ${i + 1}`} aria-invalid={addrBad}
@@ -362,7 +371,7 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
                           onBlur={() => { const a = isAddressValid(r.wallet); if (a && a !== r.wallet) upd(r.id, "wallet", a); }} />
                         {e && <div className="hint bad">{e}</div>}
                       </td>
-                      <td className="r"><input type="number" step="0.01" min={0} max={100} value={r.pct} aria-label={`${r.name || t("t.holder")} %`} onChange={(x) => upd(r.id, "pct", x.target.value)} /></td>
+                      <td className="r"><input className={"w-pct" + ((touched || sumP > 100) && (!ok || !(Number(r.pct) > 0)) ? " bad" : "")} type="number" step="0.01" min={0} max={100} value={r.pct} aria-label={`${r.name || t("t.holder")} %`} aria-invalid={!ok || !(Number(r.pct) > 0)} onChange={(x) => upd(r.id, "pct", x.target.value)} /></td>
                       <td className="r">{fmt(shares[i] || 0)}</td>
                       <td>{rows.length > 1 && <button type="button" className="xbtn" aria-label={t("v.sh.remove", { n: r.name || String(i + 1) })} onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}>×</button>}</td>
                     </tr>
@@ -372,8 +381,15 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
             </table>
           </div>
           <button type="button" className="btn ghost sm" style={{ justifySelf: "start" }} onClick={() => setRows((rs) => [...rs, { id: rowSeq++, name: "", wallet: "", pct: String(Math.max(0, +(100 - sumP).toFixed(2))) }])}>+ {t("v.sh.add")}</button>
-          <div className={"totalrow " + (ok ? "ok" : "bad")} role="status">
-            {ok ? `${t("s5.ok")} · ${fmt(T)} ${t("t.shares").toLowerCase()}` : t("s5.bad", { p: fmt(sumP, 2) })}
+          <div className={"cap-total " + (ok ? "ok" : "bad")} role="status" aria-live="polite">
+            <b>{t("cap.total", { p: fmt(sumP, 2) })}</b>
+            <span className="bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.max(0, sumP))}%` }} /></span>
+            <span>{ok ? `${t("cap.ok")} · ${fmt(T)} ${t("t.shares").toLowerCase()}` : sumP < 100 ? t("cap.left", { p: fmt(100 - sumP, 2) }) : t("cap.over", { p: fmt(sumP - 100, 2) })}</span>
+            {!ok && rows.length > 0 && (() => {
+              const lastRow = rows[rows.length - 1];
+              const rest = +(Number(lastRow.pct || 0) + 100 - sumP).toFixed(2);
+              return rest > 0 ? <button type="button" className="btn ghost sm" onClick={() => upd(lastRow.id, "pct", String(rest))}>{t("cap.balance")}</button> : null;
+            })()}
           </div>
         </div>
         <div className="card">

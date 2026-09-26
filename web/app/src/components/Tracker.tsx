@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import { api, type CoEvent, type CompanyDetail, type SyncInfo, type SyncState } from "../api";
@@ -8,12 +9,14 @@ import type { DictKey } from "../dict";
 import { EventList } from "../pages/Company";
 import { DemoApproveGuide } from "./DemoGuide";
 import { LowBalanceInline } from "./LowBalance";
+import { ErrorFix } from "./ErrorFix";
 
 type St = SyncState | "rejected";
 interface Sub { label: string; done: boolean; tx?: string | null; chain?: ChainInfo }
 interface Stage { key: string; title: string; state: St; note?: string; subs?: Sub[]; error?: string | null; action?: "approve" | "retry-issue" | "resync" }
 
 const CHAIN_KEY: Record<string, ChainInfo> = { blockid: CHAINS.local, hoodi: CHAINS.hoodi, hsk: CHAINS.hsk };
+const STAGE_CHAIN: Record<string, string> = { s3: "blockid", s4: "hoodi", s5: "hsk" };
 
 export function defaultSync(c: CompanyDetail): SyncInfo {
   return c.sync ?? { blockid: c.local?.token ? "done" : "pending", hoodi: c.hoodi?.anchor_tx ? "done" : "pending", hsk: c.hsk?.anchor_tx ? "done" : "pending" };
@@ -38,6 +41,9 @@ export function Tracker({ c, onChanged, only, feed = true }: { c: CompanyDetail;
   const [msg, setMsg] = useState<{ ok: boolean; s: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const admin = me?.role === "admin";
+  const fix = useLocation().hash === "#fix";
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (fix) box.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [fix]);
   const events = c.events ?? [];
   const sync = defaultSync(c);
   const N = c.cap_table?.length || (typeof c.holders === "number" ? c.holders : 0) || 0;
@@ -114,7 +120,7 @@ export function Tracker({ c, onChanged, only, feed = true }: { c: CompanyDetail;
   const actLabel = (a: Stage["action"]) => (a === "approve" ? t("trk.approve") : a === "resync" ? t("trk.resync") : t("trk.retry"));
 
   return (
-    <div className="pane tracker">
+    <div className={"pane tracker" + (fix ? " fix-flash" : "")} ref={box}>
       <div className="between">
         <div><h4 style={{ margin: 0 }}>{t("trk.h")}</h4><p className="note" style={{ margin: 0 }}>{t("trk.p")}</p></div>
         {showElapsed && <span className="muted-sm">{t("trk.elapsed")}: <b className="num">{elapsed(end - start)}</b></span>}
@@ -143,10 +149,16 @@ export function Tracker({ c, onChanged, only, feed = true }: { c: CompanyDetail;
                   ))}
                 </ul>
               )}
-              {s.error && (s.state === "failed" || s.state === "skipped" || s.state === "rejected") && <p className="banner bad" role="alert" style={{ margin: "6px 0 0" }}>{s.error}</p>}
+              {s.error && s.state === "rejected" && <p className="banner bad" role="alert" style={{ margin: "6px 0 0" }}>{s.error}</p>}
+              {s.error && (s.state === "failed" || s.state === "skipped") && (
+                <div style={{ margin: "6px 0 0" }}>
+                  <ErrorFix error={s.error} info={c.error_info?.chains?.[STAGE_CHAIN[s.key]] ?? null} ticker={c.ticker}
+                    companyId={c.id} onDone={onChanged} />
+                </div>
+              )}
               {!admin && s.action === "approve" && <DemoApproveGuide action={t("trk.approve")} tail="demo.tail.issue" admin={`/admin/issuance/${c.ticker}`} next={`/c/${c.ticker}/issue`} />}
               {admin && s.action && c.id != null && s.action !== "retry-issue" && <LowBalanceInline />}
-              {admin && s.action && c.id != null && (
+              {admin && s.action && c.id != null && !(s.action === "resync" && s.error) && (
                 <button className={"btn sm " + (s.action === "approve" ? "gold" : "ghost")} type="button" disabled={busy} onClick={() => act(s.action)} style={{ marginTop: 6 }}>{actLabel(s.action)}</button>
               )}
             </div>

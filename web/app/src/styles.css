@@ -595,3 +595,35 @@ a.ri:hover { background: var(--sunken); }
   .gaterow { padding: 4px 8px; white-space: nowrap; }
   .pager .why { text-align: left; }
 }
+
+/* ---------- actionable issuer errors (components/ErrorFix.tsx) ---------- */
+.fixbox { align-items: flex-start; }
+.fixbox .fix-p { margin: 4px 0 0; color: var(--ink); }
+.fixbox .fix-actions { margin-top: 8px; gap: 8px; flex-wrap: wrap; }
+.fixbox .fix-raw { margin-top: 8px; }
+.fixbox .fix-raw code { display: block; margin-top: 4px; font-size: .78rem; word-break: break-all; white-space: pre-wrap; }
+@keyframes fixflash { 0%, 60% { box-shadow: 0 0 0 3px var(--gold-mark); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.fix-flash { animation: fixflash 2.4s ease-out 2; border-radius: 14px; }
+
+/* ---------- cap-table % editor: always-visible total ---------- */
+.cap-total { position: sticky; bottom: 0; z-index: 2; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 8px 12px; margin-top: 8px; border-radius: 10px; font-size: .88rem; background: var(--surface, #fff);
+  border: 1px solid var(--line, #dfe5e3); box-shadow: 0 -4px 12px rgba(0, 0, 0, .06); }
+.cap-total.ok { border-color: var(--accent); color: var(--accent-deep); }
+.cap-total.bad { border-color: var(--bad); color: var(--bad); }
+.cap-total .bar { flex: 1 1 120px; height: 6px; border-radius: 3px; background: var(--line, #e3e8e6); overflow: hidden; min-width: 80px; }
+.cap-total .bar > i { display: block; height: 100%; background: currentColor; }
+/* compact shareholder editor: small rows so the whole table and its total fit on screen */
+.captbl td, .captbl th { padding: 4px 6px; }
+.captbl input { padding: 5px 8px; font-size: .88rem; }
+.captbl input.w-pct { width: 78px; text-align: right; }
+.captbl input.bad { border-color: var(--bad); background: var(--warn-soft); }
+.captbl { overflow-x: visible; }
+.captbl table { width: 100%; table-layout: fixed; }
+.captbl th:nth-child(1) { width: 24%; }
+.captbl th:nth-child(3) { width: 84px; }
+.captbl th:nth-child(4) { width: 19%; }
+.captbl th:nth-child(5) { width: 30px; }
+.captbl td input.w-name, .captbl td input.w-addr { width: 100%; min-width: 0; box-sizing: border-box; }
+.captbl td input.w-name { max-width: calc(100% - 18px); }
+.captbl td:nth-child(4) { font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
