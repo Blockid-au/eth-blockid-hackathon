@@ -1,9 +1,9 @@
-# BlockID Issuance Studio — implementation spec
+# BlockID Startup Passport — implementation spec
 
-> **Update (26 Sep 2026):** issuance is now one admin approval that runs BlockID → Hoodi → HashKey (`approve-anchor` is only a retry/re-sync), and `anchorValuation` stores keccak256 of the canonical report JSON (see `studio/report_hash.py`, `/verify`). Current diagrams: [ARCHITECTURE-DIAGRAMS.md](ARCHITECTURE-DIAGRAMS.md).
+Platform codename (code and internal docs only): BlockID Issuance Studio. Canonical facts: [FACTS.md](FACTS.md);
+code-verified diagrams: [ARCHITECTURE-DIAGRAMS.md](ARCHITECTURE-DIAGRAMS.md). Last synced with the code: 26 Sep 2026.
 
-
-Source of truth for the parallel build. Plan: https://claude.ai/artifact/YaGUNf6oJfiUmc3UwNrzhg ·
+Originally the source of truth for the parallel build. Plan: https://claude.ai/artifact/YaGUNf6oJfiUmc3UwNrzhg ·
 visual prototype (copy its design, copy and charts): https://claude.ai/artifact/8Sr8pjR2ZhaiivVcNiKjjw
 (local copy: `docs/prototype.html`).
 
@@ -15,6 +15,10 @@ visual prototype (copy its design, copy and charts): https://claude.ai/artifact/
 - Default language English; Vietnamese only when the user clicks the VI flag (persist in localStorage).
 - Default issue price **A$1.00 per share**: `total_shares = round(valuation_mid_aud / 1)`.
 - Share tokens: `decimals = 0`, ticker = 3 uppercase letters (ASX style).
+- **One issuance approval**: `approve-issue` issues on BlockID Chain and then syncs Ethereum Hoodi and HashKey Chain
+  testnet automatically. `approve-anchor` is only a retry / re-sync of chains that are missing or failed.
+- The anchored valuation hash is **keccak256 of the canonical report JSON** (`studio/report_hash.py`); `/verify/:ticker`
+  recomputes it in the browser and compares it with `valuationReportHash()` on all three chains.
 
 ## Runtime topology (docker compose project `blockid-app`, `deploy/vm-app/`)
 
@@ -22,23 +26,30 @@ visual prototype (copy its design, copy and charts): https://claude.ai/artifact/
 |---|---|---|
 | nginx (host) | 443 | `/` → static `web/dist`, `/api/` → agents-api, `/rpc` → evmd, `/explorer/` → ping.pub |
 | agents-api | 127.0.0.1:8080 | FastAPI (`python -m blockid_agents api`), exposes `/v1/...` (nginx strips `/api`) |
-| agents-worker | – | job queue worker (AI graphs) |
-| issuer | internal :8090 only | `python -m blockid_agents issuer`; keystores mounted read-only |
+| agents-worker | – | job queue worker (`site_valuation` graph); network `default` only, no issuer token |
+| issuer | internal :8090 only | `python -m blockid_agents issuer`; keystores mounted read-only; networks `issuer`, `issuer-backend`, egress-only |
 | postgres | internal | db `blockid`; studio tables in schema `studio` |
 | evmd | 127.0.0.1:8545 | BlockID Chain, EVM chain id 262626 |
 | blockscout | scan.blockid.au | EVM explorer |
 
-Env (in `/opt/blockid/app.env`, passed to api/worker/issuer):
+Env files: `/opt/blockid/app.env` (api, worker, issuer), `/opt/blockid/issuer.env` (api + issuer only:
+`ISSUER_INTERNAL_TOKEN`, so the worker never sees it), `/opt/blockid/search-bridge.env` (host Claude bridge),
+`/opt/blockid/blockscout.env`. Main variables:
 `DATABASE_URL, BLOCKID_API_KEY, ADMIN_WALLETS (comma list), ADMIN_USERNAME=admin, ADMIN_PASSWORD_HASH (bcrypt),
 SESSION_SECRET, ISSUER_URL=http://issuer:8090, ISSUER_INTERNAL_TOKEN, LOCAL_RPC_URL=http://evmd:8545,
-LOCAL_CHAIN_ID=262626, HOODI_RPC_URL, HOODI_CHAIN_ID=560048, HOODI_CAPTABLE_ANCHOR, LOCAL_DEMO_AUD,
+LOCAL_CHAIN_ID=262626, HOODI_RPC_URL, HOODI_CHAIN_ID=560048, HOODI_CAPTABLE_ANCHOR, HSK_RPC_URL, HSK_CHAIN_ID=133, HSK_CAPTABLE_ANCHOR, LOCAL_DEMO_AUD,
 KEYSTORE_DIR=/keys, DEPLOYER_ACCOUNT=blockid-deployer, RELAYER_ACCOUNT=blockid-relayer, (password files in /keys/*.password),
-CONTRACTS_OUT=/app/contracts/out, PUBLIC_BASE_URL=https://eth.blockid.au, VALUATIONS_PER_DAY=3`.
+CONTRACTS_OUT=/app/contracts/out, PUBLIC_BASE_URL=https://eth.blockid.au, VALUATIONS_PER_DAY=3, SVI_TIER=cloud,
+LLM_PROVIDER_ORDER=sambanova,claude_bridge,deepinfra, SEARCH_PROVIDERS=brave,claude, SEARCH_MAX_QUERIES=3,
+CLAUDE_SEARCH_URL, CLAUDE_SEARCH_TOKEN` (see [LLM-ROUTING.md](LLM-ROUTING.md)).
 
-Admin wallets: `0xc309691C60957A55bB619383A06d3F69A94f4585` (owner MetaMask), `0xC40052702B48631C26AD7c88b499bF230faCa21F` (server keystore `blockid-admin`).
+Admin wallets (`ADMIN_WALLETS`): `0xc309691C60957A55bB619383A06d3F69A94f4585` (owner MetaMask), `0xC40052702B48631C26AD7c88b499bF230faCa21F` (server keystore `blockid-admin`), `0x02B148f774Bd35B8753Ea6A17895931eD9201E2F` (project admin). Admins can also sign in with the admin account (username/password).
 Issuer (deployer) `0x2567Bb502ac840cF93957C60A410160a8cCb5ddf`, relayer `0x1B43f0d3297F79cE6c8BbA12F4FadFBE9112DA4a`.
 
 ## Database (Postgres, schema `studio`) — file `agents/src/blockid_agents/studio/schema.sql`, applied idempotently at API start
+
+Core tables below (abridged). The live file also has per-chain `sync` state, `hsk_*` columns,
+`valuation_report_hash`, and the `transfers` / `kyc_requests` tables — read `schema.sql` for the exact DDL.
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS studio;
@@ -50,7 +61,7 @@ ALTER TABLE studio.valuations ADD COLUMN IF NOT EXISTS self_reported jsonb;  -- 
 CREATE TABLE IF NOT EXISTS studio.companies (
   id serial PRIMARY KEY, ticker text UNIQUE NOT NULL, name text NOT NULL, website text, valuation_id text REFERENCES studio.valuations(id),
   svi numeric, grade text, valuation_aud numeric NOT NULL, share_price_aud numeric NOT NULL DEFAULT 1, total_shares bigint NOT NULL,
-  status text NOT NULL,          -- draft|pending_issue|issuing|issued|pending_anchor|anchoring|anchored|rejected|failed
+  status text NOT NULL,          -- draft|pending_issue|issuing|issued|pending_anchor|anchoring|anchored|partially_anchored|rejected|failed
   created_by text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
   local_registry text, local_token text, local_distributor text, local_block bigint,
   hoodi_registry text, hoodi_token text, hoodi_anchor_tx text, merkle_root text, anchored_block bigint, anchored_at timestamptz,
@@ -63,7 +74,7 @@ CREATE TABLE IF NOT EXISTS studio.dividends (id serial PRIMARY KEY, company_id i
 CREATE TABLE IF NOT EXISTS studio.issuer_wallets (address text PRIMARY KEY, label text NOT NULL, status text NOT NULL, granted_by text, granted_at timestamptz, revoked_at timestamptz);
 CREATE TABLE IF NOT EXISTS studio.audit (id serial PRIMARY KEY, at timestamptz NOT NULL DEFAULT now(), actor text NOT NULL, action text NOT NULL, target text, detail jsonb NOT NULL DEFAULT '{}');
 ```
-`events.kind` values: `issued, kyc, drip, minted, valuation_anchored, revalued, hoodi_mirrored, anchored, dividend_created, dividend_claimed, mint_requested, rejected`.
+`events.kind` values include: `issue_approved, resync_requested, deployed, kyc, drip, issued, valuation_anchored, sync_started, hoodi_mirrored, hsk_mirrored, anchored, sync_failed, sync_skipped, minted, revalued, dividend_created, dividend_claimed, mint_requested, rejected` (`events.chain` = `blockid | hoodi | hsk`).
 `marks.source`: `issuance | revaluation`. Mark at issuance = 1.00; revaluation mark = new_valuation / total_shares.
 
 ## HTTP API (agents-api; public path prefix `/api`)
@@ -86,13 +97,15 @@ Auth: cookie `bid_session` (HttpOnly, Secure, SameSite=Lax, 12 h). Roles: `user`
 | GET `/v1/studio/tickers/suggest?name=` | user | → `{candidates:[{ticker,available,rule}]}` (3 suggestions, first available preferred) |
 | POST `/v1/studio/companies` | user | `{valuation_id, name, ticker, share_price_aud?=1, total_shares?, holders:[{name,wallet,pct}]}` → company (status `draft`); validates pct sum = 100.00, EIP-55 addresses, unique ticker, approved valuation |
 | POST `/v1/studio/companies/{id}/submit` | owner | → status `pending_issue` |
-| GET `/v1/admin/approvals` | admin | → `{valuations:[...waiting_approval], companies:[pending_issue|issued (awaiting anchor)], mints:[pending], dividends:[pending]}` |
-| POST `/v1/admin/companies/{id}/approve-issue` | admin | → 202; issuer issues on BlockID Chain; status issuing→issued (or failed) |
-| POST `/v1/admin/companies/{id}/approve-anchor` | admin | → 202; issuer mirrors + anchors on Hoodi; anchoring→anchored |
+| GET `/v1/admin/approvals` | admin | → `{valuations:[...waiting_approval], companies:[pending_issue, or needing a re-sync], mints:[pending], dividends:[pending]}` |
+| POST `/v1/admin/companies/{id}/approve-issue` | admin | → 202; **the one issuance approval**: issuer issues on BlockID Chain, then syncs Hoodi and HashKey automatically; issuing→issued→anchoring→anchored (or partially_anchored / failed) |
+| POST `/v1/admin/companies/{id}/approve-anchor` | admin | → 202; **re-sync only**: re-runs the external chains (Hoodi, HSK) that are missing or failed; 409 if every chain is synced |
 | POST `/v1/admin/companies/{id}/reject` | admin | `{reason}` |
 | POST `/v1/admin/companies/{id}/revalue` | admin | `{valuation_aud, note}` → new mark + event `revalued` (+ re-anchor) |
+| POST `/v1/admin/companies/{id}/reanchor-valuation` | admin | re-anchors the report hash on the token(s) |
+| GET `/v1/verify/{ticker}` · POST `/v1/verify/hash` | – | canonical report text, `report_hash`, formula + recomputed SVI, `valuationReportHash()` on each chain; server-side keccak256 of a posted report |
 | GET `/v1/companies` | – | → `[{ticker,name,website,grade,svi,valuation_aud,total_shares,mark_aud,change_7d,change_30d,spark_30d:[number],holders,status,local_token,hoodi_token,anchored}]` |
-| GET `/v1/companies/{ticker}` | – | → above + `{cap_table:[{name,wallet,shares,pct}], events:[...], marks:[{at,mark_aud,source}], local:{chain_id,registry,token,distributor,block}, hoodi:{chain_id,registry,token,anchor_tx,merkle_root,block}}` (cap table balances read from chain) |
+| GET `/v1/companies/{ticker}` | – | → above + `{cap_table:[{name,wallet,shares,pct}], events:[...], marks:[{at,mark_aud,source}], local:{chain_id,registry,token,distributor,block}, hoodi:{chain_id,registry,token,anchor_tx,merkle_root,block,anchored_at}, hsk:{...same}, sync:{blockid,hoodi,hsk,step,errors}, valuation_report_hash}` (cap table balances read from chain) |
 | POST `/v1/companies/{ticker}/mints` | owner/admin | `{to_wallet, holder_name, shares, reason}` → pending mint |
 | POST `/v1/admin/mints/{id}/approve` | admin | → issuer: KYC+drip if new, `issue`, re-anchor |
 | POST `/v1/companies/{ticker}/dividends` | owner/admin | `{total_maud}` → pending dividend with merkle plan (pro-rata by chain balances, round down) |
@@ -113,12 +126,16 @@ background thread, updating `studio.companies/mints/dividends` status + `studio.
 - `POST /issue {company_id}` (company must be `issuing`): on BlockID Chain deploy IdentityRegistry(issuer) → grant KYC_AGENT_ROLE
   to issuer → BlockIDShareToken(issuerSafe=issuer, transferAgent=issuer, lockupUntil=0, maxShareholders=500) →
   DividendDistributor(token, issuer) → for each holder `registerInvestor(wallet, 36, now+1y, keccak(holder name))` + drip
-  0.01 BLKD if balance < 0.001 → `issue(wallet, shares, keccak("studio-issue:"+id))` → `anchorValuation(keccak(valuation id), round(mark*100))`
-  → marks row (1.00, issuance) → status `issued`.
-- `POST /anchor {company_id}` (status `anchoring`): on Hoodi deploy IdentityRegistry + BlockIDShareToken mirror (same name/ticker),
-  register + issue same balances, `pause()`; compute OZ Merkle root over `(holder, balance)` leaves
-  (`keccak256(bytes.concat(keccak256(abi.encode(address,uint256))))`, sorted pairs) and call
-  `CapTableAnchor.anchor(ticker, localToken, 262626, localBlock, root, totalSupply, uri)` → status `anchored`.
+  0.01 BLKD if balance < 0.001 → `issue(wallet, shares, keccak("studio-issue:"+id))` →
+  `anchorValuation(reportHash, round(mark*100))` where `reportHash` = keccak256 of the canonical report JSON
+  (`studio/report_hash.py`) → marks row (1.00, issuance) → status `issued` → **then, in the same run**, sync each
+  external chain in order (Hoodi, then HSK; a failing chain never blocks the next):
+  preflight (chain id, enough gas) → deploy IdentityRegistry + BlockIDShareToken mirror (same name/ticker) if missing,
+  register + issue the same balances, `anchorValuation(same hash)`, `pause()`; compute the OZ Merkle root over
+  `(holder, balance)` leaves (`keccak256(bytes.concat(keccak256(abi.encode(address,uint256))))`, sorted pairs) and call
+  `CapTableAnchor.anchor(ticker, localToken, 262626, localBlock, root, totalSupply, uri)`. Final status: `anchored`
+  (all chains done), `partially_anchored` (some) or `issued` (none); per-chain state in `companies.sync`.
+- `POST /anchor {company_id}` (status `anchoring`): admin re-sync — runs only the external chains that are missing or failed.
 - `POST /mint {mint_id}`, `POST /dividend {dividend_id}`, `POST /revalue {company_id}` (re-anchor), `GET /health` → addresses + balances.
 - Keys: decrypt `/keys/blockid-deployer` and `/keys/blockid-relayer` (Foundry/geth JSON keystores) with the matching
   `/keys/*.password` using `eth_account.Account.decrypt`. Never log keys.
@@ -127,7 +144,7 @@ background thread, updating `studio.companies/mints/dividends` status + `studio.
 
 ## Contracts (`contracts/`)
 
-- `src/CapTableAnchor.sol` (Hoodi, deployed once): AccessControl, `ANCHOR_ROLE`;
+- `src/CapTableAnchor.sol` (deployed once on Hoodi `0xF3dC95D5d207dE9f2aC98184Fd32b45B72334263` and HashKey testnet `0x728c834DE493DC3e9Ae2f7C0e79d86701B6F9F04`): AccessControl, `ANCHOR_ROLE`;
   `anchor(string ticker, address localToken, uint256 localChainId, uint64 localBlock, bytes32 merkleRoot, uint256 totalSupply, string uri)`
   → stores `latest[ticker]` struct + emits `Anchored(ticker indexed hash, ticker, localToken, localChainId, localBlock, merkleRoot, totalSupply, uri, anchorIndex)`;
   `latest(string) view`, `anchorCount(string) view`, `verify(string ticker, address holder, uint256 balance, bytes32[] proof) view returns (bool)`.
@@ -140,7 +157,8 @@ background thread, updating `studio.companies/mints/dividends` status + `studio.
 Vite + React + TypeScript + react-router, i18n via a small dictionary module (EN default, VI on flag click, persisted),
 viem for MetaMask (SIWE, `wallet_addEthereumChain`, `wallet_switchEthereumChain`, `wallet_watchAsset`). Charts are
 hand-drawn SVG as in the prototype. Routes: `/` home, `/new` wizard (8 steps), `/v/:id` valuation progress/report,
-`/c/:ticker` company (cap table, contract address cards, add-to-wallet, mint/dividend), `/companies` list,
+`/c/:ticker` company (issuance tracker, cap table, contract address cards on three chains, add-to-wallet, mint/dividend),
+`/verify/:ticker` public hash check, `/hsk` HashKey deployment, `/companies` list,
 `/admin` (login: SIWE wallet in ADMIN_WALLETS or a username/password configured via ADMIN_PASSWORD_HASH; overview dashboard, approvals queue, companies, issuer wallets, audit).
 Design tokens, copy, flows and charts: copy the prototype.
 

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -22,6 +23,11 @@ from web3.exceptions import ContractCustomError, ContractLogicError
 from . import artifacts
 
 log = logging.getLogger(__name__)
+
+TIP_FLOOR = int(os.environ.get("GAS_TIP_FLOOR_WEI", "1000000"))      # 0.001 gwei
+TIP_CAP = int(os.environ.get("GAS_TIP_CAP_WEI", "50000000"))         # 0.05 gwei
+STUCK_AFTER_S = float(os.environ.get("GAS_STUCK_AFTER_S", "90"))
+MAX_BUMPS = int(os.environ.get("GAS_MAX_BUMPS", "4"))
 
 
 class TxFailed(RuntimeError):
@@ -97,15 +103,23 @@ class Chain:
 
     # ------------------------------------------------------------------ fees
     def fee_fields(self) -> dict[str, int]:
+        """Lowest fee that still gets included: tip clamped to [GAS_TIP_FLOOR_WEI, GAS_TIP_CAP_WEI]
+        (default 0.001–0.05 gwei) and maxFee = 1.25 x base + tip on EIP-1559 chains; on legacy chains the
+        node's eth_gasPrice (already the minimum it accepts). Stuck txs are re-sent with higher fees (send())."""
         base = self.w3.eth.get_block("latest").get("baseFeePerGas")
         if base:  # EIP-1559 chain with a live base fee
             try:
                 tip = int(self.w3.eth.max_priority_fee)
             except Exception:  # noqa: BLE001 - RPC without eth_maxPriorityFeePerGas
-                tip = 1_000_000_000
-            tip = max(tip, 1)
-            return {"maxPriorityFeePerGas": tip, "maxFeePerGas": int(base) * 2 + tip}
+                tip = TIP_CAP
+            tip = min(max(tip, TIP_FLOOR), TIP_CAP)
+            return {"maxPriorityFeePerGas": tip, "maxFeePerGas": int(base) * 5 // 4 + tip}
         return {"gasPrice": max(int(self.w3.eth.gas_price), self.min_gas_price)}
+
+    @staticmethod
+    def _bumped(fees: dict[str, int]) -> dict[str, int]:
+        """Replacement-tx fees: +15% on every fee field (nodes require >= +10% to replace)."""
+        return {k: v * 115 // 100 + 1 for k, v in fees.items()}
 
     def expected_gas_price(self) -> int:
         """Price actually expected per gas unit (base fee + tip, or legacy gasPrice) for balance checks."""
@@ -159,7 +173,35 @@ class Chain:
                 log.info("%s tx %s sent (nonce %s)", self.name, tx_hash, full["nonce"])
                 if not wait:
                     return Receipt(tx_hash, 0, 1, 0, None, [])
-                return self.wait(tx_hash)
+                # Low default fees: if not mined within STUCK_AFTER_S, replace the same nonce with +15% fees.
+                hashes = [tx_hash]
+                for bump in range(MAX_BUMPS):
+                    for hh in hashes:  # any earlier version may still be the one that gets mined
+                        try:
+                            self.w3.eth.wait_for_transaction_receipt(hh, timeout=STUCK_AFTER_S if hh == hashes[-1] else 1,
+                                                                     poll_latency=self.poll_latency)
+                            return self.wait(hh)
+                        except Exception:  # noqa: BLE001 - timeout / not found yet
+                            continue
+                    fees = self._bumped({k: full[k] for k in ("maxPriorityFeePerGas", "maxFeePerGas", "gasPrice") if k in full})
+                    full.update(fees)
+                    signed = self.account.sign_transaction(full)
+                    try:
+                        hh = _hex(self.w3.eth.send_raw_transaction(signed.raw_transaction))
+                        hashes.append(hh)
+                        log.warning("%s tx nonce %s not mined after %ss; replaced with +15%% fees (bump %s): %s",
+                                    self.name, full["nonce"], STUCK_AFTER_S, bump + 1, hh)
+                    except Exception as e:  # noqa: BLE001 - e.g. already mined meanwhile
+                        log.info("%s replacement not sent (%s); waiting for the original", self.name, e)
+                        break
+                for hh in reversed(hashes):
+                    try:
+                        return self.wait(hh)
+                    except TxFailed:
+                        raise
+                    except Exception:  # noqa: BLE001
+                        continue
+                raise TxFailed(f"{self.name}: tx nonce {full['nonce']} not mined after {MAX_BUMPS} fee bumps", tx_hash)
             raise TxFailed(f"{self.name}: send failed after retries: {last_err}")
 
     def wait(self, tx_hash: str) -> Receipt:

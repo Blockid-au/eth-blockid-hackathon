@@ -5,6 +5,7 @@ import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import { api, ApiError, type Evidence, type Svi, type TickerCandidate, type Valuation as Val } from "../api";
 import { Stepper } from "../components/Stepper";
+import { DemoApproveGuide } from "../components/DemoGuide";
 import { Contrib, Donut, HBars, Legend, Radar, RangeChart } from "../components/charts";
 import { ErrorBox, Loading } from "../components/Layout";
 import { useAsync, useTitle } from "../lib/hooks";
@@ -139,6 +140,7 @@ function Report({ v, evidence, isAdmin, onDecided }: { v: Val; evidence: Evidenc
       </div>
       {v.status === "waiting_approval" && <p className="banner gold" role="status"><span className="spinner" aria-hidden="true" />{t("v.waiting")}</p>}
       {v.status === "rejected" && <p className="banner bad" role="status">{t("v.rejected")}</p>}
+      {!isAdmin && v.status === "waiting_approval" && <DemoApproveGuide action={t("s3.approve")} tail="demo.tail.val" />}
       {isAdmin && v.status === "waiting_approval" && <AdminReview v={v} svi={svi} onDone={onDecided} />}
       <div className="row" style={{ gap: 14 }}>
         <span className="gradebadge" aria-label={`${t("ad.c.grade")} ${g}`}>{g}</span>
@@ -380,7 +382,7 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
         </div>
         <div className="card">
           <h4>{t("s5.preview")}</h4>
-          <Donut parts={parts} center={T >= 1e6 ? fmt(T / 1e6, 1) + "M" : fmt(T)} sub={`${ticker || "???"} · ${t("t.shares").toLowerCase()}`} label="Ownership donut" />
+          <Donut parts={parts} center={T >= 1e6 ? fmt(T / 1e6, 1) + "M" : fmt(T)} sub={`${ticker || "???"} · ${t("t.shares").toLowerCase()}`} label={t("s5.preview")} />
           <Legend parts={folded.map((p) => ({ ...p, pct: p.v }))} />
           <p className="note">{t("s5.kyc")}</p>
         </div>

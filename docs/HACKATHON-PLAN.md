@@ -4,6 +4,10 @@ Hợp nhất tài liệu `eth-blockid-hackathon-implementation.md` (bản nâng 
 https://eth.blockid.au. Hạn nộp **14:00**, demo 14:00–16:30 (3 phút + 2 phút hỏi đáp), trao giải 17:00.
 Track: Sydney Hackathon (bắt buộc) · Real-World Ethereum Applications (Track 6) · HSK Chain (RWA).
 
+> Tài liệu lịch sử (kế hoạch lúc 11:40 ngày 26/09/2026). Kết quả và số liệu hiện tại: [FACTS.md](FACTS.md)
+> (10 công ty, 30 hợp đồng token trên 3 chain, A$5.63B, 147 test = 110 pytest + 37 Foundry); kịch bản demo mới
+> nhất: [DEMO.md](DEMO.md).
+
 ## 0. Quyết định hợp nhất
 
 | Đề xuất trong tài liệu | Hệ thống hiện có | Quyết định |
@@ -51,7 +55,7 @@ Track: Sydney Hackathon (bắt buộc) · Real-World Ethereum Applications (Trac
 - **Agent có giữ key không?** Không. Chỉ issuer service giữ key, nằm trên mạng cô lập, chỉ thực thi dòng đã được admin duyệt; `AgentProvenance` ghi đề xuất → duyệt → thực thi on-chain.
 - **Tại sao Cosmos EVM?** Doanh nghiệp cần gas 0 và validator đối tác; Ethereum (Hoodi) là lớp neo công khai; HSK là môi trường RWA công khai.
 - **Khác Carta / Cake Equity?** Họ quản lý off-chain; BlockID có cổ phần on-chain, KYC khi chuyển nhượng, cổ tức tự động, định giá AI kiểm chứng được.
-- **Bảo mật?** OpenZeppelin v5, 30+ test Foundry, 100+ test backend, rà soát bảo mật nội bộ (SSRF, CSRF, cô lập issuer), CSP.
+- **Bảo mật?** OpenZeppelin v5, 37 test Foundry, 110 test backend, rà soát bảo mật nội bộ (SSRF, CSRF, cô lập issuer), CSP.
 
 ## 4. Checklist nộp bài
 

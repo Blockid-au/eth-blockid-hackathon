@@ -1,9 +1,121 @@
 # Architecture
 
-> **Note:** §1 describes the original two-VM GCP design (Caddy, Sepolia). The live single-host deployment (nginx, Hoodi + HashKey, isolated issuer) is documented in [ARCHITECTURE-DIAGRAMS.md](ARCHITECTURE-DIAGRAMS.md).
+BlockID Startup Passport — *Agents propose. Humans approve. Chains prove.* Detailed, code-verified diagrams:
+[ARCHITECTURE-DIAGRAMS.md](ARCHITECTURE-DIAGRAMS.md). Canonical facts: [FACTS.md](FACTS.md).
 
+## 1. Overview (live deployment, single host)
 
-## 1. Overview
+Everything runs on one GCP VM behind Cloudflare: host nginx, a docker compose project `blockid-app`
+(`deploy/vm-app/`), a Blockscout project (`deploy/blockscout/`) and a systemd Claude bridge on the host.
+
+```mermaid
+flowchart LR
+  U[Founder / investor<br/>MetaMask + SIWE] -->|HTTPS| CF[Cloudflare]
+  A[Admin<br/>SIWE admin wallet or admin account] -->|HTTPS| CF
+  CF --> NG[host nginx<br/>eth.blockid.au · scan.blockid.au]
+  subgraph HOST["Single host VM"]
+    NG --> W[web/dist<br/>React SPA]
+    NG -->|/api/| API[agents-api<br/>FastAPI]
+    NG -->|/rpc allowlist| API
+    NG --> BS[Blockscout<br/>scan.blockid.au]
+    API --> PG[(Postgres<br/>schema studio)]
+    WK[agents-worker<br/>LangGraph site_valuation<br/>no keys] --> PG
+    WK -->|/search, /complete| BR[claude-search-bridge<br/>systemd, host]
+    API -->|approved rows only<br/>X-Internal-Token| IS[issuer<br/>ONLY key holder<br/>isolated networks]
+    IS --> PG
+    IS --> N[evmd<br/>BlockID EVM 262626, gas 0]
+    BS --> N
+  end
+  WK -->|LLM| SN[SambaNova → Claude bridge → DeepInfra]
+  WK -->|search| BV[Brave → Claude web search]
+  IS -->|paused mirror + CapTableAnchor| HO[Ethereum Hoodi 560048]
+  IS -->|paused mirror + CapTableAnchor| HK[HashKey Chain testnet 133]
+  WK -. no network path .-x IS
+```
+
+| Piece | Where | Notes |
+|---|---|---|
+| Web (SPA) | `web/dist`, host nginx | Vite + React + viem, EN default, VI toggle |
+| `agents-api` | container, `127.0.0.1:8080` | auth (SIWE / admin account), CSRF, rate limits, approval queue, audit, `/v1/verify` |
+| `agents-worker` | container, network `default` only | runs `site_valuation` jobs; never receives `ISSUER_INTERNAL_TOKEN` |
+| `issuer` | container, internal `:8090` | only key holder (`/opt/blockid/keys`, read-only); networks `issuer`, `issuer-backend`, egress-only |
+| `evmd` | container, RPC `127.0.0.1:8545` | BlockID EVM (Cosmos EVM), chain id 262626, gas price 0 |
+| Blockscout | `deploy/blockscout` | https://scan.blockid.au |
+| Claude bridge | systemd `claude-search-bridge` | `POST /search` (Claude web search) and `POST /complete` (Sonnet, no tools) |
+
+Operations: [RUNBOOK-STUDIO.md](RUNBOOK-STUDIO.md). Security controls: [SECURITY.md](SECURITY.md).
+
+## 2. Business flow (order enforced by code, not by the prompt)
+
+```
+VALUATION (LangGraph site_valuation, worker, no keys)
+read_site → profile → competitors → market → svi → narrative → [GATE: admin approves / overrides SVI]
+
+ISSUANCE (issuer, after ONE admin approval)
+founder enters shareholders → submit → [ONE issuance approval] →
+  BlockID EVM: IdentityRegistry, BlockIDShareToken, DividendDistributor, KYC each holder, gas drip, issue,
+               anchorValuation(reportHash)
+  → Ethereum Hoodi: paused mirror (same balances) + CapTableAnchor Merkle root      (automatic)
+  → HashKey Chain testnet: paused mirror + CapTableAnchor Merkle root               (automatic)
+  a failed chain never blocks the next; admin "re-sync" (approve-anchor) re-runs only missing/failed chains
+
+AFTER ISSUANCE (each needs an admin approval)
+mint (dilution preview) · Merkle dividend in mAUD with relayer claimFor · revaluation (mark = valuation ÷ shares)
+```
+
+- The valuation gate is a LangGraph `interrupt()`: state is checkpointed in Postgres and resumes only on a
+  named admin decision.
+- The anchored `reportHash` is keccak256 of the canonical report JSON (`studio/report_hash.py`: keys
+  `url, profile, competitors, market, svi, self_reported`, keys sorted, separators `,`/`:`). `/verify/:ticker`
+  recomputes it in the browser and compares it with `valuationReportHash()` on all three chains.
+- Default issue price A$1.00 per share: shares = approved mid valuation ÷ 1.
+- The issuer claims approved rows atomically, checks chain state before any retry and records every tx as an event.
+
+The legacy data-room flow (`intake → research → valuation → gate → contract_builder → gate → registry`, unsigned
+Safe batches) is still in `graph.py` for `make demo`; see [AGENTS.md](AGENTS.md).
+
+## 3. LLM and web search
+
+- Cloud tier (all live valuation steps, `SVI_TIER=cloud`): **SambaNova → Claude CLI bridge → DeepInfra**
+  (`LLM_PROVIDER_ORDER=sambanova,claude_bridge,deepinfra`); the first answer that validates against the Pydantic
+  schema wins.
+- Web search: **Brave → Claude web-search bridge**, at most **3 searches per valuation**; model-suggested
+  competitors are kept only after their homepage is fetched and checked.
+- The `local` tier (PII-handling legacy agents) is never allowed to fall back to cloud (`policy.guard`).
+
+Details and benchmark: [LLM-ROUTING.md](LLM-ROUTING.md).
+
+## 4. Smart contracts
+
+| Contract | Role |
+|---|---|
+| `IdentityRegistry` | wallet ↔ KYC status, country, expiry; stores only a **hash** of the KYC record, no PII on-chain; ERC-3643-style `isVerified()` |
+| `BlockIDShareToken` | 1 token = 1 share (decimals 0); only KYC'd wallets can receive; lock-up, freeze, pause, holder cap, forced transfer; `anchorValuation(reportHash, perShareCents)` / `valuationReportHash()` |
+| `DividendDistributor` | pull-based dividends: Merkle root per round, stablecoin (`DemoAUD`/mAUD on testnet), `claimFor` so a relayer pays gas, unclaimed funds reclaimed after expiry |
+| `CapTableAnchor` | Merkle root of `(holder, balance)` per ticker on Hoodi and HashKey; `verify()` proves a holding |
+| `AgentProvenance` | HashKey Chain: AI output hash → different human wallet approves (four-eyes) → `markExecuted` |
+| `DemoAUD` | testnet stablecoin (6 decimals) |
+
+On testnet the issuer key (`0x2567…5ddf`) holds the admin and issuer roles (a hot key on the server). Moving admin
+roles to a Safe multisig and narrowing the issuer to `ISSUER_ROLE` is roadmap item 1
+([ROADMAP-RESEARCH.md](ROADMAP-RESEARCH.md)).
+
+## 5. HashKey Chain testnet (EAG hackathon)
+
+Every company issued through the live flow gets a paused mirror token and a cap-table root on HashKey Chain
+testnet (chain id 133) automatically. In addition, the full RWA stack (`IdentityRegistry`, `BlockIDShareToken`,
+`DividendDistributor`, `DemoAUD`, `CapTableAnchor`) plus `AgentProvenance` was deployed with `scripts/hsk-demo.sh`.
+`AgentProvenance` records the hash of each AI output (proposed by the issuer service), requires a **different human
+wallet** to approve it, and only then can the issuer execute (issuance guarded by `AgentProvenance.verify`) and call
+`markExecuted`. Addresses: `README.md` and https://eth.blockid.au/hsk.
+
+---
+
+## Appendix A. Earlier target design (two-VM GCP, superseded)
+
+The first design, kept for reference. It is **not** what runs today: the live system is the single host in §1,
+anchors on Ethereum Hoodi and HashKey (not Sepolia), uses nginx (not Caddy), a cloud LLM chain (not a GPU VM) and an
+isolated issuer service (not Safe batches signed by humans).
 
 ```mermaid
 flowchart LR
@@ -28,66 +140,27 @@ flowchart LR
   WK -->|PII-free query| B[Brave Search API]
   WK -.->|Safe batch JSON| SAFE[Safe multisig<br/>signers]
   SAFE --> N
-  N <-.->|bridge/anchor| ETH[Ethereum Sepolia]
+  N <-.->|anchor| ETH[public Ethereum testnet<br/>at the time: Sepolia]
 ```
 
-## 2. Business flow (order enforced by code, not by the prompt)
+**Background (batch) AI mode.** The API enqueues a job and returns `202`; the worker starts the GPU VM on demand
+(Spot, retried from the last checkpoint up to 3 times if reclaimed) and `idle-shutdown.sh` stops it after
+`IDLE_MINUTES` (default 20). The research agent built PII-free Brave queries (72 h cache), stored fetched pages in
+the evidence store and discarded claims citing unfetched URLs — this part lives on in the live pipeline.
 
-```
-ONBOARDING
-intake ─▶ research ─▶ valuation ─▶ [GATE 1: approve/edit SVI score] ─▶ contract_builder
-   ─▶ [GATE 2: approve parameters + HUMAN deploy + submit cap table] ─▶ registry ─▶ Safe batch ─▶ signers
-
-DIVIDEND
-plan (snapshot → pro-rata → Merkle) ─▶ [GATE 3: match against board resolution] ─▶ Safe batch ─▶ signers
-```
-
-Each gate is a LangGraph `interrupt()`: the workflow stops, state is saved to a checkpoint, and it only resumes once a decision with the approver's name is submitted through the API. Gate 2 **hard-rejects** if the forge tests, dry-run deploy, or Slither (High/Medium) fail, even if the approver clicks approve.
-
-## 3. Background (batch) AI mode + Brave
-
-None of BlockID's features require an instant AI response, so:
-
-1. The API only **enqueues the job** and returns `202`. The UI polls for status.
-2. The worker picks up the job. If the job needs the local model and the GPU VM is off, the worker calls the Compute API to **start the VM** and waits for the gateway to become ready.
-3. The GPU VM runs on **Spot** (much cheaper than on-demand). If Google reclaims it mid-job, the job is retried from the last checkpoint, up to 3 times.
-4. `idle-shutdown.sh` **automatically shuts down the VM** after `IDLE_MINUTES` minutes without a request (default 20). After that, only disk storage is billed.
-5. Since fast responses aren't required, a larger model/quantization, longer context, and more source pages can be used.
-
-**Research agent + Brave:** build a neutral query (strip email/phone numbers) → call Brave web + news (72h cache to save quota) → fetch pages → save to the evidence store (URL, timestamp, SHA-256) → **local Qwen** analyzes and must cite a URL for every claim. Any claim citing a URL not in the fetched list is automatically discarded.
-
-## 4. Model tiering (LiteLLM, switch models with a single config line)
+**Model tiering (LiteLLM).**
 
 | Tier | Model | Used for | Data |
 |---|---|---|---|
-| `local` | Qwen3.8-27B (vLLM, 4-bit on L4) | intake, research, valuation, registry, dividend | may contain PII (data never leaves the server) |
-| `cloud` | Claude Sonnet 5 | contract parameter review | anonymized data only |
-| `cloud_max` | Claude Opus 5.5 | final security review, escalation cases | anonymized data only |
+| `local` | Qwen3.8-27B (vLLM, 4-bit on L4) | intake, research, valuation, registry, dividend | may contain PII |
+| `cloud` | Claude Sonnet 5 | contract parameter review | anonymized only |
+| `cloud_max` | Claude Opus 5.5 | final security review, escalation | anonymized only |
 
-- **No fallback from local to cloud**, so PII can never "leak" out if the GPU fails.
-- LiteLLM sets a monthly `max_budget` for cloud spend.
+No fallback from local to cloud; LiteLLM `max_budget` capped cloud spend.
 
-## 5. Estimated cost (USD/month, reference us-central1 pricing; Sydney/Singapore slightly higher)
+**Estimated cost (USD/month).** VM-A n2-standard-8 + 500 GB SSD ~300–400; VM-B g2-standard-8 (L4) ~620 on-demand
+or ~40–60 in batch Spot mode + ~20 disk; Claude review 20–100; Brave per plan. Terraform for this design is in
+`infra/terraform/`; the GCP runbook is [RUNBOOK.md](RUNBOOK.md).
 
-| Item | 24/7 | Batch mode (e.g. 4 GPU hours/day, Spot) |
-|---|---|---|
-| VM-A n2-standard-8 + SSD 500GB | ~300–400 | ~300–400 |
-| VM-B g2-standard-8 (L4) | ~620 (on-demand) | **~40–60** (about 120 Spot hours) + disk ~20 |
-| Claude API (review) | 20–100 | 20–100 |
-| Brave Search | per your plan | per plan (with cache) |
-
-Upgrade path: change `ai_machine_type = "g4-standard-48"` (RTX PRO 6000 96GB), set `MODEL_ID` to the FP8 build, and increase `MAX_LEN`. No code changes required.
-
-## 6. Smart contracts
-
-| Contract | Role |
-|---|---|
-| `IdentityRegistry` | wallet ↔ KYC status, country, expiry; stores only the **hash** of the KYC profile, no PII on-chain. `isVerified()` interface matches ERC-3643 |
-| `BlockIDShareToken` | 1 token = 1 share (decimals 0); only KYC'd wallets can receive; lock-up, freeze, pause, shareholder cap (default 50 for a Pty Ltd), forced transfer (lost wallet/court order), anchors the SVI report hash + constitution hash |
-| `DividendDistributor` | pull-based dividend distribution: Merkle root per round, stablecoin, `claimFor` so a relayer can pay gas, issuer reclaims unclaimed amounts after expiry |
-
-All issuer/admin rights belong to the **Safe multisig**. The deployer only holds temporary admin rights to configure the contracts, then renounces them within the same script.
-
-## HashKey Chain testnet (EAG hackathon)
-
-The full RWA stack (`IdentityRegistry`, `BlockIDShareToken`, `DividendDistributor`, `DemoAUD`, `CapTableAnchor`) plus the new `AgentProvenance` contract are deployed on HashKey Chain testnet (chain id 133) via `scripts/hsk-demo.sh`. `AgentProvenance` records the hash of each AI agent output (proposed by the issuer service), requires a **different human wallet** to approve it (four-eyes principle), and only then can the issuer execute the action (issuance is guarded by `AgentProvenance.verify`) and call `markExecuted`. Contract addresses are listed in `README.md` and on the web page https://eth.blockid.au/hsk.
+**Admin rights.** In this design all issuer/admin rights belonged to a Safe multisig and the deployer renounced its
+temporary admin role in the same script. The live testnet uses the issuer hot key instead (see §4).

@@ -728,9 +728,25 @@ class Service:
         st.update_dividend(did, status="paid", claims=claims)
 
     # ================================================================== drip
-    def drip(self, wallet: str, company_id: int | None = None) -> None:
+    DRIP_MAX_WEI = 5 * 10**18  # hard cap of one gas allowance (5 BLKD)
+
+    def drip(self, wallet: str, company_id: int | None = None, amount_wei: int | None = None) -> None:
+        """Gas for a wallet on BlockID EVM. Without amount: the classic 0.01 BLKD drip below 0.001 BLKD. With
+        amount_wei (API gas allowance, capped at 5 BLKD): top the wallet up to that balance."""
         try:
-            self._drip_if_needed(wallet, company_id)
+            if amount_wei is None:
+                self._drip_if_needed(wallet, company_id)
+                return
+            target = min(int(amount_wei), self.DRIP_MAX_WEI)
+            have = self.local.balance(wallet)
+            if target <= 0 or have >= target:
+                log.info("drip %s skipped: balance %s >= allowance %s", wallet, have, target)
+                return
+            rec = self.local.transfer(cs(wallet), target - have)
+            self._event(company_id, "drip", LOCAL, rec, wallet=cs(wallet), amount_wei=str(target - have),
+                        allowance_wei=str(target))
+            if hasattr(self.store, "record_drip"):
+                self.store.record_drip(cs(wallet), rec.tx_hash, target - have)
         except Exception:
             log.exception("drip to %s failed", wallet)
 

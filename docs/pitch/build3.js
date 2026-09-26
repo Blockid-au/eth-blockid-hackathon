@@ -63,7 +63,7 @@ async function img(file, { top = 0, height } = {}) {
     wizard: await img("07-new-wizard-step1.png", { height: 1500 }),
     radar: await img("09-valuation-radar-contribution.png"),
     agents: await img("08-valuation-agent-log.png", { height: 1300 }),
-    tracker: await img("15-company-arw-awaiting-approval.png", { height: 1730 }),
+    tracker: await img("15-company-arw-tracker-kpis.png", { height: 2000 }),
     cards: await img("19-company-eba-contracts-qr.png"),
     ok: await img("22-verify-eba-verified.png", { height: 1250 }),
     bad: await img("24-verify-eba-tamper-mismatch.png", { height: 1250 }),
@@ -180,7 +180,7 @@ async function img(file, { top = 0, height } = {}) {
   // ============ 7. Results + who + ask
   s = pres.addSlide(); s.background = { color: C.bg };
   head(s, 7, "Live today", "Live today — and built for the people who issue equity.");
-  const st = [["7", "companies tokenised"], ["21", "token contracts, 3 chains"], ["A$444M", "valuation on-chain"], ["100%", "hashes verified"]];
+  const st = [["12", "companies tokenised"], ["36", "token contracts, 3 chains"], ["A$69.8B", "indicative valuation on-chain"], ["100%", "hashes verified"]];
   st.forEach((x, i) => {
     const X = 0.55 + i * 2.2; rr(s, X, 1.8, 2.05, 1.5, C.card);
     T(s, x[0], { x: X + 0.18, y: 1.88, w: 1.8, h: 0.75, fontFace: H, fontSize: 30, bold: true, color: i % 2 ? C.gold : C.teal });
@@ -199,7 +199,7 @@ async function img(file, { top = 0, height } = {}) {
   T(s, "Looking for: pilot startups, accelerators, licensed partners", { x: 9.55, y: 5.05, w: 3.05, h: 0.8, fontSize: 12.5, color: C.text, align: "center" });
   T(s, "Long Do · long@blockid.au", { x: 9.5, y: 6.05, w: 3.15, h: 0.35, fontSize: 12, color: C.muted, align: "center" });
   foot(s);
-  s.addNotes("[2:25–3:00] This is live today: seven real companies, twenty-one token contracts on three chains, A$444M of valuation on-chain, every hash verified. Our customers are founders, accelerators and licensed intermediaries who issue and administer startup equity. Scan the code and try it at eth.blockid.au — we're looking for pilot startups and licensed partners. Thank you.");
+  s.addNotes("[2:25–3:00] This is live today: twelve real companies, thirty-six token contracts on three chains, A$69.8 billion of indicative valuation on-chain, every hash verified. Our customers are founders, accelerators and licensed intermediaries who issue and administer startup equity. Scan the code and try it at eth.blockid.au — we're looking for pilot startups and licensed partners. Thank you.");
 
   await pres.writeFile({ fileName: "out/BlockID-Startup-Passport-3min.pptx" });
   console.log("written");

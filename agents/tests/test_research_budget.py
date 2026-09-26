@@ -91,11 +91,11 @@ def test_valuation_runs_exactly_three_essential_queries(tmp_path):
     assert len(prov.queries) == 3
     assert prov.queries[0].startswith("AgriTrace competitors alternatives Australia")
     assert "market size growth Australia" in prov.queries[1]
-    assert "startup funding valuation revenue multiple Australia" in prov.queries[2]
+    assert prov.queries[2].startswith("AgriTrace revenue ARR funding valuation 20")
     assert all("@" not in q and "Jane" not in q for q in prov.queries)
     assert len(fetched) == 3 * deps.settings.search_fetch_per_query  # 2 pages per query, never more
     r = prog.results["vb"]
-    assert [s["kind"] for s in r["searches"]] == ["competitors", "market", "valuation"]
+    assert [s["kind"] for s in r["searches"]] == ["competitors", "market", "company"]
     assert r["counters"]["searches"] == 3
     assert "3/3 searches · Claude web search" in prog.steps["vb"]["market"]["detail"]
     assert "1/3 searches · Claude web search" in prog.steps["vb"]["competitors"]["detail"]
@@ -127,7 +127,7 @@ def test_few_competitors_fill_in_without_extra_searches(tmp_path):
     names = [c["name"] for c in out["competitors"]]
     assert names[:2] == ["TE-FOOD", "OpenSC"]  # search-found, then the fill-in adds nothing new (dupes/self/off-topic)
     te = out["competitors"][0]
-    assert te["raised_aud"] == 15_200_000 and te["url"] == "https://te-food.example/"  # homepage fetched + quote
+    assert te["raised_aud"] == 15_000_000 and te["url"] == "https://te-food.example/"  # homepage fetched + quote
 
 
 def test_competitor_homepages_are_bounded(tmp_path, monkeypatch):
@@ -162,9 +162,10 @@ def test_essential_queries_are_sanitized():
     p = fake_llm().handlers[StartupProfile]("", "")
     p.company_name = "Acme jane@acme.com Pty Ltd"
     qs = essential_queries(p, 2026)
-    assert set(qs) == {"competitors", "market", "valuation"}
+    assert set(qs) == {"competitors", "market", "company"}
     assert all("@" not in q and len(q) <= 200 for q in qs.values())
-    assert qs["valuation"].endswith("Australia 2026")
+    assert qs["company"] == "Acme revenue ARR funding valuation 2026"
+    assert qs["market"].endswith("Australia 2026")
 
 
 # ================================================================== provider chain

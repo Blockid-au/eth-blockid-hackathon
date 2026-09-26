@@ -35,7 +35,7 @@ function HeroDevice() {
   }, [reduce]);
   const dim = (i: number) => "tile" + (i > stage ? " dim" : "");
   return (
-    <div className="device" aria-label="Product preview" role="img">
+    <div className="device" aria-label={`${t("hs.1")} → ${t("hs.2")} → ${t("hs.3")} → ${t("hs.4")}`} role="img">
       <div className="bar"><i /><i /><i /><span>eth.blockid.au</span></div>
       <div className="inner">
         <div className="urlrow"><span className="muted">https://</span><span>harbourline.com.au</span><span className="caret" aria-hidden="true" /></div>
@@ -59,7 +59,7 @@ function HeroDevice() {
             <span className="muted" style={{ fontSize: ".78rem" }}>{t("ht.holders")}</span>
           </div>
           <div className={dim(3)}>
-            <div style={{ width: 96 }}><Ring parts={HERO_PARTS} r={44} sw={18} size={120} label="Ownership ring" /></div>
+            <div style={{ width: 96 }}><Ring parts={HERO_PARTS} r={44} sw={18} size={120} label={t("s5.preview")} /></div>
             <span className="anchorline">{t("ht.anchored")}</span>
           </div>
         </div>
@@ -73,7 +73,7 @@ function HowDiagram() {
   return (
     <figure>
       <div className="diagram">
-        <svg viewBox="0 0 1000 330" role="img" aria-label="Flow: website to AI agents to SVI valuation, admin approval, then the issuer service issues on BlockID Chain, anchors on Hoodi and delivers tokens to wallets">
+        <svg viewBox="0 0 1000 330" role="img" aria-label={`${t("d.lane1")}: ${t("d.n1")} → ${t("d.n2")} → ${t("d.n3")} → ${t("d.n4")} → ${t("d.n5")}. ${t("d.gate")}. ${t("d.lane2")}: ${t("d.b1")} → ${t("d.b2")} → ${t("d.b3")} → ${t("d.b4")}.`}>
           <defs>
             <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" /></marker>
             <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--gold-mark)" /></marker>
@@ -85,7 +85,7 @@ function HowDiagram() {
           <g fontSize="13" textAnchor="middle">
             <rect x="28" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="103" y="86" fontWeight="600" fill="currentColor">{t("d.n1")}</text><text x="103" y="104" fontSize="11" fill="var(--muted)">{t("d.n1s")}</text>
             <rect x="222" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="297" y="86" fontWeight="600" fill="currentColor">{t("d.n2")}</text><text x="297" y="104" fontSize="11" fill="var(--muted)">{t("d.n2s")}</text>
-            <rect x="416" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="491" y="86" fontWeight="600" fill="currentColor">{t("d.n3")}</text><text x="491" y="104" fontSize="11" fill="var(--muted)">Brave Search</text>
+            <rect x="416" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="491" y="86" fontWeight="600" fill="currentColor">{t("d.n3")}</text><text x="491" y="104" fontSize="11" fill="var(--muted)">{t("d.n3s")}</text>
             <rect x="610" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="685" y="86" fontWeight="600" fill="currentColor">{t("d.n4")}</text><text x="685" y="104" fontSize="11" fill="var(--muted)">{t("d.n4s")}</text>
             <rect x="804" y="62" width="168" height="56" rx="10" fill="var(--accent)" /><text x="888" y="86" fontWeight="700" fill="var(--accent-ink)">{t("d.n5")}</text><text x="888" y="104" fontSize="11" fill="var(--accent-ink)">{t("d.n5s")}</text>
           </g>
@@ -102,7 +102,7 @@ function HowDiagram() {
           <g fontSize="13" textAnchor="middle">
             <rect x="804" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="888" y="250" fontWeight="600" fill="currentColor">{t("d.b1")}</text><text x="888" y="268" fontSize="11" fill="var(--muted)">{t("d.b1s")}</text>
             <rect x="560" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--gold-mark)" /><text x="644" y="250" fontWeight="600" fill="currentColor">{t("d.b2")}</text><text x="644" y="268" fontSize="11" fill="var(--muted)">{t("d.b2s")}</text>
-            <rect x="316" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="400" y="250" fontWeight="600" fill="currentColor">{t("d.b3")}</text><text x="400" y="268" fontSize="11" fill="var(--muted)">MetaMask</text>
+            <rect x="316" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--gold-mark)" /><text x="400" y="250" fontWeight="600" fill="currentColor">{t("d.b3")}</text><text x="400" y="268" fontSize="11" fill="var(--muted)">{t("d.b3s")}</text>
             <rect x="72" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="156" y="250" fontWeight="600" fill="currentColor">{t("d.b4")}</text><text x="156" y="268" fontSize="11" fill="var(--muted)">{t("d.b4s")}</text>
           </g>
           <g stroke="currentColor" strokeWidth="1.5" fill="none">
@@ -114,6 +114,7 @@ function HowDiagram() {
         </svg>
       </div>
       <figcaption>{t("how.cap")}</figcaption>
+      <p className="demonote"><span className="demotag">{t("demo.tag")}</span> · <Link to="/admin">{t("demo.home")}</Link></p>
     </figure>
   );
 }
@@ -124,6 +125,8 @@ function LiveStats() {
   const cos = useAsync(() => api.companies(), [], 30000);
   const k = stats.data?.kpis;
   const recent = (cos.data ?? []).slice(0, 6);
+  const allAnchored = !!k && k.anchored_total > 0 && k.anchored === k.anchored_total;
+  const dash = stats.loading ? "…" : "–";
   return (
     <section className="block" id="live" aria-labelledby="live-h">
       <div className="wrap">
@@ -132,10 +135,12 @@ function LiveStats() {
           <h2 id="live-h">{t("home.stats.h2")}</h2>
           <p>{t("home.stats.p")}</p>
         </div>
-        <div className="statsstrip" aria-busy={stats.loading}>
-          <div className="kpi"><small>{t("home.st.co")}</small><b>{k ? fmt(k.companies) : "–"}</b><span>{stats.data?.block ? t("home.st.asof", { b: fmt(stats.data.block) }) : " "}</span></div>
-          <div className="kpi"><small>{t("home.st.val")}</small><b>{k ? money(k.total_valuation_aud) : "–"}</b><span>{k ? `${t("ad.k.avg")} ${money(k.avg_valuation_aud)}` : " "}</span></div>
-          <div className="kpi"><small>{t("home.st.tok")}</small><b>{k ? fmt(k.tokens) : "–"}</b><span>{t("home.st.tokSub")}</span></div>
+        {stats.error && !k ? <p className="banner warn" role="status"><span>{t("home.st.err")}</span><button className="btn ghost sm" type="button" onClick={() => void stats.reload()}>{t("common.retry")}</button></p> : null}
+        <div className="statsstrip" aria-busy={stats.loading && !k} aria-live="polite">
+          <div className="kpi"><small>{t("home.st.co")}</small><b className="num">{k ? fmt(k.companies) : dash}</b><span>{allAnchored ? t("home.st.cosub") : stats.data?.block ? t("home.st.asof", { b: fmt(stats.data.block) }) : "\u00a0"}</span></div>
+          <div className="kpi"><small>{t("home.st.tok")}</small><b className="num">{k ? fmt(k.tokens) : dash}</b><span>{t("home.st.tokSub")}</span></div>
+          <div className="kpi"><small>{t("home.st.val")}</small><b className="num">{k ? money(k.total_valuation_aud) : dash}</b><span>{k ? `${t("ad.k.median")} ${money(k.median_valuation_aud)}` : "\u00a0"}</span></div>
+          <div className="kpi"><small>{t("home.st.ver")}</small><b className="num">{k ? `${fmt(k.anchored)} / ${fmt(k.anchored_total)}` : dash}</b><span><Link to="/verify">{t("home.st.verSub")} →</Link></span></div>
         </div>
         <div className="between" style={{ marginTop: 28 }}>
           <h3 style={{ fontSize: "1.15rem" }}>{t("home.recent")}</h3>
@@ -179,6 +184,8 @@ export function Home() {
           <div>
             <span className="eyebrow">{t("hero.eyebrow")}</span>
             <h1 style={{ marginTop: 16 }}>{t("hero.h1a")} <em>{t("hero.h1b")}</em></h1>
+            <p className="subhead">{t("hero.sub")}</p>
+            <p className="tagline">{t("hero.tag")}</p>
             <p className="pitch">{t("hero.pitch")}</p>
             <div className="ctas">
               <Link className="btn" to="/new">{t("cta.primary")}</Link>

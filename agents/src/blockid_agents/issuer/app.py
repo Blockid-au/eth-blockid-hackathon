@@ -12,7 +12,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .config import IssuerConfig
 
@@ -42,6 +42,13 @@ class KycReq(BaseModel):
 class DripReq(BaseModel):
     wallet: str
     company_id: int | None = None
+    amount_wei: int | None = Field(default=None, ge=0, le=5 * 10**18)  # gas allowance (top-up target), <= 5 BLKD
+
+
+class CompanyRoleReq(BaseModel):
+    company_id: int
+    address: str
+    grant: bool
 
 
 def create_app(service=None, cfg: IssuerConfig | None = None) -> FastAPI:
@@ -123,7 +130,24 @@ def create_app(service=None, cfg: IssuerConfig | None = None) -> FastAPI:
         if not Web3.is_address(r.wallet):
             raise HTTPException(422, "invalid wallet")
         s = svc()
-        return submit("drip", lambda: s.drip(r.wallet, r.company_id), wallet=Web3.to_checksum_address(r.wallet))
+        if r.amount_wei is None:
+            return submit("drip", lambda: s.drip(r.wallet, r.company_id), wallet=Web3.to_checksum_address(r.wallet))
+        return submit("drip", lambda: s.drip(r.wallet, r.company_id, r.amount_wei),
+                      wallet=Web3.to_checksum_address(r.wallet), amount_wei=r.amount_wei)
+
+    # ---------------------------------------------------------------- company admin roles (issuer/roles.py)
+    @app.post("/company-roles", status_code=202, dependencies=[Depends(auth)])
+    def company_roles(r: CompanyRoleReq) -> dict:
+        from web3 import Web3
+
+        from . import roles
+
+        if not Web3.is_address(r.address):
+            raise HTTPException(422, "invalid address")
+        s = svc()
+        addr = Web3.to_checksum_address(r.address)
+        return submit("company-roles", lambda: roles.company_roles(s, r.company_id, addr, r.grant),
+                      company_id=r.company_id, address=addr, grant=r.grant)
 
     # ---------------------------------------------------------------- secondary transfers (issuer/transfers.py)
     @app.post("/reanchor", status_code=202, dependencies=[Depends(auth)])

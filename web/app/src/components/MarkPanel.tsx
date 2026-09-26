@@ -97,7 +97,7 @@ export function MarkPanel(p: MarkPanelProps) {
     if (dAgo < 0) {
       const k = Math.max(0, Math.min(F.length - 1, Math.round((-dAgo / HORIZON) * (F.length - 1))));
       const f = F[k];
-      if (f) showTip(`SIMULATED +${fmt(f.d)}d · P10 ${aud(f.p10, 2)} · P50 ${aud(f.p50, 2)} · P90 ${aud(f.p90, 2)}`, e.clientX, e.clientY);
+      if (f) showTip(`${t("ad.simbadge")} +${fmt(f.d)}d · P10 ${aud(f.p10, 2)} · P50 ${aud(f.p50, 2)} · P90 ${aud(f.p90, 2)}`, e.clientX, e.clientY);
       return;
     }
     const tt = now - dAgo * DAY;
@@ -124,15 +124,15 @@ export function MarkPanel(p: MarkPanelProps) {
             <span className={"chg " + arrow(pR)}>{chg(pR)} · {t("ad.range")} · {t("ad.cagr")} {fmt(cagr, 1)}%</span>
           </div>
           <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
-            <Ranges label={t("ad.range")} opts={[["1M", 30], ["3M", 90], ["6M", 180], ["ALL", 0]]} value={range} onChange={setRange} />
+            <Ranges label={t("ad.range")} opts={[["1M", 30], ["3M", 90], ["6M", 180], [t("ad.r.all"), 0]]} value={range} onChange={setRange} />
             <label className="toggle">
               <input type="checkbox" checked={sim} onChange={(e) => setSim(e.target.checked)} />
-              <span>{t("ad.simt")}</span><span className="simbadge">SIMULATED</span>
+              <span>{t("ad.simt")}</span><span className="simbadge">{t("ad.simbadge")}</span>
             </label>
           </div>
         </div>
         <div className="chartscroll">
-        <svg ref={ref} className="chart" viewBox="0 0 760 280" role="img" aria-label={`${p.ticker} share mark over time with events${sim ? ", with simulated P10–P90 band" : ""}`}>
+        <svg ref={ref} className="chart" viewBox="0 0 760 280" role="img" aria-label={`${p.ticker} · ${t("ad.l.mark")}${sim ? " · " + t("ad.l.sim") : ""}`}>
           <AxisY x0={x0} x1={x1} Y={Y} ticks={ticks} f={(x) => "A$" + fmt(x, 2)} />
           {1 >= lo && 1 <= hi && (
             <>
@@ -146,7 +146,7 @@ export function MarkPanel(p: MarkPanelProps) {
               {band("p75", "p25", 0.2)}
               <polyline points={F.map((f) => `${X(-f.d)},${Y(f.p50)}`).join(" ")} fill="none" stroke={v("--c5")} strokeWidth={2} strokeDasharray="6 5" />
               <line x1={X(0)} x2={X(0)} y1={y0} y2={y1} stroke={v("--line")} />
-              <text x={X(0) + 6} y={y0 + 10} fontSize={10} fill={v("--c5")} fontWeight={700}>SIMULATED →</text>
+              <text x={X(0) + 6} y={y0 + 10} fontSize={10} fill={v("--c5")} fontWeight={700}>{t("ad.simbadge")} →</text>
               <text x={x1 - 2} y={Y(F[F.length - 1].p50) - 8} fontSize={11} textAnchor="end" fill={v("--c5")}>P50 A${fmt(F[F.length - 1].p50, 2)}</text>
             </>
           )}

@@ -64,7 +64,7 @@ export function AddrCard({ chain, address, ticker, onToast }: { chain: ChainInfo
       <QR text={addr} label={t("c.qr", { a: addr })} />
       <div className="acts">
         <button className="btn ghost sm" type="button" onClick={copy}>{t("s8.copy")}</button>
-        <a className="btn ghost sm" href={chain.tokenUrl(addr)} target="_blank" rel="noopener noreferrer">{chain.key === "hoodi" ? t("s8.ether") : chain.key === "hsk" ? "HashKey explorer" : t("s8.scan")}</a>
+        <a className="btn ghost sm" href={chain.tokenUrl(addr)} target="_blank" rel="noopener noreferrer">{chain.key === "hoodi" ? t("s8.ether") : chain.key === "hsk" ? t("s8.hskscan") : t("s8.scan")}</a>
         <button className={"btn sm" + (hoodi ? " gold" : "")} type="button" onClick={add} disabled={busy}>{t("s8.add")}</button>
       </div>
     </div>
@@ -78,13 +78,13 @@ export function NetworkDetails() {
     <div className="card">
       <h4>{t("s8.net")}</h4>
       <dl className="kv">
-        <dt>{t("s8.name")}</dt><dd>{L.name}</dd><dt>RPC</dt><dd>{L.rpc}</dd><dt>Chain ID</dt><dd>{L.id} ({L.hex})</dd><dt>{t("s8.sym")}</dt><dd>{L.currency} · 18 decimals</dd><dt>Explorer</dt><dd><a href={L.explorer} target="_blank" rel="noopener noreferrer">{L.explorer}</a></dd>
+        <dt>{t("s8.name")}</dt><dd>{L.name}</dd><dt>RPC</dt><dd>{L.rpc}</dd><dt>Chain ID</dt><dd>{L.id} ({L.hex})</dd><dt>{t("s8.sym")}</dt><dd>{L.currency} · {t("s8.dec18")}</dd><dt>Explorer</dt><dd><a href={L.explorer} target="_blank" rel="noopener noreferrer">{L.explorer}</a></dd>
       </dl>
       <dl className="kv" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-        <dt>{t("s8.name")}</dt><dd>{H.name}</dd><dt>RPC</dt><dd>{H.rpc}</dd><dt>Chain ID</dt><dd>{H.id} ({H.hex})</dd><dt>{t("s8.sym")}</dt><dd>{H.currency} · 18 decimals</dd><dt>Explorer</dt><dd><a href={H.explorer} target="_blank" rel="noopener noreferrer">{H.explorer}</a></dd>
+        <dt>{t("s8.name")}</dt><dd>{H.name}</dd><dt>RPC</dt><dd>{H.rpc}</dd><dt>Chain ID</dt><dd>{H.id} ({H.hex})</dd><dt>{t("s8.sym")}</dt><dd>{H.currency} · {t("s8.dec18")}</dd><dt>Explorer</dt><dd><a href={H.explorer} target="_blank" rel="noopener noreferrer">{H.explorer}</a></dd>
       </dl>
       <dl className="kv" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-        <dt>{t("s8.name")}</dt><dd>{K.name}</dd><dt>RPC</dt><dd>{K.rpc}</dd><dt>Chain ID</dt><dd>{K.id} ({K.hex})</dd><dt>{t("s8.sym")}</dt><dd>{K.currency} · 18 decimals</dd><dt>Explorer</dt><dd><a href={K.explorer} target="_blank" rel="noopener noreferrer">{K.explorer}</a></dd>
+        <dt>{t("s8.name")}</dt><dd>{K.name}</dd><dt>RPC</dt><dd>{K.rpc}</dd><dt>Chain ID</dt><dd>{K.id} ({K.hex})</dd><dt>{t("s8.sym")}</dt><dd>{K.currency} · {t("s8.dec18")}</dd><dt>Explorer</dt><dd><a href={K.explorer} target="_blank" rel="noopener noreferrer">{K.explorer}</a></dd>
       </dl>
     </div>
   );

@@ -4,6 +4,7 @@ import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import { isMock } from "../api";
 import { shortAddr } from "../lib/addr";
+import { useMyCompanies, type MyCompany } from "../lib/companyAdmins";
 
 export function FlagEN() {
   return (
@@ -16,7 +17,35 @@ export function FlagVI() {
   );
 }
 
-function Account() {
+/** "My companies": companies the signed-in wallet administers (GET /v1/me/companies). */
+function MyCompaniesNav({ list }: { list: MyCompany[] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
+  }, [open]);
+  if (!list.length) return null;
+  if (list.length === 1) return <NavLink to={`/c/${list[0].ticker}`}>{t("nav.mycos")}</NavLink>;
+  return (
+    <span className="menuwrap" ref={box}>
+      <a href="#" role="button" aria-haspopup="menu" aria-expanded={open} onClick={(e) => { e.preventDefault(); setOpen((o) => !o); }}>{t("nav.mycos")} ▾</a>
+      {open && (
+        <span className="menu" role="menu" style={{ left: 0, right: "auto" }}>
+          {list.map((c) => <Link key={c.id} role="menuitem" to={`/c/${c.ticker}`} onClick={() => setOpen(false)}><b className="mono">{c.ticker}</b> · {c.name} <span className="muted">· {t(("ca.role." + c.role) as "ca.role.owner")}</span></Link>)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function Account({ mine }: { mine: MyCompany[] }) {
   const { t } = useI18n();
   const { me, busy, connect, logout } = useAuth();
   const [open, setOpen] = useState(false);
@@ -53,6 +82,8 @@ function Account() {
         <span className="menu" role="menu">
           {me.address && <span className="mono">{me.address}</span>}
           {me.role === "admin" && <Link role="menuitem" to="/admin" onClick={() => setOpen(false)}>{t("nav.adminlink")}</Link>}
+          {mine.length > 0 && <span className="mono">{t("nav.mycos")}</span>}
+          {mine.map((c) => <Link key={c.id} role="menuitem" to={`/c/${c.ticker}`} onClick={() => setOpen(false)}><b className="mono">{c.ticker}</b> · {c.name}</Link>)}
           <button role="menuitem" type="button" onClick={async () => { setOpen(false); await logout(); }}>{t("nav.signout")}</button>
         </span>
       )}
@@ -62,6 +93,7 @@ function Account() {
 
 export function Nav() {
   const { t, lang, setLang } = useI18n();
+  const mine = useMyCompanies().list;
   return (
     <header className="nav">
       <a className="skip" href="#main">{t("nav.skip")}</a>
@@ -73,6 +105,7 @@ export function Nav() {
           <NavLink to="/hsk">{t("nav.hsk")}</NavLink>
           <NavLink to="/verify">{t("nav.verify")}</NavLink>
           <NavLink to="/admin">{t("nav.admin")}</NavLink>
+          <MyCompaniesNav list={mine} />
         </nav>
         <span className="grow" />
         {isMock && <span className="simbadge" title="?mock=0 to leave">{t("mock.badge")}</span>}
@@ -81,7 +114,7 @@ export function Nav() {
           <button type="button" aria-pressed={lang === "en"} onClick={() => setLang("en")} lang="en"><FlagEN />EN</button>
           <button type="button" aria-pressed={lang === "vi"} onClick={() => setLang("vi")} lang="vi"><FlagVI />VI</button>
         </span>
-        <Account />
+        <Account mine={mine} />
         <Link className="btn sm" to="/new">{t("cta.primary")}</Link>
       </div>
     </header>

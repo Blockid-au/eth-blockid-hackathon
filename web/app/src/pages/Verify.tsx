@@ -98,8 +98,9 @@ function Short({ h }: { h?: string | null }) {
 }
 
 function Mark({ ok }: { ok: boolean | null }) {
+  const { t } = useI18n();
   if (ok === null) return <span className="pill">…</span>;
-  return ok ? <span className="pill ok" aria-label="match">✓</span> : <span className="pill bad" aria-label="mismatch">✗</span>;
+  return ok ? <span className="pill ok" aria-label={t("hsk.v.ok")}>✓</span> : <span className="pill bad" aria-label={t("hsk.v.no")}>✗</span>;
 }
 
 function Ext({ href, children }: { href: string; children: ReactNode }) {

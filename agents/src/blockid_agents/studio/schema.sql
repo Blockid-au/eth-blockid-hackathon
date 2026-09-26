@@ -32,3 +32,21 @@ CREATE TABLE IF NOT EXISTS studio.audit (id serial PRIMARY KEY, at timestamptz N
 ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS transfer_mode text NOT NULL DEFAULT 'free';
 CREATE TABLE IF NOT EXISTS studio.transfers (id serial PRIMARY KEY, company_id int NOT NULL REFERENCES studio.companies(id) ON DELETE CASCADE, from_wallet text NOT NULL, to_wallet text NOT NULL, to_name text NOT NULL DEFAULT '', shares bigint NOT NULL, mode text NOT NULL, status text NOT NULL, tx_hash text UNIQUE, block bigint, note text, requested_by text, decided_by text, decided_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS studio.kyc_requests (id serial PRIMARY KEY, company_id int NOT NULL REFERENCES studio.companies(id) ON DELETE CASCADE, wallet text NOT NULL, name text NOT NULL, status text NOT NULL, tx_hash text, note text, requested_by text, decided_by text, decided_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
+-- per-company admin wallets (studio/company_admins.py); on-chain roles on the company's BlockID contracts via issuer/roles.py
+CREATE TABLE IF NOT EXISTS studio.company_admins (
+  id serial PRIMARY KEY, company_id int NOT NULL REFERENCES studio.companies(id) ON DELETE CASCADE,
+  address text NOT NULL,                                   -- EIP-55 checksum
+  label text NOT NULL DEFAULT '',
+  role text NOT NULL DEFAULT 'manager' CHECK (role IN ('owner','manager')),
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','pending_grant','revoked')),
+  onchain boolean NOT NULL DEFAULT false,                  -- holds (or is being granted) roles on the BlockID contracts
+  grant_tx text, revoke_tx text, error text,
+  added_by text, added_at timestamptz NOT NULL DEFAULT now(), revoked_at timestamptz,
+  UNIQUE (company_id, address));
+CREATE INDEX IF NOT EXISTS company_admins_address_idx ON studio.company_admins (lower(address));
+-- backfill: the wallet that created a company is its first owner (idempotent; a revoked row is never re-added)
+INSERT INTO studio.company_admins (company_id, address, label, role, status, added_by)
+  SELECT id, created_by, 'creator', 'owner', 'active', 'backfill' FROM studio.companies
+  WHERE created_by ~ '^0x[0-9a-fA-F]{40}$' ON CONFLICT (company_id, address) DO NOTHING;
+-- default BLKD gas allowance per wallet (studio/gas.py): at most one issuer /drip per wallet per 24 h, global daily cap
+CREATE TABLE IF NOT EXISTS studio.gas_drips (address text PRIMARY KEY, amount_wei numeric NOT NULL, tx_hash text, reason text, created_at timestamptz NOT NULL DEFAULT now());

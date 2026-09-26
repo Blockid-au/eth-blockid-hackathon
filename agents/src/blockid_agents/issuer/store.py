@@ -22,7 +22,17 @@ _MIGRATIONS = [
     "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS hsk_anchored_at timestamptz",
     "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS sync jsonb NOT NULL DEFAULT '{}'",
     "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS valuation_report_hash text",
+    # company admins (studio/company_admins.py, issuer/roles.py) and gas allowances (studio/gas.py); = schema.sql
+    "CREATE TABLE IF NOT EXISTS studio.company_admins (id serial PRIMARY KEY, company_id int NOT NULL REFERENCES "
+    "studio.companies(id) ON DELETE CASCADE, address text NOT NULL, label text NOT NULL DEFAULT '', role text NOT NULL "
+    "DEFAULT 'manager' CHECK (role IN ('owner','manager')), status text NOT NULL DEFAULT 'active' CHECK (status IN "
+    "('active','pending_grant','revoked')), onchain boolean NOT NULL DEFAULT false, grant_tx text, revoke_tx text, "
+    "error text, added_by text, added_at timestamptz NOT NULL DEFAULT now(), revoked_at timestamptz, "
+    "UNIQUE (company_id, address))",
+    "CREATE TABLE IF NOT EXISTS studio.gas_drips (address text PRIMARY KEY, amount_wei numeric NOT NULL, tx_hash text, "
+    "reason text, created_at timestamptz NOT NULL DEFAULT now())",
 ]
+_ADMIN_COLS = {"status", "onchain", "grant_tx", "revoke_tx", "error"}
 _MINT_COLS = {"status", "tx_hash"}
 _DIVIDEND_COLS = {"status", "merkle_root", "claims", "round_id", "tx_hash"}
 
@@ -146,3 +156,16 @@ class Store:
 
     def update_dividend(self, dividend_id: int, **fields) -> None:
         self._update("studio.dividends", _DIVIDEND_COLS, dividend_id, fields, touch=False)
+
+    # ------------------------------------------------------------------ company admins (issuer/roles.py)
+    def company_admin(self, company_id: int, address: str) -> dict | None:
+        return self._one("SELECT * FROM studio.company_admins WHERE company_id = %s AND lower(address) = lower(%s)",
+                         (company_id, address))
+
+    def update_company_admin(self, admin_id: int, **fields) -> None:
+        self._update("studio.company_admins", _ADMIN_COLS, admin_id, fields, touch=False)
+
+    # ------------------------------------------------------------------ gas allowances (studio/gas.py)
+    def record_drip(self, address: str, tx_hash: str, amount_wei: int) -> None:
+        self._exec("UPDATE studio.gas_drips SET tx_hash = %s, amount_wei = %s WHERE lower(address) = lower(%s)",
+                   (tx_hash, amount_wei, address))

@@ -5,6 +5,12 @@ dimension scores (flagged `ai_suggested`, requiring human confirmation); revenue
 dimensions are computed here from reported metrics, and the valuation is plain arithmetic
 over cited market multiples. Same inputs -> same output, every time (audit requirement).
 
+Valuation range, first rule that applies (then x SVI factor):
+1. revenue > 0 and verified cited revenue + last valuation of the company -> implied multiple (0.7x / 1x / 1.4x);
+2. revenue > 0 and a multiple cited in the market evidence -> that multiple;
+3. revenue > 0 otherwise -> config.DEFAULT_REVENUE_MULTIPLES (uncalibrated default, flagged for review);
+4. no revenue -> stage benchmark range.
+
 Weights follow the SVI framework (7 dimensions). Stage benchmarks and multipliers are
 PLACEHOLDERS to be calibrated with the SVI dissertation data before production use.
 """
@@ -14,6 +20,7 @@ import hashlib
 import json
 import math
 
+from ..config import IMPLIED_MULTIPLE_BOUNDS, default_multiples
 from ..schemas import DimensionScore, MarketAnalysis, QualitativeScores, StartupProfile, SVIResult
 
 WEIGHTS: dict[str, float] = {
@@ -54,8 +61,14 @@ def _label(rationale: str, used: list[str]) -> str:
     return f"{rationale} ({SELF_REPORTED_NOTE}: {', '.join(used)})" if used else rationale
 
 
-def revenue_performance(p: StartupProfile, self_reported=None) -> DimensionScore:
-    """`self_reported`: names of the StartupProfile.metrics fields a founder supplied (see SelfReportedMetrics)."""
+def _cited_note(cited: dict) -> str:
+    return f" (revenue from a cited third-party source, not verified: {cited.get('source_url', '')} — " \
+           f"\"{cited.get('quote', '')}\")"
+
+
+def revenue_performance(p: StartupProfile, self_reported=None, cited: dict | None = None) -> DimensionScore:
+    """`self_reported`: names of the StartupProfile.metrics fields a founder supplied (see SelfReportedMetrics).
+    `cited`: {source_url, quote} when revenue_ttm_aud came from a third-party page found by search."""
     m = p.metrics
     bench = STAGE_REVENUE_BENCHMARK[p.stage]
     if m.revenue_ttm_aud <= 0:
@@ -68,12 +81,13 @@ def revenue_performance(p: StartupProfile, self_reported=None) -> DimensionScore
     margin = _clamp(m.gross_margin_pct)
     score = round(0.7 * scale + 0.3 * margin, 1)
     basis, used = _basis(("revenue_ttm_aud", "gross_margin_pct"), self_reported)
-    return DimensionScore(
-        score=score,
-        basis=basis,
-        rationale=_label(f"revenue {m.revenue_ttm_aud:,.0f} AUD vs stage benchmark {bench:,.0f}; "
-                         f"gross margin {margin:.0f}%", used),
-    )
+    rationale = _label(f"revenue {m.revenue_ttm_aud:,.0f} AUD vs stage benchmark {bench:,.0f}; "
+                       f"gross margin {margin:.0f}%", used)
+    sources: list[str] = []
+    if cited and "revenue_ttm_aud" not in used:
+        basis, rationale = "cited_source", rationale + _cited_note(cited)
+        sources = [cited["source_url"]] if cited.get("source_url") else []
+    return DimensionScore(score=score, basis=basis, rationale=rationale, sources=sources)
 
 
 def growth_capability(p: StartupProfile, self_reported=None) -> DimensionScore:
@@ -102,43 +116,27 @@ def band(index: float) -> str:
 
 
 def score(profile: StartupProfile, qualitative: QualitativeScores, market: MarketAnalysis | None,
-          self_reported=None) -> SVIResult:
-    """`self_reported`: metric field names supplied by the founder (they mark the computed dimensions)."""
+          self_reported=None, cited: dict | None = None) -> SVIResult:
+    """`self_reported`: metric field names supplied by the founder (they mark the computed dimensions).
+    `cited`: {source_url, quote} when the revenue is taken from a cited third-party source (see agents/valuation)."""
     dims: dict[str, DimensionScore] = {
         **{k: getattr(qualitative, k) for k in QualitativeScores.model_fields},
-        "revenue_performance": revenue_performance(profile, self_reported),
+        "revenue_performance": revenue_performance(profile, self_reported, cited),
         "growth_capability": growth_capability(profile, self_reported),
     }
     index = round(sum(WEIGHTS[k] * dims[k].score for k in WEIGHTS), 2)
 
     review = [f"{k}: AI-suggested score must be confirmed" for k, d in dims.items() if d.basis == "ai_suggested"]
     review += [f"data room missing: {x}" for x in profile.missing_items]
+    if cited:
+        review.append(f"revenue taken from a third-party source ({cited.get('source_url', '')}) — confirm with the "
+                      "company before relying on it")
 
     rev = profile.metrics.revenue_ttm_aud
     factor = 0.5 + index / 100  # index 50 -> 1.0x, 80 -> 1.3x, 30 -> 0.8x
-    if rev > 0 and market and market.revenue_multiple_median:
-        med = market.revenue_multiple_median
-        lo_m = market.revenue_multiple_low or med * 0.6
-        hi_m = market.revenue_multiple_high or med * 1.5
-        # Sources often cite a single multiple, so low = median = high collapses the range to one number.
-        # A valuation is a range: fall back to a fixed spread and say so in the method.
-        spread = lo_m >= med * 0.95 or hi_m <= med * 1.05
-        if spread:
-            lo_m, hi_m = min(lo_m, med * 0.7), max(hi_m, med * 1.4)
-        low, mid, high = rev * lo_m * factor, rev * med * factor, rev * hi_m * factor
-        method = (
-            ("self-reported " if "revenue_ttm_aud" in (self_reported or ()) else "")
-            + f"revenue multiple ({lo_m:.1f}x / {med:.1f}x / {hi_m:.1f}x, cited market data"
-            + ("; single cited multiple, range set to 0.7x-1.4x of it" if spread else "")
-            + f") x SVI factor {factor:.2f}"
-        )
-        if market.confidence == "low":
-            review.append("market multiples have LOW confidence — verify sources before use")
-    else:
-        b_low, b_mid, b_high = STAGE_PRE_REVENUE_RANGE[profile.stage]
-        low, mid, high = b_low * factor, b_mid * factor, b_high * factor
-        method = f"stage benchmark range ({profile.stage}, placeholder calibration) x SVI factor {factor:.2f}"
-        review.append("valuation uses stage benchmark (no revenue or no cited multiple)")
+    rev_label = ("self-reported " if "revenue_ttm_aud" in (self_reported or ()) else "cited-source " if cited else "")
+    low, mid, high, method, extra = valuation_range(rev, factor, market, profile.stage, profile.sector, rev_label)
+    review += extra
 
     result = SVIResult(
         index=index,
@@ -155,6 +153,68 @@ def score(profile: StartupProfile, qualitative: QualitativeScores, market: Marke
     return result
 
 
+def implied_multiple(market: MarketAnalysis | None) -> tuple[float, str] | None:
+    """(last valuation / revenue, source URL) when the verified company financials state both (same page, same
+    currency, both converted at the same fixed rate) and the ratio is within IMPLIED_MULTIPLE_BOUNDS."""
+    cf = market.company_financials if market else None
+    if not cf or not cf.usable_for_valuation or not cf.revenue_ttm_aud or not cf.last_valuation_aud:
+        return None
+    m = cf.last_valuation_aud / cf.revenue_ttm_aud
+    lo, hi = IMPLIED_MULTIPLE_BOUNDS
+    return (round(m, 2), cf.source_url) if lo <= m <= hi else None
+
+
 def report_hash(result: SVIResult) -> str:
     payload = result.model_dump(exclude={"report_sha256", "narrative"})
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+FORMULA_VERSION = "v2"  # v2: implied multiple > cited multiple (0.7x-1.4x spread if single) > default table > stage
+
+
+def valuation_range(rev: float, factor: float, market: MarketAnalysis | None, stage: str, sector: str,
+                    rev_label: str = "") -> tuple[float, float, float, str, list[str]]:
+    """Current (v2) valuation range rules, shared by score() and the /verify recompute."""
+    implied = implied_multiple(market)
+    review: list[str] = []
+    if rev > 0 and implied:
+        # 1. the company's own last round: cited last valuation / cited revenue (same verified source)
+        med, src = implied
+        lo_m, hi_m = med * 0.7, med * 1.4
+        low, mid, high = rev * lo_m * factor, rev * med * factor, rev * hi_m * factor
+        method = (f"{rev_label}revenue x implied multiple from cited last round: {med:.1f}x "
+                  f"(range 0.7x-1.4x: {lo_m:.1f}x / {med:.1f}x / {hi_m:.1f}x; {src}) x SVI factor {factor:.2f}")
+        review.append("implied multiple from a cited last-round valuation — confirm the round and revenue basis")
+    elif rev > 0 and market and market.revenue_multiple_median:
+        med = market.revenue_multiple_median
+        lo_m = market.revenue_multiple_low or med * 0.6
+        hi_m = market.revenue_multiple_high or med * 1.5
+        # Sources often cite a single multiple, so low = median = high collapses the range to one number.
+        # A valuation is a range: fall back to a fixed spread and say so in the method.
+        spread = lo_m >= med * 0.95 or hi_m <= med * 1.05
+        if spread:
+            lo_m, hi_m = min(lo_m, med * 0.7), max(hi_m, med * 1.4)
+        low, mid, high = rev * lo_m * factor, rev * med * factor, rev * hi_m * factor
+        method = (
+            rev_label
+            + f"revenue multiple ({lo_m:.1f}x / {med:.1f}x / {hi_m:.1f}x, cited market data"
+            + ("; single cited multiple, range set to 0.7x-1.4x of it" if spread else "")
+            + f") x SVI factor {factor:.2f}"
+        )
+        if market.confidence == "low":
+            review.append("market multiples have LOW confidence — verify sources before use")
+    elif rev > 0:
+        # 3. revenue but no cited or implied multiple: conservative default table (config, uncalibrated)
+        key, (lo_m, med, hi_m) = default_multiples(sector or "")
+        low, mid, high = rev * lo_m * factor, rev * med * factor, rev * hi_m * factor
+        method = (f"{rev_label}revenue x default multiple ({lo_m:.1f}x / {med:.1f}x / {hi_m:.1f}x, {key}; "
+                  f"uncalibrated default, see ROADMAP calibration) x SVI factor {factor:.2f}")
+        review.append("multiple is a default, not cited")
+    else:
+        # 4. no revenue: stage benchmark range
+        b_low, b_mid, b_high = STAGE_PRE_REVENUE_RANGE[stage if stage in STAGE_PRE_REVENUE_RANGE else "seed"]
+        low, mid, high = b_low * factor, b_mid * factor, b_high * factor
+        method = f"stage benchmark range ({stage}, placeholder calibration) x SVI factor {factor:.2f}"
+        review.append("valuation uses stage benchmark (no revenue)")
+
+    return low, mid, high, method, review
+

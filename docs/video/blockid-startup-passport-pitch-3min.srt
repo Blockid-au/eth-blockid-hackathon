@@ -1,0 +1,139 @@
+1
+00:00:00,750 --> 00:00:04,278
+Every startup has two questions it can't answer cheaply.
+
+2
+00:00:04,278 --> 00:00:05,815
+What are we worth?
+
+3
+00:00:05,815 --> 00:00:07,872
+And who exactly owns us?
+
+4
+00:00:07,872 --> 00:00:13,471
+A proper valuation takes weeks and costs thousands, and the cap table lives in a spreadsheet.
+
+5
+00:00:13,471 --> 00:00:16,531
+BlockID Startup Passport answers both.
+
+6
+00:00:16,531 --> 00:00:18,093
+Agents propose.
+
+7
+00:00:18,093 --> 00:00:19,528
+Humans approve.
+
+8
+00:00:19,528 --> 00:00:21,010
+Chains prove.
+
+9
+00:00:22,478 --> 00:00:29,574
+Today, early valuations are slow, costly and unsourced, and shareholders can't verify what they own.
+
+10
+00:00:29,574 --> 00:00:35,381
+With BlockID, a founder pastes a website and gets an evidence-cited valuation in minutes.
+
+11
+00:00:35,381 --> 00:00:44,834
+After one human approval, they have KYC-gated shares on-chain, a cap table they can grow, and dividends they can pay, all verifiable by anyone.
+
+12
+00:00:46,294 --> 00:00:49,067
+Here is the whole system on one slide.
+
+13
+00:00:49,067 --> 00:00:52,192
+The founder gives a website and a shareholder list.
+
+14
+00:00:52,192 --> 00:00:58,377
+AI agents read up to six pages and run three searches, and a fixed formula computes the value.
+
+15
+00:00:58,377 --> 00:01:00,512
+The agents hold no keys.
+
+16
+00:01:00,512 --> 00:01:03,208
+A human admin signs one approval.
+
+17
+00:01:03,208 --> 00:01:12,088
+Only then does the isolated issuer, the only component with a key, create the register on our zero-gas chain and mirror it to Ethereum and HashKey.
+
+18
+00:01:12,088 --> 00:01:17,439
+The proof: tokens in MetaMask, a verify page, and a public explorer.
+
+19
+00:01:18,918 --> 00:01:21,561
+The AI only suggests scores.
+
+20
+00:01:21,561 --> 00:01:30,102
+It reads the company's public site, finds competitors and analyses the market, and every claim must cite a fetched source, or it is dropped.
+
+21
+00:01:30,102 --> 00:01:36,131
+A fixed, public formula then turns seven weighted dimensions into a grade and a valuation range.
+
+22
+00:01:36,131 --> 00:01:41,014
+For Airwallex, it found eight real competitors, and graded it C.
+
+23
+00:01:42,494 --> 00:01:44,577
+Then, one approval.
+
+24
+00:01:44,577 --> 00:01:54,303
+The isolated issuer creates the share register on our zero-gas BlockID chain: an identity registry, KYC for every holder, and the shares themselves.
+
+25
+00:01:54,303 --> 00:01:59,707
+It then mirrors the register, with a Merkle root, to Ethereum Hoodi and HashKey Chain.
+
+26
+00:01:59,707 --> 00:02:05,605
+The founder watches every step live, and shareholders add the token to MetaMask on any chain.
+
+27
+00:02:07,078 --> 00:02:09,031
+You don't have to trust us.
+
+28
+00:02:09,031 --> 00:02:16,856
+The verify page recomputes the valuation report hash right in your browser, and compares it with the hash anchored on all three chains.
+
+29
+00:02:16,856 --> 00:02:18,497
+No login needed.
+
+30
+00:02:18,497 --> 00:02:21,505
+Change a single score, and it turns red.
+
+31
+00:02:22,974 --> 00:02:34,875
+This is live today: twelve real companies, thirty-six token contracts on three chains, and sixty-nine point eight billion Australian dollars of indicative valuation on-chain, with every hash verified.
+
+32
+00:02:34,875 --> 00:02:43,898
+Our customers are founders and SMEs in Australia and Vietnam, accelerators, and licensed intermediaries who issue and administer startup equity.
+
+33
+00:02:43,898 --> 00:02:47,583
+Scan the code and try it at eth dot blockid dot a u.
+
+34
+00:02:47,583 --> 00:02:51,059
+We're looking for pilot startups and licensed partners.
+
+35
+00:02:51,059 --> 00:02:52,179
+Thank you.

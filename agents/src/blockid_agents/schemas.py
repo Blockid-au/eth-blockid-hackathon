@@ -79,6 +79,9 @@ class StartupProfile(BaseModel):
     search_keywords: list[str] = Field(default_factory=list, description="terms for market research")
     documents_reviewed: list[str] = []
     missing_items: list[str] = Field(default_factory=list, description="what the data room is missing")
+    # Provenance of non-zero metrics, set by code (never by the model): metric field -> "website" (stated on the
+    # company's own site) | "self_reported" (founder-typed) | "cited_source" (third-party page found by search).
+    metrics_sources: dict[str, str] = Field(default_factory=dict, description="set by code; leave empty")
 
 
 # ------------------------------------------------------------------ Research (Brave)
@@ -97,6 +100,34 @@ class Finding(BaseModel):
     source_urls: list[str] = Field(min_length=1, description="every claim must cite at least one fetched URL")
 
 
+class CompanyFinancials(BaseModel):
+    """The startup's OWN reported figures, only when a fetched page or search snippet states them verbatim.
+    The model fills the claim fields; code verifies the quote and fills the *_aud / fx fields."""
+
+    revenue_ttm: float | None = Field(default=None, description="latest annual revenue or ARR of THIS company, "
+                                      "plain number in `currency` units (e.g. 'US$900 million' -> 900000000)")
+    currency: str = Field(default="USD", description="ISO code of the stated figures: USD, AUD, EUR, GBP, SGD, VND")
+    revenue_year: int | None = Field(default=None, description="year the revenue figure refers to, if stated")
+    revenue_type: Literal["revenue", "ARR", "GMV"] | None = Field(
+        default=None, description="'revenue' (annual/TTM revenue), 'ARR' (annualised recurring revenue) or 'GMV' "
+        "(transaction/payment volume, gross merchandise value — NOT revenue)")
+    funding_raised_total: float | None = Field(default=None, description="total funding raised to date, if stated")
+    last_valuation: float | None = Field(default=None, description="latest stated company valuation, if stated")
+    source_url: str = Field(default="", description="evidence URL (copied exactly) that states the figures")
+    quote: str = Field(default="", description="verbatim excerpt (<= 300 chars) from that page stating the revenue")
+    funding_quote: str = Field(default="", description="verbatim excerpt from the same page stating the funding "
+                               "total (only if not already in `quote`)")
+    valuation_quote: str = Field(default="", description="verbatim excerpt from the same page stating the "
+                                 "valuation (only if not already in `quote`)")
+    # --- filled by code after verification (the model must leave these null)
+    revenue_ttm_aud: float | None = None
+    funding_raised_total_aud: float | None = None
+    last_valuation_aud: float | None = None
+    fx_rate_to_aud: float | None = None
+    fx_as_of: str = ""
+    usable_for_valuation: bool = False  # verified revenue/ARR (GMV is shown but never used)
+
+
 class MarketAnalysis(BaseModel):
     market_summary: str
     market_growth_pct: float | None = None
@@ -107,10 +138,12 @@ class MarketAnalysis(BaseModel):
     key_findings: list[Finding] = []
     risks: list[Finding] = []
     confidence: Literal["low", "medium", "high"] = "low"
+    company_financials: CompanyFinancials | None = Field(
+        default=None, description="leave null: filled by code from a separate, verified extraction step")
 
 
 # ------------------------------------------------------------------ Valuation (SVI)
-Basis = Literal["computed", "ai_suggested", "human", "self_reported"]
+Basis = Literal["computed", "ai_suggested", "human", "self_reported", "cited_source"]
 
 
 class DimensionScore(BaseModel):

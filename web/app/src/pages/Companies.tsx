@@ -51,7 +51,7 @@ export function CompanyTable({ rows, selected, onPick }: { rows: CompanySummary[
                 <td className="r"><span className={"chg " + arrow(p30)}>{chg(p30)}</span></td>
                 <td><Spark vals={c.spark_30d ?? [c.mark_aud, c.mark_aud]} cls={arrow(p30)} /></td>
                 <td className="r">{fmt(c.holders ?? 0)}</td>
-                <td>{c.anchored ? <span className="anch">{t("co.anchYes")}</span> : <span className="muted-sm">{c.status === "anchoring" ? t(("c.tl.anchoring") as DictKey) : t("co.anchNo")}</span>}</td>
+                <td>{c.sync?.hoodi === "done" && c.sync?.hsk === "done" ? <span className="anch">{t("co.anch3")}</span> : c.anchored ? <span className="anch">{t("co.anchYes")}</span> : <span className="muted-sm">{c.status === "anchoring" ? t(("c.tl.anchoring") as DictKey) : t("co.anchNo")}</span>}</td>
               </tr>
             );
           })}

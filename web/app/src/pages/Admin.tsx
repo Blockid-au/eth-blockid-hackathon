@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { safeNext } from "../components/DemoGuide";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import {
-  api, ApiError, type AdminCompany, type ApprovalCompany, type Approvals, type AuditRow, type CompanySummary, type DividendReq, type IssuerWallet, type MintReq, type Stats, type Valuation,
+  api, ApiError, type AdminCompany, type ApprovalCompany, type Approvals, type AdminWallets, type AuditRow, type CompanySummary, type DividendReq, type IssuerWallet, type MintReq, type Stats, type Valuation,
 } from "../api";
 import { GradeChart, KTile, Ranges, StepArea } from "../components/charts";
 import { MarkPanel } from "../components/MarkPanel";
@@ -15,16 +16,19 @@ import { bandGrade } from "../lib/svi";
 import { CHAINS, chainOf, isAddressValid, shortAddr } from "../wallet";
 import type { DictKey } from "../dict";
 import { SyncChips } from "../components/Tracker";
+import { LowBalanceBanner } from "../components/LowBalance";
+import { isSyncFailure, resolvedFailures } from "../lib/events";
 import { AdminTransfersTab, useTx } from "./Transfers";
+import { CompanyAdminsPanel } from "../components/CompanyAdmins";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
 
 /* ================= login ================= */
-function LoginCard() {
+function LoginCard({ next }: { next: string | null }) {
   const { t } = useI18n();
   const { me, connect, login } = useAuth();
-  const [mode, setMode] = useState<"w" | "p">("w");
+  const [mode, setMode] = useState<"w" | "p">(next ? "p" : "w");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [u, setU] = useState("");
@@ -46,7 +50,8 @@ function LoginCard() {
     <div className="login">
       <h3>{t("ad.signin")}</h3>
       {me && me.role !== "admin" && <p className="banner warn">{t("ad.notadmin")}</p>}
-      <div className="segs" role="tablist" aria-label="Sign-in method">
+      {next && <p className="note" role="status">{t("demo.return", { p: next })}</p>}
+      <div className="segs" role="tablist" aria-label={t("ad.signin")}>
         <button type="button" role="tab" aria-selected={mode === "w"} onClick={() => { setMode("w"); setErr(""); }}>{t("ad.m.wallet")}</button>
         <button type="button" role="tab" aria-selected={mode === "p"} onClick={() => { setMode("p"); setErr(""); }}>{t("ad.m.pass")}</button>
       </div>
@@ -57,10 +62,10 @@ function LoginCard() {
         </div>
       ) : (
         <form style={{ display: "grid", gap: 12 }} onSubmit={pass} role="tabpanel">
+          <p className="banner gold" style={{ margin: 0 }}><span><b>{t("demo.creds")}</b> · {t("demo.tag")}</span></p>
           <label className="lf"><span>{t("ad.user")}</span><input type="text" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} required /></label>
           <label className="lf"><span>{t("ad.pass")}</span><input type="password" autoComplete="current-password" value={p} onChange={(e) => setP(e.target.value)} required /></label>
           <button className="btn" type="submit" disabled={busy}>{t("ad.enter")}</button>
-          <p className="note">{t("ad.demo")}</p>
         </form>
       )}
       <p className="err" role="alert">{err}</p>
@@ -102,25 +107,35 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
 }
 
 /* ================= overview ================= */
-function Overview({ stats, cos, onPick }: { stats: Async<Stats>; cos: Async<CompanySummary[]>; onPick: (tk: string) => void }) {
+function Overview({ stats, cos, onPick, wallets }: { stats: Async<Stats>; cos: Async<CompanySummary[]>; onPick: (tk: string) => void; wallets?: AdminWallets | null }) {
   const { t, fmt, money, chg, date, ago, locale } = useI18n();
-  const [range, setRange] = useState(365);
+  const [rangeSel, setRange] = useState<number | null>(null); // null = adaptive default
   const s = stats.data;
   if (!s) return stats.error ? <ErrorBox error={stats.error} retry={stats.reload} /> : <p className="note">{t("common.loading")}</p>;
   const k = s.kpis;
   const days = s.series.days, V = s.series.value_aud, C = s.series.companies;
   const n = days.length;
+  // "Since launch": from the day before the first issuance, so a young platform is not a flat line with one jump
+  const first = V.findIndex((x) => x > 0);
+  const since = first < 0 ? 30 : Math.max(2, n - first);
+  const range = rangeSel ?? (since <= 30 ? -1 : since <= 90 ? 90 : 365);
   const s90 = (arr: number[]) => Array.from({ length: 19 }, (_, i) => arr[Math.max(0, n - 1 - (90 - i * 5))] ?? 0);
   const pc = (arr: number[]) => { const a = arr[n - 31], b = arr[n - 1]; return a ? (b / a - 1) * 100 : null; };
   const avgSer = V.map((x, i) => (C[i] ? x / C[i] : 0));
-  const lo = Math.max(0, n - 1 - range);
-  const vals = V.slice(lo), labels = days.slice(lo);
+  const span = range === -1 ? since : range;
+  const lo = Math.max(0, n - 1 - span);
+  const vals = V.slice(lo), labels = days.slice(lo), cnt = C.slice(lo);
   const dfmt = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
-  const pins = s.activity.filter((a) => a.kind === "issued").map((a) => ({ i: labels.indexOf(String(a.at).slice(0, 10)), label: `${a.ticker ?? ""} ${t("ad.ev.iss")} · ${date(a.at)}` })).filter((p) => p.i >= 0);
+  // one pin per day the marked value changed (issuance or approved revaluation)
+  const pins = vals.map((x, i) => ({ i, x })).filter(({ i, x }) => i > 0 && x !== vals[i - 1])
+    .map(({ i, x }) => ({ i, label: t("ad.pin", { d: date(labels[i]), v: money(x), n: fmt(cnt[i]) }) }));
   const compact = (x: number) => (x >= 1e6 ? fmt(x / 1e6, 1) + "M" : fmt(x));
   const movers = s.movers.slice(0, 5);
+  const syncOf = new Map((cos.data ?? []).map((c) => [c.ticker, c.sync]));
+  const resolvedAct = resolvedFailures(s.activity, (e, ch) => syncOf.get(e.ticker ?? "")?.[ch as "blockid" | "hoodi" | "hsk"] === "done");
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <LowBalanceBanner wallets={wallets} />
       <div className="kgrid">
         <KTile label={t("ad.k.co")} value={fmt(k.companies)} p={pc(C)} series={s90(C)} />
         <KTile label={t("ad.k.tok")} value={fmt(k.tokens)} p={null} series={s90(C).map((x) => x * 2)} sub={t("ad.k.toksub")} />
@@ -133,8 +148,8 @@ function Overview({ stats, cos, onPick }: { stats: Async<Stats>; cos: Async<Comp
       </div>
       <div className="split">
         <div className="pane">
-          <div className="phead"><h4>{t("ad.pv")}</h4><Ranges label={t("ad.range")} opts={[["1M", 30], ["3M", 90], ["6M", 180], ["1Y", 365]]} value={range} onChange={setRange} /></div>
-          <div className="chartscroll"><StepArea labels={labels} vals={vals} pins={pins} fmtV={money} fmtX={(i) => (labels[i] ? dfmt.format(new Date(labels[i])) : "")} ariaLabel="Platform marked value over time" /></div>
+          <div className="phead"><h4>{t("ad.pv")}</h4><Ranges label={t("ad.range")} opts={[[t("ad.r.since"), -1], ["1M", 30], ["3M", 90], ["6M", 180], ["1Y", 365]]} value={range} onChange={setRange} /></div>
+          <div className="chartscroll"><StepArea labels={labels} vals={vals} pins={pins} fmtV={money} fmtX={(i) => (labels[i] ? dfmt.format(new Date(labels[i])) : "")} ariaLabel={`${t("ad.pv")}: ${labels.length ? dfmt.format(new Date(labels[0])) : ""} ${money(vals[0] ?? 0)} → ${money(vals[vals.length - 1] ?? 0)}`} showPinValues={pins.length <= 4} /></div>
           <p className="note">{t("ad.pvnote")}</p>
         </div>
         <div className="pane">
@@ -158,12 +173,17 @@ function Overview({ stats, cos, onPick }: { stats: Async<Stats>; cos: Async<Comp
           <h4>{t("ad.feed")}</h4>
           <div className="feed">
             {s.activity.slice(0, 12).map((a, i) => {
-              const col = a.kind === "issued" || a.kind === "anchored" ? "--gold-mark" : a.kind === "revalued" ? "--c3" : a.kind.startsWith("dividend") ? "--c5" : a.kind === "rejected" ? "--down" : "--up";
+              const done = resolvedAct.has(a);
+              const col = a.kind === "issued" || a.kind === "anchored" ? "--gold-mark" : a.kind === "revalued" ? "--c3" : a.kind.startsWith("dividend") ? "--c5" : a.kind === "rejected" || isSyncFailure(a.kind) ? "--down" : "--up";
               const lbl = t(("ev." + a.kind) as DictKey);
+              const known = !lbl.startsWith("ev.");
+              // the server text is English; keep it only where it carries numbers or an error
+              const keepText = !known || ["issued", "minted", "revalued", "dividend_created", "sync_failed", "sync_skipped"].includes(a.kind);
+              const extra = keepText && a.text && a.text.toLowerCase() !== lbl.toLowerCase() && a.text.toLowerCase() !== a.kind.replace(/_/g, " ") ? a.text : (!a.tx_hash && a.chain ? chainOf(a.chain).name : null);
               return (
-                <div key={i}>
+                <div key={i} className={done ? "resolved" : undefined}>
                   <i style={{ background: `var(${col})` }} />
-                  <span>{a.ticker ? <b className="mono">{a.ticker}</b> : null} · {lbl.startsWith("ev.") ? a.kind : lbl}{a.text && a.text.toLowerCase() !== lbl.toLowerCase() && a.text.toLowerCase() !== a.kind.replace(/_/g, " ") ? <span className="muted"> · {a.text}</span> : null}
+                  <span>{a.ticker ? <b className="mono">{a.ticker}</b> : null} · {known ? lbl : a.kind.replace(/_/g, " ")}{done ? <span className="resolvedtag">✓ {t("ev.resolved")}</span> : null}{extra ? <span className="muted" title={extra}> · {extra.length > 90 ? extra.slice(0, 90) + "…" : extra}</span> : null}
                     {a.tx_hash ? <> · <a className="mono" style={{ fontSize: ".74rem" }} href={chainOf(a.chain).txUrl(a.tx_hash)} target="_blank" rel="noopener noreferrer">{shortAddr(a.tx_hash)}</a></> : null}</span>
                   <em>{ago(a.at)}</em>
                 </div>
@@ -220,7 +240,7 @@ function IssueReview({ c, signer, onAct }: { c: ApprovalCompany; signer?: string
   );
 }
 
-function ApprovalsTab({ ap, signer, onChanged }: { ap: Async<Approvals>; signer?: string | null; onChanged: () => void }) {
+function ApprovalsTab({ ap, signer, onChanged, wallets }: { ap: Async<Approvals>; signer?: string | null; onChanged: () => void; wallets?: AdminWallets | null }) {
   const { t, fmt, money, date } = useI18n();
   const [open, setOpen] = useState<number | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; s: string } | null>(null);
@@ -238,6 +258,7 @@ function ApprovalsTab({ ap, signer, onChanged }: { ap: Async<Approvals>; signer?
   const empty = !a.valuations.length && !a.companies.length && !a.mints.length && !a.dividends.length;
   return (
     <div style={{ display: "grid", gap: 20 }} aria-busy={busy}>
+      <LowBalanceBanner wallets={wallets} />
       {msg && <p className={"banner " + (msg.ok ? "ok" : "bad")} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
       {empty && <p className="empty">{t("ap.empty")}</p>}
       {a.valuations.length > 0 && (
@@ -268,6 +289,7 @@ function ApprovalsTab({ ap, signer, onChanged }: { ap: Async<Approvals>; signer?
                 <span className="gatepill">{t("gate.admin")}</span>
               </div>
               <p className="note">{t("trk.approve")}: BlockID Chain → Ethereum Hoodi → HashKey Chain testnet</p>
+              <LowBalanceBanner wallets={wallets} compact />
               {c.error && <p className="banner bad">{c.error}</p>}
               {open === c.id ? <IssueReview c={c} signer={signer} onAct={(fn) => act(fn)} /> : null}
               <div className="row">
@@ -403,7 +425,8 @@ function CompanyDetailPane({ tk, row, onChanged }: { tk: string; row?: AdminComp
         <MarkPanel kpis ticker={c.ticker} name={c.name} grade={c.grade ?? "C"} svi={c.svi} marks={c.marks} events={c.events} valuation={c.valuation_aud} totalShares={c.total_shares} holders={c.cap_table?.length ?? c.holders ?? 0} />
       ) : null}
       {c && id != null && onchain && localToken && <Revalue c={{ id, ticker: c.ticker, total_shares: c.total_shares, valuation_aud: c.valuation_aud }} cur={c.mark_aud} onDone={() => { void d.reload(); onChanged(); }} />}
-      {c && <div className="pane"><h4>{t("c.ev")}</h4><EventList events={c.events ?? []} /></div>}
+      <CompanyAdminsPanel ticker={tk} onChanged={() => void d.reload()} />
+      {c && <div className="pane"><h4>{t("c.ev")}</h4><EventList events={c.events ?? []} sync={c.sync} /></div>}
     </div>
   );
 }
@@ -481,6 +504,7 @@ function WalletsTab() {
   const svc = [["ad.aw.issuer", w.data?.issuer], ["ad.aw.relayer", w.data?.relayer]] as const;
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <LowBalanceBanner wallets={w.data} />
       <div className="adminwallet">
         <span className="eyebrow" style={{ color: "var(--gold)" }}>{t("ad.aw.list")}</span>
         {w.error ? <ErrorBox error={w.error} retry={w.reload} /> : !w.data ? <span className="note">{t("common.loading")}</span> : (
@@ -494,6 +518,7 @@ function WalletsTab() {
                 {x?.address && <span className="note">{t("ad.aw.bal", { a: bal(x.local_balance), b: bal(x.hoodi_balance), c: bal((x as { hsk_balance?: unknown }).hsk_balance) })}</span>}
               </span>
             ))}
+            <span className="note">{t("lb.gas")}</span>
             <span className="note">{t("ad.awnote")}</span>
           </>
         )}
@@ -501,8 +526,8 @@ function WalletsTab() {
       <div className="pane">
         <div className="phead"><h4>{t("ad.iw")}</h4><span className="note mono">ISSUER_ROLE</span></div>
         <form className="addform" onSubmit={add} noValidate>
-          <input className="mono" placeholder="0x… wallet address" aria-label="Wallet address" value={addr} onChange={(e) => setAddr(e.target.value.trim())} spellCheck={false} />
-          <input placeholder="Label" aria-label="Label" value={label} onChange={(e) => setLabel(e.target.value)} />
+          <input className="mono" placeholder="0x… wallet address" aria-label={t("t.wallet")} value={addr} onChange={(e) => setAddr(e.target.value.trim())} spellCheck={false} />
+          <input placeholder={t("ad.w.label")} aria-label={t("ad.w.label")} value={label} onChange={(e) => setLabel(e.target.value)} />
           <button className="btn sm" type="submit">{t("ad.grant")}</button>
         </form>
         <p className="err" role="alert">{err || msg}</p>
@@ -574,7 +599,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const stats = useAsync(() => api.stats(), [], POLL);
   const cos = useAsync(() => api.companies(), [], POLL);
   const ap = useAsync(() => api.approvals(), [], POLL);
-  const wallets = useAsync(() => api.adminWallets(), []);
+  const wallets = useAsync(() => api.adminWallets(), [], 60000);
   const [updated, setUpdated] = useState(Date.now());
   useEffect(() => { if (stats.data) setUpdated(Date.now()); }, [stats.data]);
   useEffect(() => { if (pwRequired(ap.error) || pwRequired(wallets.error)) onPwRequired(); }, [ap.error, wallets.error, onPwRequired]);
@@ -593,7 +618,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
           {stats.data?.block ? <span className="mono muted">#{fmt(stats.data.block)}</span> : null}
         </span>
       </div>
-      <div className="atabs" role="tablist" aria-label="Admin sections">
+      <div className="atabs" role="tablist" aria-label={t("ad.eyebrow")}>
         {tabs.map(([k, l]) => (
           <button key={k} type="button" role="tab" id={"tab-" + k} aria-controls={"panel-" + k} aria-selected={tab === k} onClick={() => setTab(k)}>
             {t(l)}{k === "ap" && nAp > 0 ? <span className="badge-n" aria-label={`${nAp}`}>{nAp}</span> : null}
@@ -603,8 +628,8 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
       </div>
       <div role="tabpanel" id={"panel-" + tab} aria-labelledby={"tab-" + tab}>
         {tab === "tr" && <TransfersTab onChanged={refreshAll} />}
-        {tab === "ov" && <Overview stats={stats} cos={cos} onPick={(tk) => { setSel(tk); setTab("co"); }} />}
-        {tab === "ap" && <ApprovalsTab ap={ap} signer={wallets.data?.issuer?.address} onChanged={refreshAll} />}
+        {tab === "ov" && <Overview stats={stats} cos={cos} wallets={wallets.data} onPick={(tk) => { setSel(tk); setTab("co"); }} />}
+        {tab === "ap" && <ApprovalsTab ap={ap} wallets={wallets.data} signer={wallets.data?.issuer?.address} onChanged={refreshAll} />}
         {tab === "co" && <CompaniesTab sel={sel} setSel={setSel} onChanged={refreshAll} />}
         {tab === "wa" && <WalletsTab />}
         {tab === "au" && <AuditTab />}
@@ -617,9 +642,14 @@ export default function AdminPage() {
   const { t } = useI18n();
   const { me, loading, refresh, setMe } = useAuth();
   const [needPw, setNeedPw] = useState(false);
+  const [params] = useSearchParams();
+  const nav = useNavigate();
+  const next = safeNext(params.get("next"));
   useTitle(t("ad.eyebrow"));
   const isAdmin = me?.role === "admin";
   const mustChange = isAdmin && (me?.must_change || needPw);
+  // back to the page that sent the judge here (e.g. /c/DPT) once signed in as admin
+  useEffect(() => { if (!loading && isAdmin && !mustChange && next) nav(next, { replace: true }); }, [loading, isAdmin, mustChange, next, nav]);
   return (
     <section className="block admin-band" style={{ borderTop: 0, paddingTop: 40, minHeight: "70vh" }}>
       <div className="wrap">
@@ -628,7 +658,7 @@ export default function AdminPage() {
           <h2>{t("ad.h2")}</h2>
           <p>{t("ad.p")}</p>
         </div>
-        {loading ? <p className="note">{t("common.loading")}</p> : !isAdmin ? <LoginCard /> : mustChange ? (
+        {loading ? <p className="note">{t("common.loading")}</p> : !isAdmin ? <LoginCard next={next} /> : mustChange ? (
           <ChangePassword onDone={async () => { setNeedPw(false); const m = await refresh(); if (m) setMe({ ...m, must_change: false }); }} />
         ) : (
           <Console onPwRequired={() => setNeedPw(true)} />

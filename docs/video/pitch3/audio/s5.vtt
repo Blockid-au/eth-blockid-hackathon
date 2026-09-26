@@ -1,0 +1,16 @@
+1
+00:00:00,050 --> 00:00:02,133
+Then, one approval.
+
+2
+00:00:02,133 --> 00:00:11,859
+The isolated issuer creates the share register on our zero-gas BlockID chain: an identity registry, KYC for every holder, and the shares themselves.
+
+3
+00:00:11,859 --> 00:00:17,263
+It then mirrors the register, with a Merkle root, to Ethereum Hoodi and HashKey Chain.
+
+4
+00:00:17,263 --> 00:00:23,161
+The founder watches every step live, and shareholders add the token to MetaMask on any chain.
+

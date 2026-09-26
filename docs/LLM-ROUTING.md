@@ -21,6 +21,32 @@ Web search: Brave first, then the same bridge's `POST /search` (Claude Haiku + W
 web-search tool, so it is not a search provider; it does all the LLM work around search (competitor lists and
 relevance, funding claims, cited market analysis).
 
+Search budget: ≤3 searches per valuation (`SEARCH_MAX_QUERIES`): competitors, market, company financials.
+
+| # | Step | Query |
+|---|---|---|
+| 1 | competitors | `<company> competitors alternatives <country>` |
+| 2 | market | `<sector> market size growth <country> <year>` (Brave freshness: past year) |
+| 3 | market | `<company> revenue ARR funding valuation <year>` — top 2 pages fetched, the next 4 results kept as snippets |
+
+After the market analysis, one more call on the same chain (`CompanyFinancials`, research agent) reads the
+search-result pages (page start + passages around revenue/ARR/valuation/funding terms + the search snippet) and
+returns `company_financials` (revenue_ttm, currency, revenue_year, revenue_type revenue/ARR/GMV,
+funding_raised_total, last_valuation, source_url, quote). Code keeps a figure only if
+the quote appears verbatim in that page or its search snippet, states that number, and the page names the company;
+amounts are converted with the fixed `config.FX_TO_AUD` table (USD 1.50, EUR 1.65, GBP 1.95, SGD 1.15, VND 0.00006;
+`FX_TO_AUD_AS_OF`), rate recorded. Only revenue/ARR (≤3 years old) can feed the SVI, and only when the website and
+the founder gave no revenue (`profile.metrics_sources.revenue_ttm_aud = cited_source`, with a warning).
+
+Valuation range (`tools/svi.py`, first rule that applies, then × SVI factor):
+1. revenue > 0 and the verified company financials state both revenue and last valuation → implied multiple
+   = last valuation ÷ revenue ("implied multiple from cited last round: 11.0x"), low/high 0.7×/1.4× of it; ignored
+   outside 0.5×–40×;
+2. revenue > 0 and a multiple stated in the market or company results → that multiple (single → 0.7×–1.4×);
+3. revenue > 0 otherwise → `config.DEFAULT_REVENUE_MULTIPLES` (default 2.0/3.5/6.0×, SaaS/fintech/payments
+   3/6/10×) — uncalibrated default, see ROADMAP calibration; review item "multiple is a default, not cited";
+4. revenue = 0 → stage benchmark range.
+
 ## Benchmark (2026-09-26)
 
 Task: the real `QualitativeScores` call from `agents/valuation.py` on three stored valuations (SafetyCulture,

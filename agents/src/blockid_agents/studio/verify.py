@@ -16,6 +16,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from ..schemas import MarketAnalysis
 from ..tools import svi as svi_tools
 from .report_hash import canonical_json, canonical_report, report_hash, report_view_from_row
 
@@ -84,28 +85,60 @@ def recompute(report: dict) -> dict:
     profile = (report or {}).get("profile") or {}
     rev = _num((profile.get("metrics") or {}).get("revenue_ttm_aud"))
     market = (report or {}).get("market") or {}
+    stage = profile.get("stage") if profile.get("stage") in svi_tools.STAGE_PRE_REVENUE_RANGE else "seed"
+
+    # Reports keep the formula version they were valued with; try the current rules first, then the
+    # earlier ones, and say which version reproduces the stored numbers.
+    candidates = [("v2", _range_v2(rev, factor, market, stage, profile.get("sector") or "")),
+                  ("v1b", _range_v1(rev, factor, market, stage, spread=True)),
+                  ("v1", _range_v1(rev, factor, market, stage, spread=False))]
+
+    def matches(lmh):
+        low, mid, high = (round(x, -3) for x in lmh[:3])
+        return {
+            "low": s.get("valuation_low_aud") is not None and abs(_num(s.get("valuation_low_aud")) - low) < 0.5,
+            "mid": s.get("valuation_mid_aud") is not None and abs(_num(s.get("valuation_mid_aud")) - mid) < 0.5,
+            "high": s.get("valuation_high_aud") is not None and abs(_num(s.get("valuation_high_aud")) - high) < 0.5,
+        }
+
+    version, (low, mid, high, method) = candidates[0][0], candidates[0][1]
+    for v, cand in candidates:
+        if all(matches(cand).values()):
+            version, (low, mid, high, method) = v, cand
+            break
+    out = {"index": index, "band": svi_tools.band(index), "factor": round(factor, 4),
+           "low": round(low, -3), "mid": round(mid, -3), "high": round(high, -3),
+           "method": method, "formula_version": version, "current_formula": svi_tools.FORMULA_VERSION,
+           "contributions": contributions}
+    out["matches_report"] = {
+        "index": s.get("index") is not None and abs(_num(s.get("index")) - index) < 0.005,
+        "band": s.get("band") == out["band"],
+        **matches((low, mid, high)),
+    }
+    return out
+
+
+def _range_v2(rev, factor, market: dict, stage, sector):
+    try:
+        m = MarketAnalysis.model_validate(market) if market else None
+    except Exception:  # noqa: BLE001 - older reports may not fit the current schema
+        m = None
+    low, mid, high, method, _ = svi_tools.valuation_range(rev, factor, m, stage, sector)
+    return low, mid, high, method
+
+
+def _range_v1(rev, factor, market: dict, stage, spread: bool):
+    """Earlier rules: cited multiple (optionally the 0.7x-1.4x single-multiple spread), else stage range."""
     med = _num(market.get("revenue_multiple_median"))
     if rev > 0 and med:
         lo_m = _num(market.get("revenue_multiple_low")) or med * 0.6
         hi_m = _num(market.get("revenue_multiple_high")) or med * 1.5
-        low, mid, high = rev * lo_m * factor, rev * med * factor, rev * hi_m * factor
-        method = f"revenue multiple ({lo_m:.1f}x / {med:.1f}x / {hi_m:.1f}x) x SVI factor {factor:.2f}"
-    else:
-        stage = profile.get("stage") if profile.get("stage") in svi_tools.STAGE_PRE_REVENUE_RANGE else "seed"
-        b_low, b_mid, b_high = svi_tools.STAGE_PRE_REVENUE_RANGE[stage]
-        low, mid, high = b_low * factor, b_mid * factor, b_high * factor
-        method = f"stage benchmark range ({stage}) x SVI factor {factor:.2f}"
-    out = {"index": index, "band": svi_tools.band(index), "factor": round(factor, 4),
-           "low": round(low, -3), "mid": round(mid, -3), "high": round(high, -3),
-           "method": method, "contributions": contributions}
-    out["matches_report"] = {
-        "index": s.get("index") is not None and abs(_num(s.get("index")) - index) < 0.005,
-        "band": s.get("band") == out["band"],
-        "low": s.get("valuation_low_aud") is not None and abs(_num(s.get("valuation_low_aud")) - out["low"]) < 0.5,
-        "mid": s.get("valuation_mid_aud") is not None and abs(_num(s.get("valuation_mid_aud")) - out["mid"]) < 0.5,
-        "high": s.get("valuation_high_aud") is not None and abs(_num(s.get("valuation_high_aud")) - out["high"]) < 0.5,
-    }
-    return out
+        if spread and (lo_m >= med * 0.95 or hi_m <= med * 1.05):
+            lo_m, hi_m = min(lo_m, med * 0.7), max(hi_m, med * 1.4)
+        return (rev * lo_m * factor, rev * med * factor, rev * hi_m * factor,
+                f"revenue multiple ({lo_m:.1f}x / {med:.1f}x / {hi_m:.1f}x) x SVI factor {factor:.2f}")
+    b_low, b_mid, b_high = svi_tools.STAGE_PRE_REVENUE_RANGE[stage]
+    return b_low * factor, b_mid * factor, b_high * factor, f"stage benchmark range ({stage}) x SVI factor {factor:.2f}"
 
 
 def _rpc(chain: str, settings) -> str:

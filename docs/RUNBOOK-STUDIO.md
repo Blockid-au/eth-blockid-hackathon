@@ -1,6 +1,6 @@
-# Runbook: BlockID Issuance Studio (single host, eth.blockid.au)
+# Runbook: BlockID Startup Passport (single host, eth.blockid.au)
 
-Spec: [IMPLEMENTATION.md](IMPLEMENTATION.md). Testnet only.
+The live deployment (platform codename: Issuance Studio). Spec: [IMPLEMENTATION.md](IMPLEMENTATION.md) · facts: [FACTS.md](FACTS.md). Testnet only.
 
 ## What runs where
 
@@ -19,20 +19,23 @@ Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid
 
 ## Secrets and keys
 
-- `/opt/blockid/app.env` (root, 600): DB, API keys (DeepInfra, Brave), admin hash, session secret, issuer token, contract addresses.
+- `/opt/blockid/app.env` (root, 600): DB, API keys (SambaNova, DeepInfra, Brave), LLM/search chain, bridge URL + token, admin wallets + hash, session secret, RPC URLs, contract addresses.
   Values containing `$` (the bcrypt hash) must be single-quoted.
+- `/opt/blockid/issuer.env`: `ISSUER_INTERNAL_TOKEN`, loaded only by `agents-api` and `issuer` (never the worker).
+- `/opt/blockid/search-bridge.env`: token and daily caps for the host Claude bridge (`claude-search-bridge.service`).
+- `/opt/blockid/blockscout.env`: Blockscout compose env.
 - Keystores (encrypted, Foundry format): `~/.foundry/keystores/blockid-{deployer,relayer,admin}`, passwords in `~/.blockid/*.password` (600).
   Copies for the issuer: `/opt/blockid/keys` (owned by uid 10001, read-only mount).
 - Wallets: issuer/deployer `0x2567…5ddf`, relayer `0x1B43…DA4a`, server admin `0xC400…a21F`, owner admin (MetaMask) `0xc309…4585`, project admin `0x02B1…1E2F`. Admin list = `ADMIN_WALLETS` in app.env (restart agents-api after editing).
 - Admin login: SIWE wallet in `ADMIN_WALLETS`, or the username/password configured via `ADMIN_PASSWORD_HASH` (change it with `POST /api/v1/auth/change-password`).
-- Platform contracts: CapTableAnchor (Hoodi) `0xF3dC95D5d207dE9f2aC98184Fd32b45B72334263`, DemoAUD (BlockID) `0x286C1eD22A741F4939A3C7637011B0fAE2C7FFBc`.
+- Platform contracts: CapTableAnchor (Hoodi) `0xF3dC95D5d207dE9f2aC98184Fd32b45B72334263`, CapTableAnchor (HashKey) `0x728c834DE493DC3e9Ae2f7C0e79d86701B6F9F04`, AgentProvenance (HashKey) `0x6B96bcE8937e1416Ec1DAC4ADAdD71FE879F8e84`, DemoAUD (BlockID) `0x286C1eD22A741F4939A3C7637011B0fAE2C7FFBc`.
 
 ## Common tasks
 
 | Task | Command |
 |---|---|
 | Rebuild + restart backend | `sudo docker compose --env-file /opt/blockid/app.env build agents-api agents-worker issuer && sudo docker compose --env-file /opt/blockid/app.env up -d --no-build agents-api agents-worker issuer` |
-| Build web app | `sudo docker run --rm --user $(id -u):$(id -g) -e HOME=/tmp -v ~/blockid-eth-platform/web:/w -w /w/app node:20 npm run build` |
+| Build web app | `scripts/build-web.sh` (typecheck + build in node:20, keeps old hashed assets so open tabs keep working, swaps `index.html` atomically) |
 | Backend tests | `cd agents && .venv/bin/python -m pytest -q` (Postgres flows need `TEST_DATABASE_URL`) |
 | Contract tests | `cd contracts && ~/.foundry/bin/forge test` |
 | Issuer health | `curl -s https://eth.blockid.au/api/v1/admin/wallets` with an admin session |
@@ -58,7 +61,7 @@ Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid
 | Symptom | Cause / fix |
 |---|---|
 | Valuation shows "Search unavailable" warning | Brave quota exhausted or key missing; competitors come from the model and are verified by fetching their sites |
-| Company stuck `issuing`/`anchoring` | `logs issuer`; the status turns `failed` with `companies.error` on any revert; admin can retry from Approvals |
+| Company stuck `issuing`/`anchoring` | `logs issuer`; a BlockID revert turns the status `failed` (retry = approve-issue again); a Hoodi/HSK failure leaves `partially_anchored` with the chain error (usually gas: top up the issuer), then **Re-sync** (approve-anchor) re-runs only that chain |
 | Approve returns 502 | issuer container down: `up -d issuer` |
 | Admin endpoints 403 "password change required" | `must_change` is true for the admin account |
 | Blockscout lags | `logs backend` in `deploy/blockscout`; it indexes from genesis and catches up in minutes |

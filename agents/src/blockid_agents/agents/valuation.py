@@ -4,11 +4,18 @@ LLM suggests the 5 qualitative dimension scores (flagged ai_suggested) from a RE
 (no personal names) plus cited market evidence; code computes the revenue & growth dimensions,
 the index and the valuation range. A human confirms or overrides the AI-suggested scores at the
 approval gate, after which the index is recomputed with basis="human".
+
+Revenue precedence (profile.metrics_sources records which one was used):
+self_reported (founder-typed) > website (stated on the company's own site) > cited_source (the company's own
+revenue/ARR stated verbatim on a third-party page found by the company-financials search, see agents/research).
+A cited figure is used only when the profile has no revenue and none was self-reported, and always carries a
+warning; funding raised and last valuation found there are shown in the report but never enter the formula.
 """
 from __future__ import annotations
 
 from ..deps import Deps
 from ..schemas import (
+    CompanyFinancials,
     DimensionScore,
     MarketAnalysis,
     Narrative,
@@ -41,6 +48,38 @@ def redact(p: StartupProfile) -> dict:
     return d
 
 
+def cited_warning(cf: CompanyFinancials) -> str:
+    what = f"{cf.revenue_type or 'revenue'}{f' {cf.revenue_year}' if cf.revenue_year else ''}"
+    return (f"Revenue from a third-party source found by web search (not the founder or the company's crawled "
+            f"pages), not independently verified: A${cf.revenue_ttm_aud:,.0f} ({what}, "
+            f"{cf.currency} at {cf.fx_rate_to_aud} AUD, FX {cf.fx_as_of}) cited from {cf.source_url}")
+
+
+def apply_cited_revenue(profile: StartupProfile, market: MarketAnalysis | None,
+                        self_reported: list[str]) -> tuple[dict | None, list[str]]:
+    """Fill revenue_ttm_aud from verified company financials when neither the founder nor the website gave one.
+    Mutates `profile` (metrics + metrics_sources). Returns ({source_url, quote} or None, warnings)."""
+    cf = market.company_financials if market else None
+    src = profile.metrics_sources
+    if "revenue_ttm_aud" in self_reported:
+        src["revenue_ttm_aud"] = "self_reported"
+        return None, []
+    if profile.metrics.revenue_ttm_aud > 0 and src.get("revenue_ttm_aud") != "cited_source":
+        src.setdefault("revenue_ttm_aud", "website")
+        return None, []
+    if cf is None or not cf.usable_for_valuation or not cf.revenue_ttm_aud:
+        if src.get("revenue_ttm_aud") == "cited_source":  # stale label without its source: undo
+            profile.metrics.revenue_ttm_aud = 0
+            src.pop("revenue_ttm_aud")
+        warn = []
+        if cf is not None and cf.revenue_ttm_aud and cf.revenue_type == "GMV":
+            warn.append(f"Transaction volume (GMV) found at {cf.source_url} is not revenue and was not used")
+        return None, warn
+    profile.metrics.revenue_ttm_aud = cf.revenue_ttm_aud
+    src["revenue_ttm_aud"] = "cited_source"
+    return {"source_url": cf.source_url, "quote": cf.quote}, [cited_warning(cf)]
+
+
 def score(state: dict, deps: Deps) -> dict:
     """AI-suggested qualitative scores + deterministic SVI maths (no narrative yet)."""
     profile = StartupProfile.model_validate(state["profile"])
@@ -48,7 +87,10 @@ def score(state: dict, deps: Deps) -> dict:
     tier = deps.settings.svi_tier  # SVI_TIER=cloud -> Claude CLI / DeepInfra; input is redacted either way
 
     sr = self_reported_metric_fields(state.get("self_reported"))
+    cited, warns = apply_cited_revenue(profile, market, sr)
     note = f"\n\nSELF-REPORTED (founder-provided, NOT verified) metrics: {', '.join(sr)}" if sr else ""
+    if cited:
+        note += f"\n\nrevenue_ttm_aud comes from a CITED THIRD-PARTY source ({cited['source_url']}), not the company"
     user = (f"<data>\nPROFILE: {redact(profile)}\n\nMARKET: {market.model_dump() if market else 'no market data'}"
             f"{note}\n</data>")
     q = deps.ask(AGENT, tier, SYSTEM_SCORES, user, QualitativeScores)
@@ -56,8 +98,12 @@ def score(state: dict, deps: Deps) -> dict:
         getattr(q, name).basis = "ai_suggested"
 
     deps.tool(AGENT, "svi_score", company=profile.company_name)
-    result = svi.score(profile, q, market, sr)
-    return {"svi": result.model_dump(), "qualitative": q.model_dump(), "status": "scored"}
+    result = svi.score(profile, q, market, sr, cited)
+    out = {"svi": result.model_dump(), "qualitative": q.model_dump(), "status": "scored",
+           "profile": profile.model_dump()}
+    if warns:
+        out["warnings"] = list(dict.fromkeys([*(state.get("warnings") or []), *warns]))
+    return out
 
 
 def narrate(state: dict, deps: Deps) -> dict:
@@ -87,7 +133,9 @@ def apply_overrides(state: dict, overrides: dict[str, float], reviewer: str, dep
         else:
             d.rationale = f"{d.rationale} [confirmed by {reviewer}]"
         d.basis = "human"
-    result: SVIResult = svi.score(profile, q, market, self_reported_metric_fields(state.get("self_reported")))
+    sr = self_reported_metric_fields(state.get("self_reported"))
+    cited, _ = apply_cited_revenue(profile, market, sr)
+    result: SVIResult = svi.score(profile, q, market, sr, cited)
     result.narrative = state["svi"].get("narrative", "")
     deps.audit.record("human", "valuation_approved", reviewer=reviewer, overrides=overrides, sha256=result.report_sha256)
     return {"svi": result.model_dump(), "qualitative": q.model_dump()}

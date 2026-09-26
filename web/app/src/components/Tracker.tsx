@@ -6,6 +6,8 @@ import { useNow } from "../lib/hooks";
 import { CHAINS, chainOf, shortAddr, type ChainInfo } from "../wallet";
 import type { DictKey } from "../dict";
 import { EventList } from "../pages/Company";
+import { DemoApproveGuide } from "./DemoGuide";
+import { LowBalanceInline } from "./LowBalance";
 
 type St = SyncState | "rejected";
 interface Sub { label: string; done: boolean; tx?: string | null; chain?: ChainInfo }
@@ -117,7 +119,7 @@ export function Tracker({ c, onChanged }: { c: CompanyDetail; onChanged: () => v
         <div><h4 style={{ margin: 0 }}>{t("trk.h")}</h4><p className="note" style={{ margin: 0 }}>{t("trk.p")}</p></div>
         {showElapsed && <span className="muted-sm">{t("trk.elapsed")}: <b className="num">{elapsed(end - start)}</b></span>}
       </div>
-      <p className="trk-now" aria-live="polite" role="status">
+      <p className="trk-now" aria-live="polite" aria-atomic="true" role="status">
         {(status === "issuing" || status === "anchoring") && <span className="spinner" aria-hidden="true" />}
         <b>{t("trk.now")}:</b> {nowLine}
       </p>
@@ -142,6 +144,8 @@ export function Tracker({ c, onChanged }: { c: CompanyDetail; onChanged: () => v
                 </ul>
               )}
               {s.error && (s.state === "failed" || s.state === "skipped" || s.state === "rejected") && <p className="banner bad" role="alert" style={{ margin: "6px 0 0" }}>{s.error}</p>}
+              {!admin && s.action === "approve" && <DemoApproveGuide action={t("trk.approve")} tail="demo.tail.issue" next={`/c/${c.ticker}`} />}
+              {admin && s.action && c.id != null && s.action !== "retry-issue" && <LowBalanceInline />}
               {admin && s.action && c.id != null && (
                 <button className={"btn sm " + (s.action === "approve" ? "gold" : "ghost")} type="button" disabled={busy} onClick={() => act(s.action)} style={{ marginTop: 6 }}>{actLabel(s.action)}</button>
               )}
@@ -153,7 +157,7 @@ export function Tracker({ c, onChanged }: { c: CompanyDetail; onChanged: () => v
       {events.length > 0 && (
         <details open={status !== "anchored"}>
           <summary className="muted-sm">{t("trk.feed")} · {fmt(Math.min(events.length, 8))}</summary>
-          <EventList events={events.slice(0, 8)} />
+          <EventList events={events.slice(0, 8)} sync={c.sync} />
         </details>
       )}
     </div>
@@ -168,7 +172,7 @@ export function SyncChips({ sync }: { sync?: SyncInfo | null }) {
   return (
     <span className="row" style={{ gap: 4, flexWrap: "wrap" }} aria-label={t("ad.sync")}>
       {items.map(([n, s]) => (
-        <span key={n} className={"pill" + (s === "done" ? " ok" : s === "failed" || s === "skipped" ? " bad" : s === "running" ? " gold" : "")} title={(sync.errors as Record<string, string> | undefined)?.[n === "BlockID" ? "blockid" : n.toLowerCase()] ?? t(("trk.st." + s) as DictKey)}>
+        <span key={n} aria-label={`${n}: ${t(("trk.st." + s) as DictKey)}`} className={"pill" + (s === "done" ? " ok" : s === "failed" || s === "skipped" ? " bad" : s === "running" ? " gold" : "")} title={(sync.errors as Record<string, string> | undefined)?.[n === "BlockID" ? "blockid" : n.toLowerCase()] ?? t(("trk.st." + s) as DictKey)}>
           {s === "running" ? "⟳ " : s === "done" ? "✓ " : s === "failed" || s === "skipped" ? "✗ " : "· "}{n}
         </span>
       ))}

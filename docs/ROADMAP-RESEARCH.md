@@ -72,4 +72,4 @@ Key research facts that shape the plan:
 - **Ecosystem gaps on HSK:** no EAS and no confirmed 4337 infrastructure. Design for Safe/Zodiac first, keep 4337 on Ethereum, and verify HSK support before promising it.
 - **Vendor churn:** Defender is gone and promptfoo/Langfuse were acquired. Prefer self-hostable, open-source tools.
 - **Human-approval fatigue:** four-eyes only works if approvers actually review. Measure time-to-approve and override rate, and red-team persuasive agent output.
-- **Doc drift:** `ARCHITECTURE.md` still shows Sepolia and Safe-owned admin, which does not match the live Hoodi/hot-key setup. Fix it before external review.
+- **Doc drift:** fixed on 26 Sep 2026 — `ARCHITECTURE.md` now describes the live Hoodi/HashKey, hot-key setup (the earlier Sepolia/Safe design is an appendix). Keep [FACTS.md](FACTS.md) as the single source of truth so docs, app copy and decks do not drift again.

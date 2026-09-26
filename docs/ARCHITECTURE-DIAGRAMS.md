@@ -244,7 +244,7 @@ flowchart LR
   idx --> band["grade band<br/>A ≥ 80 · B ≥ 65 · C ≥ 50 · D ≥ 35 · E &lt; 35"]
   idx --> fac["factor = 0.5 + index / 100"]
   fac --> val{"revenue &gt; 0 and cited<br/>median revenue multiple?"}
-  val -->|yes| rm["low / mid / high = revenue × (multiple_low | median | multiple_high) × factor<br/>(low defaults to 0.6 × median, high to 1.5 × median)"]
+  val -->|yes| rm["low / mid / high = revenue × (multiple_low | median | multiple_high) × factor<br/>(low defaults to 0.6 × median, high to 1.5 × median;<br/>single cited multiple → spread 0.7× – 1.4× of it)"]
   val -->|no| st["low / mid / high = stage benchmark range × factor<br/>(idea, pre-seed, seed, series-a, growth)"]
   rm & st --> round["rounded to nearest A$1,000<br/>total_shares = mid / A$1.00"]
   human(["Admin override"]) -. "replaces ai_suggested score,<br/>basis = human" .-> llm
@@ -806,15 +806,12 @@ Rendered: [SVG](diagrams/12-chain-sync-states.svg) · [PNG](diagrams/12-chain-sy
 
 ---
 
-### Where the older docs differ from the code
+### Consistency with the other docs
 
-- `docs/IMPLEMENTATION.md` describes a separate `approve-anchor` gate for Hoodi and `anchorValuation(keccak(valuation id))`.
-  The current code runs Hoodi and HSK automatically after the single `approve-issue`, and anchors
-  `keccak256(canonical report JSON)`. `approve-anchor` is now only a retry / re-sync.
-- `docs/ARCHITECTURE.md` (§1) shows the earlier two-VM design (Caddy, GPU VM, Sepolia). The live system is the
-  single VM shown in diagram 2, with Ethereum Hoodi.
-- `docs/RUNBOOK-STUDIO.md` mentions "DeepInfra + Brave" for the worker. The live LLM chain is SambaNova → Claude
-  bridge → DeepInfra, and search is Brave → Claude bridge (see diagram 3c and `docs/LLM-ROUTING.md`).
+As of 26 Sep 2026 [ARCHITECTURE.md](ARCHITECTURE.md), [IMPLEMENTATION.md](IMPLEMENTATION.md),
+[AGENTS.md](AGENTS.md) and [RUNBOOK-STUDIO.md](RUNBOOK-STUDIO.md) match these diagrams (one issuance approval,
+`approve-anchor` = re-sync, keccak256 of the canonical report JSON, LLM chain SambaNova → Claude bridge → DeepInfra).
+The earlier two-VM GCP design is kept only as an appendix in ARCHITECTURE.md. Canonical facts: [FACTS.md](FACTS.md).
 
 ### Re-rendering
 

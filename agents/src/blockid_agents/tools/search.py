@@ -11,7 +11,8 @@ Results are normal web results (title, url, description, query) and are stored a
 A provider that refuses service (429 / 5xx / timeout / network / bad token) is skipped for UNAVAILABLE_S.
 
 Budget: every valuation runs at most SEARCH_MAX_QUERIES queries in total (default 3), and only the three
-essential queries below — the competitor step runs (1), the market step (2) and (3). Each attempt is recorded in
+essential queries below — the competitor step runs (1) competitors, the market step (2) market size/growth and
+(3) the company's own reported financials (revenue / ARR / funding / valuation). Each attempt is recorded in
 the graph state (``searches``) so the budget holds across steps and checkpoint resumes.
 """
 from __future__ import annotations
@@ -168,7 +169,7 @@ def essential_queries(p: StartupProfile, year: int, company: str | None = None) 
     qs = {
         "competitors": f"{name} competitors alternatives {country}",
         "market": f"{sector} market size growth {country} {year}",
-        "valuation": f"{sector} startup funding valuation revenue multiple {country} {year}",
+        "company": f"{name} revenue ARR funding valuation {year}",
     }
     return {k: sanitize_query(v)[:200] for k, v in qs.items()}
 
@@ -208,14 +209,16 @@ def summary(searches: list[dict] | None, max_queries: int) -> str:
 
 def store_result(deps, agent: str, r: dict, query: str, subject: str, fetch) -> str:
     """Fetch one result page and store it as evidence. When the fetch fails the search snippet is stored instead
-    (kind "search_snippet"), so a finding may still cite that URL — the snippet is the content we actually have."""
-    deps.tool(agent, "fetch_url", url=r["url"])
-    kind = "web"
-    try:
-        text = fetch(r["url"])
-    except Exception as e:  # noqa: BLE001
-        deps.audit.record(agent, "fetch_error", url=r["url"], error=str(e)[:300])
-        text = ""
+    (kind "search_snippet"), so a finding may still cite that URL — the snippet is the content we actually have.
+    fetch=None stores the snippet without fetching the page."""
+    kind, text = "web", ""
+    if fetch is not None:
+        deps.tool(agent, "fetch_url", url=r["url"])
+        try:
+            text = fetch(r["url"])
+        except Exception as e:  # noqa: BLE001
+            deps.audit.record(agent, "fetch_error", url=r["url"], error=str(e)[:300])
+            text = ""
     if not (text or "").strip():
         text, kind = r.get("description", ""), "search_snippet"
         if not text.strip():

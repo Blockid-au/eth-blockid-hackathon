@@ -10,7 +10,7 @@
    model suggests more, each kept only if its fetched homepage is that brand and on-topic.
 4. Funding: the model may report an amount ONLY with the source URL and a verbatim quote from a page fetched in
    this step (search result pages or homepages). Code checks both; otherwise raised_aud stays null.
-   Currency -> AUD uses fixed indicative rates (FX_TO_AUD) so the result is reproducible.
+   Currency -> AUD uses the fixed indicative rates in config.FX_TO_AUD so the result is reproducible.
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ import re
 import time
 from urllib.parse import urlparse
 
+from ..config import FX_TO_AUD, fx_to_aud  # noqa: F401 (FX_TO_AUD re-exported)
 from ..deps import Deps
 from ..schemas import Competitor, CompetitorList, EvidenceItem, FundingClaims, RelevanceVerdicts, StartupProfile
 from ..tools.brave import fetch_page
@@ -27,11 +28,6 @@ from ..tools.search import COUNTRY_NAMES, budgeted_search, essential_queries, st
 AGENT = "competitor_discovery"
 MAX_COMPETITORS = 9
 
-FX_TO_AUD = {  # indicative, fixed for reproducibility (update deliberately, not per run)
-    "AUD": 1.0, "USD": 1.52, "EUR": 1.65, "GBP": 1.95, "NZD": 0.91, "SGD": 1.16, "CAD": 1.10, "HKD": 0.195,
-    "JPY": 0.0102, "CNY": 0.21, "INR": 0.018, "CHF": 1.75, "SEK": 0.15, "VND": 0.000058, "KRW": 0.0011,
-    "IDR": 0.000095, "ILS": 0.41,
-}
 SYSTEM_LIST = """You identify direct competitors of a startup from web search evidence.
 Rules:
 - Return at most 9 companies that sell a similar product to a similar customer. Prefer companies explicitly
@@ -62,6 +58,12 @@ def domain(url: str) -> str:
 
 def _norm(s: str) -> str:
     return " ".join(re.sub(r"[‘’“”]", "'", s).lower().split())
+
+
+def quote_in(quote: str, text: str, min_len: int = 6) -> bool:
+    """The claimed verbatim quote really appears in the page text (whitespace / quote marks / case normalised)."""
+    q = _norm(quote or "")
+    return len(q) >= min_len and q in _norm(text or "")
 
 
 def comp_subject(vid: str) -> str:
@@ -115,9 +117,8 @@ def _funding(deps: Deps, comps: list[Competitor], per: dict[str, dict[str, str]]
     best: dict[str, float] = {}
     for cl in claims.items:
         text = (per.get(cl.name) or {}).get(cl.source_url)
-        rate = FX_TO_AUD.get(cl.currency.upper().strip())
-        quote = _norm(cl.quote)
-        if text is None or rate is None or cl.amount <= 0 or len(quote) < 6 or quote not in _norm(text):
+        rate = fx_to_aud(cl.currency)
+        if text is None or rate is None or cl.amount <= 0 or not quote_in(cl.quote, text):
             deps.audit.record(AGENT, "funding_claim_dropped", competitor=cl.name, url=cl.source_url)
             continue
         best[cl.name] = max(best.get(cl.name, 0), round(cl.amount * rate, -3))

@@ -142,9 +142,12 @@ function Proposal({ p, contract }: { p: HskProposal; contract?: string }) {
 }
 
 function Dividends({ d }: { d: HskDemo }) {
-  const { t, fmt, date } = useI18n();
+  const { t, date, locale } = useI18n();
   const holders = Array.isArray(d.holders) ? d.holders : [];
-  const num = (v: unknown) => (typeof v === "number" || (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) ? fmt(Number(v)) : "–");
+  // payout token is DemoAUD (mAUD, 6 decimals): show whole mAUD, keep the raw base units in the tooltip
+  const maud = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+  const isNum = (v: unknown) => typeof v === "number" || (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v)));
+  const num = (v: unknown) => (isNum(v) ? <span title={String(v)}>{maud.format(Number(v) / 1e6)} mAUD</span> : "–");
   const hasMeta = d.roundId != null || d.claimDeadline != null || d.dividendTotal != null || d.merkleRoot;
   if (!hasMeta && !holders.length) return <p className="empty">{t("hsk.div.empty")}</p>;
   return (

@@ -1,0 +1,284 @@
+{
+  "ticker": "CNV",
+  "company": "Canva",
+  "url": "https://www.canva.com",
+  "started": "2026-09-26T06:21:33+00:00",
+  "duration_s": 674,
+  "steps": [
+    {
+      "n": 1,
+      "at": "2026-09-26T06:21:33+00:00",
+      "elapsed_s": 0.4,
+      "title": "Demo wallets ready (holders sign with their own keys)",
+      "wallets": {
+        "founder": "0x8d8E68C0BBEAf81Ec0a8D6F4B56aB32516F37F80",
+        "cofounder": "0x0530a91039bADB1B76dc7e61EC65e6dE065F5388",
+        "esop": "0x000fE421628c351a83318C24E74044d31CFd33e4",
+        "series_a": "0x9717a60584426698f25A563d1Ff12164569Aa225",
+        "buyer": "0xa7A40Ad7DcD40785A5Af582Fa9f753918B01c0cE"
+      }
+    },
+    {
+      "n": 2,
+      "at": "2026-09-26T06:21:33+00:00",
+      "elapsed_s": 0.5,
+      "title": "Valuation requested (AI agents start)",
+      "valuation_id": "be5a8a832b474459",
+      "url": "https://www.canva.com",
+      "self_reported": null
+    },
+    {
+      "n": 3,
+      "at": "2026-09-26T06:23:34+00:00",
+      "elapsed_s": 120.9,
+      "title": "Valuation ready — waiting for admin",
+      "agent_steps": [
+        "read_site: 6 pages read",
+        "profile: Canva · online design and publishing software",
+        "competitors: 9 competitors · 1/3 searches · Claude web search",
+        "market: 10 sources analysed · company ARR A$6,000,000,000 (cited) · 3/3 searches · Claude web search",
+        "svi: SVI 51.75 (C - developing) · revenue: cited_source",
+        "narrative: narrative drafted"
+      ],
+      "searches": [
+        "competitors: Canva competitors alternatives Australia (claude)",
+        "market: online design and publishing software market size growth Australia 2026 (claude)",
+        "company: Canva revenue ARR funding valuation 2026 (claude)"
+      ],
+      "competitors": [
+        "Adobe Express",
+        "Figma",
+        "Piktochart",
+        "Venngage",
+        "Easil",
+        "Desygner",
+        "PicMonkey",
+        "Pixlr",
+        "Visme"
+      ],
+      "svi": "51.75 (C - developing)",
+      "range_aud": [
+        44871750000.0,
+        64102500000.0,
+        89743500000.0
+      ],
+      "method": "cited-source revenue x implied multiple from cited last round: 10.5x (range 0.7x-1.4x: 7.3x / 10.5x / 14.7x; https://sacra.com/c/canva/) x SVI factor 1.02",
+      "llm": [
+        "sambanova:DeepSeek-V3.1"
+      ],
+      "warnings": [
+        "Revenue from a third-party source found by web search (not the founder or the company's crawled pages), not independently verified: A$6,000,000,000 (ARR 2025, USD at 1.5 AUD, FX 2026-09-26) cited from https://sacra.com/c/canva/"
+      ],
+      "report": "https://eth.blockid.au/v/be5a8a832b474459"
+    },
+    {
+      "n": 4,
+      "at": "2026-09-26T06:23:35+00:00",
+      "elapsed_s": 122.4,
+      "title": "Admin approved the valuation (human gate 1)"
+    },
+    {
+      "n": 5,
+      "at": "2026-09-26T06:23:35+00:00",
+      "elapsed_s": 122.5,
+      "title": "Company created and submitted",
+      "ticker": "CNV",
+      "ticker_candidates": [
+        "CNV",
+        "CAN",
+        "CAV"
+      ],
+      "total_shares": 64102500000,
+      "share_price_aud": 1,
+      "holders": [
+        "Founder 50% 0x8d8E68C0BBEAf81Ec0a8D6F4B56aB32516F37F80",
+        "Co-founder 30% 0x0530a91039bADB1B76dc7e61EC65e6dE065F5388",
+        "ESOP pool 20% 0x000fE421628c351a83318C24E74044d31CFd33e4"
+      ]
+    },
+    {
+      "n": 6,
+      "at": "2026-09-26T06:23:35+00:00",
+      "elapsed_s": 122.6,
+      "title": "Admin approved issuance (human gate 2) — issuer runs all chains"
+    },
+    {
+      "n": 7,
+      "at": "2026-09-26T06:29:26+00:00",
+      "elapsed_s": 473.8,
+      "title": "Issued on BlockID EVM and synced",
+      "status": "anchored",
+      "sync": {
+        "blockid": "done",
+        "hoodi": "done",
+        "hsk": "done"
+      },
+      "tokens": {
+        "blockid": "0x209D5009b93ec4be4C399544b8eB74a21A89Cc30",
+        "hoodi": "0x527985c7A65Aeb8c0e4fb0c73d7Dfef3B9e238B4",
+        "hsk": "0x370977A0303D5F7047dF28875c18044CACd8d2b9"
+      },
+      "explorers": [
+        "https://scan.blockid.au/token/0x209D5009b93ec4be4C399544b8eB74a21A89Cc30",
+        "https://hoodi.etherscan.io/token/0x527985c7A65Aeb8c0e4fb0c73d7Dfef3B9e238B4",
+        "https://testnet-explorer.hskchain.net/address/0x370977A0303D5F7047dF28875c18044CACd8d2b9"
+      ],
+      "transactions": [
+        "anchored (hsk): https://testnet-explorer.hskchain.net/tx/0x867531a0b1a69168bd0622789d1a670e997c8cbc752807a774d2cc066447b7d2",
+        "hsk_mirrored (hsk): https://testnet-explorer.hskchain.net/tx/0xd52dee73ba52f56009ccba715de72c16d6b4f337fb767703515b0b10665820c0",
+        "deployed (hsk): https://testnet-explorer.hskchain.net/tx/0x3135d8acb71c45e70af3f541141e1c56d6027f9c94dbebe48983307324b7085e",
+        "deployed (hsk): https://testnet-explorer.hskchain.net/tx/0x3ddc703c636f4d09206c28c7be31501e70a5f1775ced625bfa6a2a09921ddc1b",
+        "anchored (hoodi): https://hoodi.etherscan.io/tx/0xf8a839c3fbb57e437019ceb620cc9eb46a81856befcfb0f347979af4027f84bb",
+        "hoodi_mirrored (hoodi): https://hoodi.etherscan.io/tx/0xaed4d79bd2e65e24ea258e35cf23973ab26c227f9bf3e7209c36cb7a149669ed",
+        "deployed (hoodi): https://hoodi.etherscan.io/tx/0x6f3a0468b70b94f8bd163a49c48c0f3b07d0adbfa198772195bec5b6ea22c382",
+        "deployed (hoodi): https://hoodi.etherscan.io/tx/0x441d20af4a57b4b77e5dc0fc5f40a95f3f0a758aa66e5c51615c8ef8a26b9644",
+        "valuation_anchored (blockid): https://scan.blockid.au/tx/0x02e5acaf9b021cd0c10b18b65bdf829c537871ea333d1f4cc9ded7d6fffea7cc",
+        "issued (blockid): https://scan.blockid.au/tx/0x05529e2196e77364b764de83f8fde5d2984f7fbd7d30dbd11a8b0dc95003e815",
+        "drip (blockid): https://scan.blockid.au/tx/0x174def5e90de20b5c7e2bb1707e85585d627cb83afd50dd52dd9d909d659a4a0",
+        "kyc (blockid): https://scan.blockid.au/tx/0x1417f45d1fea2c443be6f72c6f1ccf66d0f7ca632c01d0ed86e3f7789e48ebdf",
+        "issued (blockid): https://scan.blockid.au/tx/0xa13dbe47d5aee62d9f48183802c9884fc1ea78286522d3379dd0f72e4a2bf90d",
+        "kyc (blockid): https://scan.blockid.au/tx/0x6bb8789ff86561ee6f484c317f9e1db3545199a02c2a375a3d00da693c463792",
+        "issued (blockid): https://scan.blockid.au/tx/0xa47379e9632209ba2d78a8f6851af9459840539de67727ac70641c188b766ce3",
+        "kyc (blockid): https://scan.blockid.au/tx/0xfa152bafb0541b3d48586d16a56e114cea146d21dcb69bb92c355e01b910084d",
+        "deployed (blockid): https://scan.blockid.au/tx/0x0ad4febd8870589013ede6a5a8cb76ce58b78c6bb48ea3c68a028b0521021f28",
+        "deployed (blockid): https://scan.blockid.au/tx/0x2be258983ec79d10b8f98c3992beacda85a1269bb0f673540e0933271405f2f0",
+        "deployed (blockid): https://scan.blockid.au/tx/0xa08c6da219351da47f32217cb3f7a9d32e044047d5531dab82252d4b769a64cd",
+        "drip (blockid): https://scan.blockid.au/tx/0x9d8a7e517e6bdaec391d4589aaeadad95af190ebac6c0a74827bcdd0fc0832b8",
+        "drip (blockid): https://scan.blockid.au/tx/0xbd3a8f6aa496e29c24f24e8ad2d3b707d25d426b3010a98096d49f1a3ad4423d"
+      ]
+    },
+    {
+      "n": 8,
+      "at": "2026-09-26T06:29:27+00:00",
+      "elapsed_s": 474.8,
+      "title": "Report hash verified on all chains",
+      "report_hash": "0x329f2afa17c0603734f59b3521e69cdef6468af6efe9199c65d9be3aae99c37d",
+      "onchain": {
+        "blockid": true,
+        "hoodi": true,
+        "hsk": true
+      },
+      "page": "https://eth.blockid.au/verify/CNV"
+    },
+    {
+      "n": 9,
+      "at": "2026-09-26T06:29:48+00:00",
+      "elapsed_s": 495.4,
+      "title": "New round minted (dilution) and re-anchored",
+      "new_shares": 6410250000,
+      "total_shares": 70512750000,
+      "cap_table": [
+        "Founder: 32,051,250,000 (45.45%)",
+        "Co-founder: 19,230,750,000 (27.27%)",
+        "ESOP pool: 12,820,500,000 (18.18%)",
+        "Series A fund: 6,410,250,000 (9.09%)"
+      ]
+    },
+    {
+      "n": 10,
+      "at": "2026-09-26T06:31:31+00:00",
+      "elapsed_s": 598.4,
+      "title": "Dividend paid to every shareholder (relayer paid the gas)",
+      "total_maud": 100000,
+      "merkle_root": "0xaec2e4a4492a9f3547ae5efdcd148dd7f1f8b59916c7d65b527fc5e1ec915767",
+      "claims": [
+        "dividend claimed",
+        "dividend claimed",
+        "dividend claimed",
+        "dividend claimed"
+      ],
+      "transactions": [
+        "dividend_claimed (blockid): https://scan.blockid.au/tx/0x4debc3009dd352619456d5be4876310922f54f78160e8d06c5aac83ec116d70e",
+        "dividend_claimed (blockid): https://scan.blockid.au/tx/0x71665671592d16ec1f396c045f7560933daecfb10210c205cecd83cea2484df1",
+        "dividend_claimed (blockid): https://scan.blockid.au/tx/0x38f0fa5c98bfe4981b3945e454403720c0e970e1f785e92ab0168b2bddce200c",
+        "dividend_claimed (blockid): https://scan.blockid.au/tx/0x02e6bc30239847743388de0218c3c579bae1a5ea1ebd2a7246352d09555d3b91"
+      ]
+    },
+    {
+      "n": 11,
+      "at": "2026-09-26T06:31:42+00:00",
+      "elapsed_s": 609.1,
+      "title": "New investor passed KYC (on-chain IdentityRegistry)",
+      "wallet": "0xa7A40Ad7DcD40785A5Af582Fa9f753918B01c0cE"
+    },
+    {
+      "n": 12,
+      "at": "2026-09-26T06:31:45+00:00",
+      "elapsed_s": 612.8,
+      "title": "Shareholder transfer signed by the co-founder's wallet and recorded",
+      "shares": 1923075000,
+      "from_wallet": "0x0530a91039bADB1B76dc7e61EC65e6dE065F5388",
+      "to_wallet": "0xa7A40Ad7DcD40785A5Af582Fa9f753918B01c0cE",
+      "tx": "https://scan.blockid.au/tx/0xb1cbb4c52e5f9277356da68036cadacabd2837f84a12649f1bd4dfd16b7bbfdc",
+      "status": "done",
+      "block": 10514,
+      "cap_table": [
+        "Founder: 32,051,250,000 (45.45%)",
+        "Co-founder: 17,307,675,000 (24.55%)",
+        "ESOP pool: 12,820,500,000 (18.18%)",
+        "Series A fund: 6,410,250,000 (9.09%)",
+        "Angel investor: 1,923,075,000 (2.73%)"
+      ]
+    },
+    {
+      "n": 13,
+      "at": "2026-09-26T06:31:45+00:00",
+      "elapsed_s": 612.8,
+      "title": "Revaluation +12% — Quarterly SVI re-run: revenue growth",
+      "valuation_aud": 71794800000,
+      "mark_aud": 1.01818182,
+      "issuer": "queued"
+    },
+    {
+      "n": 14,
+      "at": "2026-09-26T06:32:05+00:00",
+      "elapsed_s": 632.9,
+      "title": "Revaluation -4% — Market multiple compression",
+      "valuation_aud": 68923008000,
+      "mark_aud": 0.97745455,
+      "issuer": "queued"
+    },
+    {
+      "n": 15,
+      "at": "2026-09-26T06:32:25+00:00",
+      "elapsed_s": 652.9,
+      "title": "Revaluation +18% — New enterprise contracts",
+      "valuation_aud": 81329149440,
+      "mark_aud": 1.15339636,
+      "issuer": "queued"
+    },
+    {
+      "n": 16,
+      "at": "2026-09-26T06:32:46+00:00",
+      "elapsed_s": 673.1,
+      "title": "Value over time",
+      "marks": [
+        "2026-09-26T06:24:44 A$1.0000/share (issuance)",
+        "2026-09-26T06:31:45 A$1.0182/share (revaluation)",
+        "2026-09-26T06:32:05 A$0.9775/share (revaluation)",
+        "2026-09-26T06:32:25 A$1.1534/share (revaluation)"
+      ],
+      "change_7d": 15.34,
+      "valuation_aud": 81329149440.0
+    },
+    {
+      "n": 17,
+      "at": "2026-09-26T06:32:47+00:00",
+      "elapsed_s": 674.3,
+      "title": "Final state",
+      "company": "https://eth.blockid.au/c/CNV",
+      "verify": "https://eth.blockid.au/verify/CNV",
+      "onchain_match": {
+        "blockid": true,
+        "hoodi": true,
+        "hsk": true
+      },
+      "events": 53,
+      "platform": {
+        "companies": 12,
+        "tokens": 36,
+        "total_valuation_aud": 87022551440.0
+      }
+    }
+  ]
+}

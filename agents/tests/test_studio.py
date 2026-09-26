@@ -188,7 +188,7 @@ def test_competitor_discovery_filters_and_funding_needs_quote(tmp_path):
     out = competitors.discover({"job_id": "v1", "url": FAKE_SITE, "profile": profile.model_dump()}, deps)
     comps = {c["name"]: c for c in out["competitors"]}
     assert set(comps) == {"TE-FOOD", "OpenSC"}  # self + hallucinated names dropped
-    assert comps["TE-FOOD"]["raised_aud"] == 15_200_000  # US$10M, quote verified in fetched page
+    assert comps["TE-FOOD"]["raised_aud"] == 15_000_000  # US$10M, quote verified in fetched page
     assert comps["OpenSC"]["raised_aud"] is None  # invented claim (unfetched URL) dropped
     assert comps["TE-FOOD"]["sources"] >= 1
     assert out["profile"]["competitors"] == ["TE-FOOD", "OpenSC"]
@@ -243,7 +243,7 @@ def test_search_unavailable_falls_back_to_verified_model_suggestions(tmp_path, b
     r = prog.results["vq"]
     # OpenSC (homepage 404), ShoeCo (off-topic) and the startup itself are dropped
     assert [(c["name"], c["basis"]) for c in r["competitors"]] == [("TE-FOOD", "model_suggested_verified")]
-    assert r["competitors"][0]["raised_aud"] == 15_200_000  # stated on the fetched homepage (quote verified)
+    assert r["competitors"][0]["raised_aud"] == 15_000_000  # stated on the fetched homepage (quote verified)
     assert r["competitors"][0]["url"] == "https://te-food.example/"
     assert competitors.FALLBACK_WARNING in r["warnings"]
     assert any("market analysis cites only" in w for w in r["warnings"])
@@ -561,7 +561,11 @@ def test_full_studio_flow(studio_env):
     assert {"valuation_approved", "issuer_wallet_granted", "approve_issue", "approve_anchor", "company_revalued",
             "mint_approved", "dividend_approved", "company_submitted"} <= actions
     assert a.post(f"/v1/admin/issuer-wallets/{USER}/revoke").json()["status"] == "revoked"
-    # owner without an active issuer wallet can no longer request mints / dividends
+    # the creator is also seeded as the company's 'owner' admin (company_admins.py); once that is revoked too,
+    # the creator without an active issuer wallet can no longer request mints / dividends
+    assert db.one("SELECT role FROM studio.company_admins WHERE company_id=%s AND address=%s", (cid, USER))["role"] \
+        == "owner"
+    db.exec("UPDATE studio.company_admins SET status='revoked' WHERE company_id=%s", (cid,))
     assert u.post(f"/v1/companies/{tk}/mints", json={"to_wallet": other, "holder_name": "A", "shares": 1}
                   ).status_code == 403
     assert u.post(f"/v1/companies/{tk}/dividends", json={"total_maud": 5}).status_code == 403

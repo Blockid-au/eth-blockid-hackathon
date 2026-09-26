@@ -1,8 +1,12 @@
-# BlockID Studio: feature gallery
+# BlockID Startup Passport: feature gallery
 
 A walkthrough of every feature in the live testnet demo at **https://eth.blockid.au**, plus the BlockID Chain explorer at **https://scan.blockid.au**.
 
 All screenshots come from the live site, taken read-only with Playwright at 1440×900 (desktop) and 390×844 (mobile), both at 2× pixel density. To retake them, run `scripts/screenshots/run.sh`. It needs only Docker. Set `ONLY='^2[2-4]'` to retake just a subset.
+
+Screenshots were captured on 26 Sep 2026, when the platform had **10 companies tokenised and anchored on 3 chains
+(30 share-token contracts, A$5.63B marked valuation, `/verify` 10 / 10)**. Some fixes landed after capture (for
+example the valuation range spread); the captions note where the current app differs.
 
 > Testnet demo. Marks are SVI-derived values, not market prices, and nothing here is an offer of securities.
 
@@ -70,7 +74,7 @@ Stats are read live from the BlockID API: companies tokenized, total valuation, 
 *Step 3: the grade and valuation headline, the SVI radar, and "How the index is built" (score × weight = contribution).*
 
 ![Valuation range and competitors](screenshots/10-valuation-range-competitors.png)
-*The valuation range with its method line, and the competitors chart and list. None of Airwallex's competitors disclosed capital raised, so the bars are empty; the sample report below shows a filled chart.*
+*The valuation range with its method line, and the competitors chart and list. None of Airwallex's competitors disclosed capital raised, so the bars are empty; the sample report below shows a filled chart. At capture time a single cited multiple (3.6× / 3.6× / 3.6×) collapsed the range to one point; the formula now widens a single cited multiple to a 0.7×–1.4× range and says so in the method line.*
 
 ![Narrative and evidence](screenshots/11-valuation-narrative-evidence.png)
 *The analyst narrative and the evidence list: every page the agents fetched and cited, with retrieval time and source type.*
@@ -99,13 +103,13 @@ A public, example-data passport (Harbourline) shows the full report without sign
 **URL:** https://eth.blockid.au/companies
 
 ![Companies list](screenshots/14-companies-list.png)
-*The companies table with grade chips, coloured 7D/30D changes and sparklines.*
+*The companies table with grade chips, coloured 7D/30D changes, sparklines and the anchor column (✓ 3 chains: BlockID, Hoodi, HashKey) for all 10 companies.*
 
 ---
 
 ## 5. Company page: issuance tracker
 
-**What it does:** It is a live, self-updating tracker for a company's issuance. The stages are Submitted → Waiting for admin approval → Issuing on BlockID Chain → Sync to Ethereum Hoodi → Sync to HashKey Chain → Live. Each sub-step links to its transaction.
+**What it does:** It is a live, self-updating tracker for a company's issuance after **one admin approval**. The stages are Submitted → Waiting for admin approval → Issuing on BlockID Chain → Sync to Ethereum Hoodi → Sync to HashKey Chain → Live. Each sub-step links to its transaction.
 **Why it matters:** Founders can see exactly where their issuance is and cannot skip the human gate.
 **URL:** https://eth.blockid.au/c/ARW · https://eth.blockid.au/c/ART · https://eth.blockid.au/c/EBA (all live)
 
@@ -163,7 +167,7 @@ Owners and admins can model a new round and see the dilution before and after, o
 
 ## 7. Verify a valuation yourself
 
-**What it does:** The page recomputes the valuation report hash in your browser (keccak256 via viem), compares it with the server hash (Python) and with the `valuationReportHash()` stored on each share token on BlockID Chain, Hoodi and HashKey. It also recomputes the SVI index, grade and valuation with the fixed public formula.
+**What it does:** The page recomputes the valuation report hash — keccak256 of the canonical report JSON — in your browser (via viem), compares it with the server hash (Python) and with the `valuationReportHash()` stored on each share token on BlockID Chain, Hoodi and HashKey. It also recomputes the SVI index, grade and valuation with the fixed public formula.
 **Why it matters:** Anyone can prove the report was not changed after approval, and that no AI is involved in the arithmetic.
 **URL:** https://eth.blockid.au/verify/EBA
 
@@ -206,21 +210,21 @@ KPI tiles with sparklines, the platform value chart (marked), companies by grade
 This tab is the queue of companies waiting for issuance approval. Approving runs every chain: BlockID Chain → Ethereum Hoodi → HashKey Chain.
 
 ![Approvals](screenshots/29-admin-approvals.png)
-*ARW (Airwallex) waiting for admin approval.*
+*The approvals queue at capture time: a pending dividend plan for SVI. Companies awaiting their one issuance approval, mint requests and valuations appear in the same queue.*
 
 ### Companies
 
 This tab lists all companies with per-chain sync chips (✓ BlockID / ✓ Hoodi / ✓ HSK). Selecting a row opens a detail pane with the mark chart, KPIs, the revaluation form and activity.
 
 ![Admin company detail](screenshots/30-admin-company-detail.png)
-*The companies tab with sync chips and the EBA detail pane.*
+*The companies tab with sync chips (all 10 companies live on BlockID, Hoodi and HashKey) and the EBA detail pane.*
 
 ### Issuer wallets
 
 This tab shows the admin and service wallets (issuer and relayer) and lets an admin grant or revoke `ISSUER_ROLE` on-chain.
 
 ![Issuer wallets](screenshots/31-admin-issuer-wallets.png)
-*Admin and service wallets, and wallets approved to issue.*
+*The three admin wallets, the issuer and relayer service wallets with their native balances on each chain (BLKD on BlockID Chain, ETH on Hoodi, HSK on HashKey), and wallets approved to issue.*
 
 ### Audit log
 
@@ -233,7 +237,7 @@ This tab is an append-only log of every sign-in, valuation request, approval, re
 
 ## 9. HashKey Chain deployment
 
-**What it does:** It shows the full contract set on HashKey Chain testnet (chain 133): agent provenance, KYC identity registry, share token, dividend distributor, payout token and cap-table anchor. Each AI output is hashed and proposed on-chain, a human approver signs, and only then does the issuer execute. The page includes a dividend round with holder claims and every transaction.
+**What it does:** Every company issued in the live flow is mirrored to HashKey Chain testnet automatically (see the company pages). This page shows the hackathon's full contract set on HashKey Chain testnet (chain 133): agent provenance, KYC identity registry, share token, dividend distributor, payout token and cap-table anchor. Each AI output is hashed and proposed on-chain, a human approver signs, and only then does the issuer execute. The page includes a dividend round with holder claims and every transaction.
 **Why it matters:** It proves on a public chain the "AI proposes → human approves → issuer executes" separation of duties.
 **URL:** https://eth.blockid.au/hsk
 

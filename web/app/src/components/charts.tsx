@@ -257,7 +257,7 @@ export function AxisY({ x0, x1, Y, ticks, f }: { x0: number; x1: number; Y: (v: 
 
 /* ---------- step-area over time (platform value) ---------- */
 export interface Pin { i: number; label: string }
-export function StepArea({ labels, vals, pins, fmtV, fmtX, ariaLabel }: { labels: string[]; vals: number[]; pins: Pin[]; fmtV: (v: number) => string; fmtX: (i: number) => string; ariaLabel: string }) {
+export function StepArea({ labels, vals, pins, fmtV, fmtX, ariaLabel, showPinValues = false }: { labels: string[]; vals: number[]; pins: Pin[]; fmtV: (v: number) => string; fmtX: (i: number) => string; ariaLabel: string; showPinValues?: boolean }) {
   const ref = useRef<SVGSVGElement>(null);
   const x0 = 64, x1 = 626, y0 = 16, y1 = 206;
   const n = Math.max(vals.length, 2);
@@ -278,17 +278,19 @@ export function StepArea({ labels, vals, pins, fmtV, fmtX, ariaLabel }: { labels
       <AxisY x0={x0} x1={x1} Y={Y} ticks={ticks} f={fmtV} />
       <path d={d + ` V${y1} H${X(0)} Z`} fill={v("--accent")} fillOpacity={0.12} />
       <path d={d} fill="none" stroke={v("--accent")} strokeWidth={2} />
-      {labels.length > 1 && [0, 0.25, 0.5, 0.75, 1].map((f) => {
-        const i = Math.round(f * last);
-        return <text key={f} x={X(i)} y={228} fontSize={10.5} textAnchor={f === 0 ? "start" : f === 1 ? "end" : "middle"} fill={v("--faint")}>{fmtX(i)}</text>;
-      })}
+      {labels.length > 1 && [...new Set([0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(f * last)))].map((i) => (
+        <text key={i} x={X(i)} y={228} fontSize={10.5} textAnchor={i === 0 ? "start" : i === last ? "end" : "middle"} fill={v("--faint")}>{fmtX(i)}</text>
+      ))}
       {pins.map((p, k) => (
         <g key={k}>
           <circle cx={X(p.i)} cy={Y(data[p.i])} r={4} fill={v("--gold-mark")} stroke={v("--surface")} strokeWidth={2} />
+          {showPinValues && p.i !== last && (
+            <text x={X(p.i) + 8} y={Math.max(y0 + 10, Y(data[p.i]) - 8)} fontSize={11} fontWeight={600} textAnchor="start" fill={v("--muted")}>{fmtV(data[p.i])}</text>
+          )}
         </g>
       ))}
       <circle cx={X(last)} cy={Y(data[last])} r={5} fill={v("--accent")} stroke={v("--surface")} strokeWidth={2} />
-      <text x={X(last) - 8} y={Y(data[last]) - 10} fontSize={12} fontWeight={700} textAnchor="end" fill={v("--ink")}>{fmtV(data[last])}</text>
+      <text x={X(last) - 8} y={Math.max(y0 + 10, Y(data[last]) - 10)} fontSize={12} fontWeight={700} textAnchor="end" fill={v("--ink")}>{fmtV(data[last])}</text>
       <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="transparent" onPointerMove={onMove} onPointerLeave={hideTip} />
       {pins.map((p, k) => (
         <circle key={"h" + k} cx={X(p.i)} cy={Y(data[p.i])} r={11} fill="transparent" {...tip(p.label)} />

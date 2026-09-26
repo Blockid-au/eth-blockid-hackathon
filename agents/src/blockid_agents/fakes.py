@@ -13,6 +13,7 @@ import httpx
 
 from .llm import FakeLLM
 from .schemas import (
+    CompanyFinancials,
     CompetitorCandidate,
     CompetitorList,
     ContractReview,
@@ -133,6 +134,7 @@ def fake_llm() -> FakeLLM:
             FundingClaims: funding,
             StartupProfile: profile,
             MarketAnalysis: market,
+            CompanyFinancials: lambda _s, _u: CompanyFinancials(),  # no figures stated
             QualitativeScores: qual,
             Narrative: lambda _s, _u: Narrative(summary="Indicative SVI narrative (not financial advice).", strengths=["traction"], concerns=["data-room gaps"]),
             ContractReview: lambda _s, _u: ContractReview(approve=True, notes="parameters consistent"),

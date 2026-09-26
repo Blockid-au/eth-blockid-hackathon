@@ -17,6 +17,46 @@ def _csv(name: str, default: str) -> tuple[str, ...]:
     return tuple(x.strip() for x in _env(name, default).split(",") if x.strip())
 
 
+# Fixed, indicative currency -> AUD rates used to convert figures quoted in sources (company revenue from search
+# results, competitor funding). Fixed on purpose so a valuation is reproducible; change deliberately, bump the date,
+# and every conversion records the rate and FX_TO_AUD_AS_OF it used. Currencies not listed are not converted
+# (the figure is dropped rather than guessed).
+FX_TO_AUD_AS_OF = "2026-09-26"
+FX_TO_AUD: dict[str, float] = {
+    "AUD": 1.0, "USD": 1.50, "EUR": 1.65, "GBP": 1.95, "SGD": 1.15, "VND": 0.00006,
+    # also accepted for competitor funding (same fixed basis)
+    "NZD": 0.91, "CAD": 1.10, "HKD": 0.195, "JPY": 0.0102, "CNY": 0.21, "INR": 0.018, "CHF": 1.75, "SEK": 0.15,
+    "KRW": 0.0011, "IDR": 0.000095, "ILS": 0.41,
+}
+
+
+# Revenue multiples (low, median, high) used ONLY when a company has revenue but no multiple is cited in the
+# evidence and no implied multiple (cited last valuation / cited revenue) is available. UNCALIBRATED DEFAULTS —
+# conservative placeholders pending the SVI calibration work (docs/ROADMAP-RESEARCH.md); every valuation that uses
+# them says so in its method and gets a "multiple is a default, not cited" review item.
+DEFAULT_REVENUE_MULTIPLES: dict[str, tuple[float, float, float]] = {
+    "default": (2.0, 3.5, 6.0),
+    "saas_fintech": (3.0, 6.0, 10.0),
+}
+SAAS_FINTECH_TERMS = ("saas", "software", "fintech", "payment", "banking", "financial technology", "cloud",
+                      "platform as a service", "api")
+
+
+def default_multiples(sector: str) -> tuple[str, tuple[float, float, float]]:
+    """(table key, (low, median, high)) for a sector description."""
+    s = (sector or "").lower()
+    key = "saas_fintech" if any(t in s for t in SAAS_FINTECH_TERMS) else "default"
+    return key, DEFAULT_REVENUE_MULTIPLES[key]
+
+
+# Implied multiple (cited last valuation / cited revenue) is used only inside these bounds.
+IMPLIED_MULTIPLE_BOUNDS = (0.5, 40.0)
+
+
+def fx_to_aud(currency: str) -> float | None:
+    return FX_TO_AUD.get((currency or "").upper().strip())
+
+
 @dataclass(frozen=True)
 class Settings:
     # --- LLM gateway (LiteLLM on the AI VM, OpenAI-compatible) -----------------------------

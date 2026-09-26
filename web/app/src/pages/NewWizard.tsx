@@ -144,7 +144,7 @@ export default function NewWizard() {
         <form className="panel" onSubmit={start} noValidate>
           <div className="ptitle"><div><h3>{t("s1.h")}</h3><p>{t("s1.p")}</p></div></div>
           <div className="field">
-            <input type="url" inputMode="url" autoComplete="url" placeholder="https://yourcompany.com.au" aria-label="Company website" value={url} onChange={(e) => setUrl(e.target.value)} aria-invalid={!!err} aria-describedby="url-err" autoFocus />
+            <input type="url" inputMode="url" autoComplete="url" placeholder="https://yourcompany.com.au" aria-label={t("c.website")} value={url} onChange={(e) => setUrl(e.target.value)} aria-invalid={!!err} aria-describedby="url-err" autoFocus />
             <button className="btn" type="submit" disabled={busy}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{busy ? t("new.starting") : me ? t("s1.btn") : t("nav.connect") + " · " + t("s1.btn")}</button>
           </div>
           <p className="err" id="url-err" role="alert">{err}</p>

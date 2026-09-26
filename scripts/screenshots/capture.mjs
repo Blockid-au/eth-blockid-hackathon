@@ -169,11 +169,9 @@ const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, 
 
   // Overview dashboard
   {
-    // switch the platform-value chart to 1M (client-side range toggle only)
-    const card = page.locator("h4", { hasText: "Platform value" }).locator("xpath=ancestor::*[.//button[normalize-space()='1M']][1]");
-    await card.getByRole("button", { name: "1M", exact: true }).click().catch(() => {}); await sleep(1200);
+    // the platform-value chart keeps its adaptive default range ("Since launch" while the platform is young)
     const a = await rect(page.locator("section.block").first());
-    const t = await rect(page.locator("h4", { hasText: "Tokenized companies" }).first(), ".card, .pane, .panel");
+    const t = await rect(page.locator("h4", { hasText: /Tokeni[sz]ed companies/ }).first(), ".card, .pane, .panel");
     await shotBand(page, "28-admin-overview", a.top, t.top, { padTop: 0, padBottom: -4 });
     const docH = await page.evaluate(() => document.documentElement.scrollHeight);
     await shotBand(page, "28b-admin-overview-companies-activity", t.top, docH, { padTop: 40, padBottom: 0, maxH: 1000 });

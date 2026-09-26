@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import re
 import secrets
 import threading
@@ -190,6 +191,12 @@ class LoginThrottle:
             self._fails.pop(ip, None)
 
 
+def password_locked() -> bool:
+    """ADMIN_PASSWORD_LOCKED (default "1" on the public demo): password changes are refused and the seeded admin's
+    must_change flag is ignored, so nobody holding the shared demo password can lock the others out."""
+    return os.environ.get("ADMIN_PASSWORD_LOCKED", "1").strip().lower() not in ("0", "false", "no", "off", "")
+
+
 # ------------------------------------------------------------------ sessions
 @dataclass
 class Session:
@@ -237,7 +244,7 @@ class Sessions:
         if not row:
             return None
         return Session(role=row["role"], address=row["address"], username=row["username"],
-                       must_change=bool(row["must_change"]) if row["username"] else False)
+                       must_change=bool(row["must_change"]) and not password_locked() if row["username"] else False)
 
     def delete(self, sid: str | None) -> None:
         if sid:

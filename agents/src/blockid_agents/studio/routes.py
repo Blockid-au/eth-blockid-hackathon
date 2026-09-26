@@ -16,7 +16,7 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
@@ -31,6 +31,8 @@ from ..tools import captable
 from ..tools import ticker as tickers
 from ..tools.merkle import build_distribution
 from . import metrics
+from .company_admins import CompanyAuthz, seed_owner
+from .gas import GasDripper
 from .auth import (
     COOKIE,
     AuthError,
@@ -40,6 +42,7 @@ from .auth import (
     allowed_domains,
     check_password,
     hash_password,
+    password_locked,
     verify_siwe,
 )
 from .db import ONCHAIN_STATUSES, LimitError, Studio, jsonable
@@ -192,6 +195,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
     s = ctx.settings
     admin_set = {a.lower() for a in s.admin_wallets}
     domains = allowed_domains(s.public_base_url)
+    authz = CompanyAuthz(ctx)  # per-company admin wallets (company_admins.py)
+    gas = GasDripper(ctx)  # default BLKD gas allowance for new wallets (gas.py), run as background tasks
 
     # -------------------------------------------------------------- session dependencies
     def session(request: Request) -> Session | None:
@@ -217,6 +222,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
                         path="/")
 
     def audit(sess: Session, action: str, target: Any = None, **detail) -> None:
+        detail.setdefault("role", "platform_admin" if sess.is_admin else "user")  # company actions pass their role
         ctx.need_db().audit(sess.actor, action, None if target is None else str(target), **detail)
 
     def require_issuer_wallet(sess: Session) -> None:
@@ -236,7 +242,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         return {"nonce": ctx.sessions.issue_nonce()}
 
     @r.post("/v1/auth/siwe")
-    def siwe(body: SiweBody, response: Response):
+    def siwe(body: SiweBody, response: Response, background: BackgroundTasks):
         sessions = ctx.sessions
         try:
             msg = verify_siwe(body.message, body.signature, domains, dev=s.studio_dev)
@@ -248,6 +254,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         set_cookie(response, sessions.create(role, address=msg.address))
         if role == "admin":
             ctx.need_db().audit(msg.address, "login_siwe", msg.address, chain_id=msg.chain_id)
+        background.add_task(gas.drip, msg.address, "login")
         return {"address": msg.address, "role": role}
 
     @r.post("/v1/auth/login")
@@ -263,13 +270,15 @@ def build_router(ctx: StudioContext) -> APIRouter:
         ctx.throttle.reset(ip)
         set_cookie(response, ctx.sessions.create("admin", username=row["username"]))
         db.audit(row["username"], "login_password", row["username"], ip=ip)
-        return {"role": "admin", "must_change": bool(row["must_change"])}
+        return {"role": "admin", "must_change": bool(row["must_change"]) and not password_locked()}
 
     @r.post("/v1/auth/change-password")
     def change_password(body: ChangePasswordBody, request: Request, sess: Session = Depends(require_user)):
         db = ctx.need_db()
         if not sess.username or not sess.is_admin:
             raise HTTPException(403, "password sessions only")
+        if password_locked():
+            raise HTTPException(403, "Password changes are disabled on the public demo")
         ip = _client_ip(request)
         if ctx.throttle.blocked(ip):
             raise HTTPException(429, "too many failed attempts; try again in 15 minutes")
@@ -438,7 +447,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         return out
 
     @r.post("/v1/studio/companies", status_code=201)
-    def create_company(body: CompanyBody, sess: Session = Depends(require_user)):
+    def create_company(body: CompanyBody, background: BackgroundTasks, sess: Session = Depends(require_user)):
         db = ctx.need_db()
         v = db.get_valuation(body.valuation_id)
         if not v:
@@ -478,10 +487,12 @@ def build_router(ctx: StudioContext) -> APIRouter:
                 for h in alloc:
                     c.execute("INSERT INTO studio.holders(company_id,name,wallet,pct,shares) VALUES (%s,%s,%s,%s,%s)",
                               (row["id"], h["name"], h["wallet"], Decimal(str(h["pct"])), h["shares"]))
+                seed_owner(c, row["id"], sess.address)  # the creating wallet is the company's first owner
         except UniqueViolation:
             raise HTTPException(409, f"ticker {tk} is taken") from None
         if sess.is_admin:
             audit(sess, "company_created", tk, company_id=row["id"])
+        background.add_task(gas.drip_many, [h["wallet"] for h in alloc], "holder", row["id"])
         return company_view(row)
 
     @r.get("/v1/studio/companies")
@@ -508,20 +519,27 @@ def build_router(ctx: StudioContext) -> APIRouter:
 
     # -------------------------------------------------------------- admin: approvals + lifecycle
     @r.get("/v1/admin/approvals")
-    def approvals(sess: Session = Depends(require_admin)):
+    def approvals(sess: Session = Depends(require_user)):
+        """Platform admins: everything. Company admins: only their companies' pending items (no valuations)."""
         db = ctx.need_db()
-        vals = [valuation_view(x) for x in db.all(
+        ids = authz.scope(sess)  # None = all companies
+        only = "" if ids is None else " AND c.id = ANY(%(ids)s)"
+        p = None if ids is None else {"ids": ids}
+        vals = [] if ids is not None else [valuation_view(x) for x in db.all(
             "SELECT * FROM studio.valuations WHERE status='waiting_approval' ORDER BY created_at")]
         comps = [company_view(c) for c in db.all(
-            "SELECT * FROM studio.companies WHERE status IN ('pending_issue','issued','pending_anchor','partially_anchored') "
-            "OR (status='failed' AND local_token IS NULL AND local_block IS NULL) ORDER BY updated_at")]
+            "SELECT * FROM studio.companies c WHERE (status IN ('pending_issue','issued','pending_anchor',"
+            "'partially_anchored') OR (status='failed' AND local_token IS NULL AND local_block IS NULL))"
+            + only + " ORDER BY updated_at", p)]
         mints = db.all("SELECT m.*, c.ticker, c.name AS company_name FROM studio.mints m "
-                       "JOIN studio.companies c ON c.id=m.company_id WHERE m.status='pending' ORDER BY m.created_at")
+                       "JOIN studio.companies c ON c.id=m.company_id WHERE m.status='pending'" + only
+                       + " ORDER BY m.created_at", p)
         divs = db.all("SELECT d.id, d.company_id, d.total_units, d.merkle_root, d.status, d.requested_by, d.created_at,"
                       " jsonb_array_length(COALESCE(d.claims,'[]'::jsonb)) AS holders, c.ticker, c.name AS company_name"
                       " FROM studio.dividends d JOIN studio.companies c ON c.id=d.company_id"
-                      " WHERE d.status='pending' ORDER BY d.created_at")
-        return {"valuations": vals, "companies": comps, "mints": jsonable(mints),
+                      " WHERE d.status='pending'" + only + " ORDER BY d.created_at", p)
+        return {"scope": "platform" if ids is None else "company", "company_ids": ids,
+                "valuations": vals, "companies": comps, "mints": jsonable(mints),
                 "dividends": [{**jsonable(d), "total_maud": int(d["total_units"]) / 1e6} for d in divs]}
 
     @r.get("/v1/admin/companies")
@@ -587,9 +605,10 @@ def build_router(ctx: StudioContext) -> APIRouter:
         return company_view(company_row(cid))
 
     @r.post("/v1/admin/companies/{cid}/revalue", status_code=202)
-    def revalue(cid: int, body: RevalueBody, sess: Session = Depends(require_admin)):
+    def revalue(cid: int, body: RevalueBody, sess: Session = Depends(require_user)):
         db = ctx.need_db()
         c = company_row(cid)
+        role = authz.check(sess, cid)  # platform admin or an admin of this company
         if c["status"] not in ONCHAIN_STATUSES or not c.get("local_token"):
             raise HTTPException(409, "only issued companies can be revalued")
         val = Decimal(str(body.valuation_aud))
@@ -605,7 +624,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
                                              "by": sess.actor,
                                              "previous_mark_aud": prev["mark_aud"] if prev else None,
                                              "mark_id": m["id"]}))))
-        audit(sess, "company_revalued", c["ticker"], valuation_aud=float(val), mark_aud=float(mark), note=body.note)
+        audit(sess, "company_revalued", c["ticker"], valuation_aud=float(val), mark_aud=float(mark), note=body.note,
+              role=role)
         issuer_status = "queued"
         try:
             ctx.need_issuer().post("/revalue", {"company_id": cid})
@@ -689,7 +709,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         c = company_by_ticker(tk)
         if c["status"] not in ONCHAIN_STATUSES:
             sess = session(request)
-            if not sess or not (sess.is_admin or is_owner(sess, c["created_by"])):
+            if not sess or not (sess.is_admin or is_owner(sess, c["created_by"]) or authz.admin_role(sess, c["id"])):
                 raise HTTPException(404, "unknown ticker")
         marks = load_marks([c["id"]]).get(c["id"], [])
         table, source, block = cap_table(c)
@@ -719,19 +739,24 @@ def build_router(ctx: StudioContext) -> APIRouter:
         return out
 
     # -------------------------------------------------------------- mints + dividends
-    def owner_or_admin(c: dict, sess: Session) -> None:
-        """Mint/dividend requests: company owner or admin, AND (admin or an active issuer wallet)."""
-        if not (sess.is_admin or is_owner(sess, c["created_by"])):
-            raise HTTPException(403, "only the company owner or an admin can do this")
+    def owner_or_admin(c: dict, sess: Session) -> str:
+        """Mint/dividend requests: platform admin, an active company admin of THIS company, or (legacy) the
+        creating wallet with an active issuer wallet. Returns the audit role."""
         if sess.is_admin and sess.must_change:
             raise HTTPException(403, "password change required")
+        role = authz.role(sess, c["id"])
+        if role:
+            return role
+        if not is_owner(sess, c["created_by"]):
+            raise HTTPException(403, "only the company owner or an admin can do this")
         require_issuer_wallet(sess)
+        return "creator_issuer"
 
     @r.post("/v1/companies/{tk}/mints", status_code=201)
-    def request_mint(tk: str, body: MintBody, sess: Session = Depends(require_user)):
+    def request_mint(tk: str, body: MintBody, background: BackgroundTasks, sess: Session = Depends(require_user)):
         db = ctx.need_db()
         c = company_by_ticker(tk)
-        owner_or_admin(c, sess)
+        role = owner_or_admin(c, sess)
         if c["status"] not in ONCHAIN_STATUSES or not c.get("local_token"):
             raise HTTPException(409, "company is not issued yet")
         try:
@@ -744,10 +769,12 @@ def build_router(ctx: StudioContext) -> APIRouter:
         db.exec("INSERT INTO studio.events(company_id,kind,data) VALUES (%s,'mint_requested',%s)",
                 (c["id"], Jsonb({"mint_id": row["id"], "wallet": wallet, "name": body.holder_name.strip(),
                                  "shares": body.shares, "by": sess.actor})))
-        audit(sess, "mint_requested", c["ticker"], mint_id=row["id"], shares=body.shares, wallet=wallet)
+        audit(sess, "mint_requested", c["ticker"], mint_id=row["id"], shares=body.shares, wallet=wallet, role=role)
+        background.add_task(gas.drip, wallet, "holder", c["id"])
         return jsonable(row)
 
-    def approve_item(table: str, item_id: int, path: str, key: str, sess: Session, action: str) -> dict:
+    def approve_item(table: str, item_id: int, path: str, key: str, sess: Session, action: str,
+                     role: str = "platform_admin") -> dict:
         """pending (or failed, for a retry) -> approved atomically; the issuer executes only 'approved' rows and
         checks the chain before re-sending a retried mint/dividend."""
         db = ctx.need_db()
@@ -761,38 +788,41 @@ def build_router(ctx: StudioContext) -> APIRouter:
             if not exists:
                 raise HTTPException(404, "unknown id")
             raise HTTPException(409, f"status is {exists['status']}")
-        audit(sess, action, item_id, company_id=row["company_id"], previous=row["previous"])
+        audit(sess, action, item_id, company_id=row["company_id"], previous=row["previous"], role=role)
         try:
             issuer.post(path, {key: item_id})
         except IssuerError as e:
             db.exec(f"UPDATE studio.{table} SET status=%s WHERE id=%s AND status='approved'",
                     (row["previous"], item_id))
-            audit(sess, action + "_issuer_error", item_id, error=str(e)[:300])
+            audit(sess, action + "_issuer_error", item_id, error=str(e)[:300], role=role)
             raise HTTPException(502, str(e)) from None
         return {"id": item_id, "status": "approved"}
 
-    def reject_item(table: str, item_id: int, sess: Session, action: str, reason: str) -> dict:
+    def reject_item(table: str, item_id: int, sess: Session, action: str, reason: str,
+                    role: str = "platform_admin") -> dict:
         db = ctx.need_db()
         row = db.one(f"UPDATE studio.{table} SET status='rejected' WHERE id=%s AND status='pending' RETURNING id",
                      (item_id,))
         if not row:
             raise HTTPException(409, "not pending")
-        audit(sess, action, item_id, reason=reason)
+        audit(sess, action, item_id, reason=reason, role=role)
         return {"id": item_id, "status": "rejected"}
 
     @r.post("/v1/admin/mints/{mid}/approve", status_code=202)
-    def approve_mint(mid: int, sess: Session = Depends(require_admin)):
-        return approve_item("mints", mid, "/mint", "mint_id", sess, "mint_approved")
+    def approve_mint(mid: int, sess: Session = Depends(require_user)):
+        _, role = authz.check_item(sess, "mints", mid)  # platform admin or an admin of the mint's company
+        return approve_item("mints", mid, "/mint", "mint_id", sess, "mint_approved", role)
 
     @r.post("/v1/admin/mints/{mid}/reject")
-    def reject_mint(mid: int, body: ReasonBody, sess: Session = Depends(require_admin)):
-        return reject_item("mints", mid, sess, "mint_rejected", body.reason)
+    def reject_mint(mid: int, body: ReasonBody, sess: Session = Depends(require_user)):
+        _, role = authz.check_item(sess, "mints", mid)
+        return reject_item("mints", mid, sess, "mint_rejected", body.reason, role)
 
     @r.post("/v1/companies/{tk}/dividends", status_code=201)
     def request_dividend(tk: str, body: DividendBody, sess: Session = Depends(require_user)):
         db = ctx.need_db()
         c = company_by_ticker(tk)
-        owner_or_admin(c, sess)
+        role = owner_or_admin(c, sess)
         if c["status"] not in ONCHAIN_STATUSES or not c.get("local_token"):
             raise HTTPException(409, "company is not issued yet")
         try:
@@ -813,17 +843,19 @@ def build_router(ctx: StudioContext) -> APIRouter:
         row = db.one("INSERT INTO studio.dividends(company_id,total_units,merkle_root,claims,status,requested_by) "
                      "VALUES (%s,%s,%s,%s,'pending',%s) RETURNING *",
                      (c["id"], dist.total, dist.root, Jsonb(claims), sess.actor))
-        audit(sess, "dividend_requested", c["ticker"], dividend_id=row["id"], total_units=dist.total)
+        audit(sess, "dividend_requested", c["ticker"], dividend_id=row["id"], total_units=dist.total, role=role)
         return {**jsonable(row), "total_maud": dist.total / 1e6, "remainder_units": remainder,
                 "balances_source": source, "record_block": block, "holders": len(claims)}
 
     @r.post("/v1/admin/dividends/{did}/approve", status_code=202)
-    def approve_dividend(did: int, sess: Session = Depends(require_admin)):
-        return approve_item("dividends", did, "/dividend", "dividend_id", sess, "dividend_approved")
+    def approve_dividend(did: int, sess: Session = Depends(require_user)):
+        _, role = authz.check_item(sess, "dividends", did)
+        return approve_item("dividends", did, "/dividend", "dividend_id", sess, "dividend_approved", role)
 
     @r.post("/v1/admin/dividends/{did}/reject")
-    def reject_dividend(did: int, body: ReasonBody, sess: Session = Depends(require_admin)):
-        return reject_item("dividends", did, sess, "dividend_rejected", body.reason)
+    def reject_dividend(did: int, body: ReasonBody, sess: Session = Depends(require_user)):
+        _, role = authz.check_item(sess, "dividends", did)
+        return reject_item("dividends", did, sess, "dividend_rejected", body.reason, role)
 
     # -------------------------------------------------------------- platform stats
     @r.get("/v1/platform/stats")

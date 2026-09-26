@@ -51,6 +51,8 @@ const EN = {
   r_not_verified: "Receiver (or sender) is not KYC-verified", r_balance: "Not enough shares", r_paused: "Token paused: this company requires admin approval",
   r_frozen: "Wallet frozen by the transfer agent", r_lockup: "Lock-up period still active", r_cap: "Shareholder cap reached", r_self: "Sender and receiver are the same",
   r_reverted: "The transfer would revert", ok: "Checks passed", youAreNot: "You hold no shares of this company.",
+  thTk: "Ticker", thCo: "Company", thFrom: "From", thTo: "To", thMode: "Mode", thStatus: "Status",
+  st_pending: "Pending", st_approved: "Approved", st_rejected: "Rejected", st_failed: "Failed", st_done: "Done", st_confirmed: "Confirmed", st_executed: "Executed", st_verified: "Verified",
 };
 const VI: typeof EN = {
   h: "Chuyển nhượng cổ phần",
@@ -66,11 +68,14 @@ const VI: typeof EN = {
   r_not_verified: "Người nhận (hoặc người gửi) chưa KYC", r_balance: "Không đủ cổ phần", r_paused: "Token tạm dừng: công ty này yêu cầu admin duyệt",
   r_frozen: "Ví bị đóng băng bởi transfer agent", r_lockup: "Đang trong thời gian khoá", r_cap: "Đã đạt số cổ đông tối đa", r_self: "Người gửi và người nhận trùng nhau",
   r_reverted: "Giao dịch sẽ bị revert", ok: "Đạt mọi điều kiện", youAreNot: "Bạn chưa nắm cổ phần của công ty này.",
+  thTk: "Mã", thCo: "Doanh nghiệp", thFrom: "Từ", thTo: "Đến", thMode: "Chế độ", thStatus: "Trạng thái",
+  st_pending: "Đang chờ", st_approved: "Đã duyệt", st_rejected: "Bị từ chối", st_failed: "Thất bại", st_done: "Hoàn tất", st_confirmed: "Đã xác nhận", st_executed: "Đã thực hiện", st_verified: "Đã xác minh",
 };
 export function useTx() {
   const { lang } = useI18n() as unknown as { lang: string };
   return lang === "vi" ? VI : EN;
 }
+const stText = (L: typeof EN, st: string) => (L as Record<string, string>)["st_" + st] ?? st;
 const reasonText = (L: typeof EN, r: string | null) => (r ? (L as Record<string, string>)["r_" + r] ?? r : "");
 
 const TRANSFER_ABI = [{ type: "function", name: "transfer", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "value", type: "uint256" }], outputs: [{ type: "bool" }] }] as const;
@@ -198,7 +203,7 @@ export function TransferList({ rows, admin }: { rows: TransferRow[]; admin?: boo
   return (
     <div className="tbl">
       <table>
-        <thead><tr>{admin && <th>Ticker</th>}<th>From</th><th>To</th><th className="r">{L.n}</th><th>Mode</th><th>Status</th><th>Tx</th></tr></thead>
+        <thead><tr>{admin && <th>{L.thTk}</th>}<th>{L.thFrom}</th><th>{L.thTo}</th><th className="r">{L.n}</th><th>{L.thMode}</th><th>{L.thStatus}</th><th>Tx</th></tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id}>
@@ -206,8 +211,8 @@ export function TransferList({ rows, admin }: { rows: TransferRow[]; admin?: boo
               <td className="mono" title={r.from_wallet}>{shortAddr(r.from_wallet)}</td>
               <td className="mono" title={r.to_wallet}>{r.to_name ? r.to_name + " · " : ""}{shortAddr(r.to_wallet)}</td>
               <td className="r">{fmt(Number(r.shares))}</td>
-              <td>{r.mode === "approval" ? "◆" : "⇄"}</td>
-              <td title={r.note ?? undefined}>{r.status}</td>
+              <td title={r.mode === "approval" ? L.approval : L.free}><span aria-hidden="true">{r.mode === "approval" ? "◆" : "⇄"}</span><span className="sr-only">{r.mode === "approval" ? L.approval : L.free}</span></td>
+              <td title={r.note ?? undefined}>{stText(L, r.status)}</td>
               <td className="mono">{r.tx_hash ? <a href={CHAINS.local.txUrl(r.tx_hash)} target="_blank" rel="noopener noreferrer">{shortAddr(r.tx_hash)}</a> : "–"}</td>
             </tr>
           ))}
@@ -240,7 +245,7 @@ export function AdminTransfersTab({ companies, onChanged }: { companies: { id: n
         <h4 className="eyebrow">{L.approval}</h4>
         <div className="tbl">
           <table>
-            <thead><tr><th>Ticker</th><th>Company</th><th>{L.approval}</th><th>Mode</th></tr></thead>
+            <thead><tr><th>{L.thTk}</th><th>{L.thCo}</th><th>{L.approval}</th><th>{L.thMode}</th></tr></thead>
             <tbody>
               {companies.filter((c) => c.local_token).map((c) => (
                 <tr key={c.id}>
@@ -261,7 +266,7 @@ export function AdminTransfersTab({ companies, onChanged }: { companies: { id: n
           <div className="aprow" key={x.id}>
             <div className="between">
               <span><b className="mono">{x.ticker}</b> · {fmt(Number(x.shares))} · <span className="mono">{shortAddr(x.from_wallet)}</span> → {x.to_name ? x.to_name + " " : ""}<span className="mono">{shortAddr(x.to_wallet)}</span></span>
-              <span className="muted-sm">{x.status}{x.note ? " · " + x.note : ""}</span>
+              <span className="muted-sm">{stText(L, x.status)}{x.note ? " · " + x.note : ""}</span>
             </div>
             <div className="row">
               <button className="btn gold sm" type="button" disabled={busy} onClick={() => act(() => tapi.approveTransfer(x.id))}>{t("ap.approve")}</button>
@@ -276,7 +281,7 @@ export function AdminTransfersTab({ companies, onChanged }: { companies: { id: n
           <div className="aprow" key={x.id}>
             <div className="between">
               <span><b className="mono">{x.ticker}</b> · {x.name} · <span className="mono" title={x.wallet}>{shortAddr(x.wallet)}</span></span>
-              <span className="muted-sm">{x.status}{x.note ? " · " + x.note : ""}</span>
+              <span className="muted-sm">{stText(L, x.status)}{x.note ? " · " + x.note : ""}</span>
             </div>
             <div className="row">
               <button className="btn gold sm" type="button" disabled={busy} onClick={() => act(() => tapi.approveKyc(x.id))}>{t("ap.approve")}</button>

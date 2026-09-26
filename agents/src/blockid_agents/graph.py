@@ -34,6 +34,7 @@ class OnboardingState(TypedDict, total=False):
     searches: list[dict]
     qualitative: dict
     svi: dict
+    warnings: list[str]
     token_params: dict
     contract_check: dict
     deployment: dict
@@ -211,6 +212,8 @@ def site_result(deps: Deps, state: dict) -> dict:
         "profile": state.get("profile"),
         "competitors": state.get("competitors") or [],
         "market": state.get("market"),
+        # the company's own revenue / funding / valuation, only when a source states it verbatim (research agent)
+        "company_financials": (state.get("market") or {}).get("company_financials"),
         "svi": state.get("svi"),
         "qualitative": state.get("qualitative"),
         "evidence": ev,
@@ -276,6 +279,13 @@ def build_site_valuation(deps: Deps, checkpointer, progress=None):
     def searched(text: str):
         return lambda m: f"{text} · {search_summary(m.get('searches'), deps.settings.search_max_queries)}"
 
+    def financials(m) -> str:
+        cf = (m.get("market") or {}).get("company_financials") or {}
+        if cf.get("revenue_ttm_aud"):
+            used = "" if cf.get("usable_for_valuation") else ", not used"
+            return f" · company {cf.get('revenue_type') or 'revenue'} A${cf['revenue_ttm_aud']:,.0f} (cited{used})"
+        return " · no cited company revenue"
+
     g = StateGraph(SiteValuationState)
     g.add_node("read_site", step("read_site", lambda s: site_intake.read_site(s, deps),
                                  lambda m: f"{m.get('site_pages', 0)} pages read"))
@@ -284,9 +294,12 @@ def build_site_valuation(deps: Deps, checkpointer, progress=None):
     g.add_node("competitors", step("competitors", lambda s: competitors.discover(s, deps),
                                    lambda m: with_warning(searched(f"{len(m.get('competitors') or [])} competitors")(m))(m)))
     g.add_node("market", step("market", market,
-                              lambda m: with_warning(searched(f"{m.get('evidence_count', 0)} sources analysed")(m))(m)))
+                              lambda m: with_warning(searched(f"{m.get('evidence_count', 0)} sources analysed"
+                                                              + financials(m))(m))(m)))
     g.add_node("svi", step("svi", lambda s: valuation.score(s, deps),
-                           lambda m: f"SVI {m['svi']['index']} ({m['svi']['band']})"))
+                           lambda m: f"SVI {m['svi']['index']} ({m['svi']['band']})"
+                           + (f" · revenue: {m['profile'].get('metrics_sources', {}).get('revenue_ttm_aud')}"
+                              if m["profile"].get("metrics_sources", {}).get("revenue_ttm_aud") else "")))
     g.add_node("narrative", step("narrative", lambda s: valuation.narrate(s, deps), lambda m: "narrative drafted"))
     g.add_node("gate_valuation", gate)
     g.add_edge(START, "read_site")

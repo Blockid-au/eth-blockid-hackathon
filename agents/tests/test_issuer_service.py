@@ -184,7 +184,11 @@ def _seed(store: FakeStore, cid=1, ticker="ABC", status="issuing"):
 def test_fee_modes(env):
     assert "gasPrice" in env["local"].fee_fields()
     assert "maxFeePerGas" in env["hoodi"].fee_fields()
-    assert "maxFeePerGas" in env["hsk"].fee_fields() and env["hsk"].expected_gas_price() >= 10**9
+    from blockid_agents.issuer.chain import TIP_CAP, TIP_FLOOR
+    hf = env["hsk"].fee_fields()  # lowest-fee policy: tip clamped, maxFee = 1.25 x base + tip
+    assert "maxFeePerGas" in hf and TIP_FLOOR <= hf["maxPriorityFeePerGas"] <= TIP_CAP
+    assert env["hsk"].expected_gas_price() > 0
+    assert env["hsk"]._bumped({"gasPrice": 100}) == {"gasPrice": 116}
 
 
 @needs_anvil

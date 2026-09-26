@@ -134,7 +134,7 @@ export async function signInWithEthereum(): Promise<{ address: string; role: Rol
     const message = createSiweMessage({
       domain: SIWE_DOMAIN,
       address,
-      statement: "Sign in to BlockID Issuance Studio.",
+      statement: "Sign in to BlockID Startup Passport.",
       uri: SIWE_URI,
       version: "1",
       chainId,

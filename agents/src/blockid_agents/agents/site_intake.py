@@ -277,5 +277,8 @@ def profile(state: dict, deps: Deps) -> dict:
     p = deps.ask(AGENT, "cloud", SYSTEM, user, StartupProfile)
     p.documents_reviewed = [ev.url for ev, _ in pages]
     used = apply_self_reported(p, state.get("self_reported"))
+    # provenance, set by code: founder-typed figures, else what the site stated (0 = unknown, no entry)
+    p.metrics_sources = {k: "self_reported" if k in used else "website"
+                         for k, v in p.metrics.model_dump().items() if k in used or v}
     deps.tool(AGENT, "store_profile", company=p.company_name, pages=len(pages), self_reported=used)
     return {"profile": p.model_dump(), "status": "profiled"}

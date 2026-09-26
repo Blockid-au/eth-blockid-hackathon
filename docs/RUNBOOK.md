@@ -1,4 +1,8 @@
-# Runbook: setup & operations on GCP
+# Runbook: setup & operations on GCP (earlier two-VM design)
+
+This runbook covers the earlier two-VM GCP target design (see [ARCHITECTURE.md](ARCHITECTURE.md) Appendix A) and
+the legacy data-room onboarding workflow. **The live site eth.blockid.au runs on a single host: use
+[RUNBOOK-STUDIO.md](RUNBOOK-STUDIO.md).**
 
 ## 0. Preparation (your machine)
 
@@ -60,8 +64,8 @@ curl -s https://eth.blockid.au/rpc -H 'content-type: application/json' \
 ## 6. Issuance process for a startup
 
 1. **Submit the file:** call `POST /api/v1/onboarding` with the data room and `issuance_inputs` (Safe address, transfer agent, KYC agent, constitution hash, board resolution ID).
-2. **Gate 1:** review the SVI score and source list, then `POST .../decision` with `{approved, reviewer, overrides}`.
-3. **Gate 2:** download the params file, then run `scripts/deploy-company.sh <workflow_id>` on your own machine (using the keystore via `cast wallet import blockid-deployer --interactive`).
+2. **Valuation gate:** review the SVI score and source list, then `POST .../decision` with `{approved, reviewer, overrides}`.
+3. **Contract gate:** download the params file, then run `scripts/deploy-company.sh <workflow_id>` on your own machine (using the keystore via `cast wallet import blockid-deployer --interactive`).
 4. **Continue the workflow:** submit the decision along with the 3 contract addresses, the cap table, and KYC information.
 5. **Sign:** download `GET .../safe-batch`, go to Safe{Wallet} → Transaction Builder → import the JSON → review → sign.
 
@@ -69,7 +73,7 @@ curl -s https://eth.blockid.au/rpc -H 'content-type: application/json' \
 
 1. Get shareholder balances at `record_block` from the indexer/explorer.
 2. Call `POST /api/v1/dividends`.
-3. Gate 3: cross-check against the board resolution, then approve.
+3. Dividend gate: cross-check against the board resolution, then approve.
 4. Sign the Safe batch (`approve` + `createRound`).
 5. Shareholders claim on the web app using the proof from `dividend_plan.claims`.
 
@@ -90,5 +94,5 @@ curl -s https://eth.blockid.au/rpc -H 'content-type: application/json' \
 |---|---|
 | Job stuck in `running` for a long time | AI VM is downloading weights for the first time (10–20 minutes) or is short on Spot quota. Check the log at `/var/log/blockid-bootstrap.log` |
 | Job `failed` after 3 attempts | Spot capacity keeps being reclaimed. Temporarily set `ai_provisioning_model=STANDARD` |
-| Gate 2 reports `rejected_contract_checks_failed` | Check `contract_check`: fix the parameters, then rerun onboarding |
+| The contract gate reports `rejected_contract_checks_failed` | Check `contract_check`: fix the parameters, then rerun onboarding |
 | Research has no data | Check the `brave-api-key` secret and Brave quota. Research will be skipped and valuation will fall back to a stage-based range |

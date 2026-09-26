@@ -2,24 +2,35 @@
 
 > **Testnet demo. Not an offer of securities.**
 
-Before going on stage: sign in once at https://eth.blockid.au with MetaMask (founder wallet) and in a second
-browser profile with the admin wallet. Every company is already issued (see [DEPLOYMENTS.md](DEPLOYMENTS.md)), so the live
-approval is a **share mint**: file a mint request just before the talk (company page → **Model a new round** → recipient wallet, holder name, new shares; or
-`POST /v1/companies/{tk}/mints`) and leave it pending. For a live *issuance* approval instead, create a new company from a
-pre-approved valuation and submit it (valuations take a few minutes, so they are pre-run); open tabs for https://eth.blockid.au/hsk, https://scan.blockid.au and the HashKey testnet
-explorer on the `AgentProvenance` contract.
+The live talk follows the 3-minute deck ([PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) ·
+[PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx)): 7 slides, one key point each, with a live
+switch to the app on slides 5 and 6.
 
-## Timed beats
+## Before going on stage
 
-| Time | Screen | Say |
+- **Prepare one company in *Awaiting issue approval*** (status `pending_issue`) before the demo: pick an approved
+  valuation (valuations take a few minutes, so run it in advance), create the company (name, ticker, 2–4
+  shareholders with wallets and %), and **Submit**. Leave it in the admin Approvals queue. All 10 existing
+  companies are already issued on three chains (see [DEPLOYMENTS.md](DEPLOYMENTS.md)).
+- Check the issuer has gas on Hoodi and HashKey (Admin → Issuer wallets; about 0.004 Hoodi ETH per company).
+- Sign in at https://eth.blockid.au with the founder wallet, and in a second browser profile with an admin wallet
+  (SIWE) or the admin account.
+- Open tabs: `/admin` → Approvals, a pre-run valuation report `/v/:id` (e.g. Airwallex), `/verify/EBA`,
+  https://scan.blockid.au, https://eth.blockid.au/hsk and the HashKey testnet explorer.
+- Backup if nothing is pending: approve a share **mint** instead (company page → **Model a new round**, or
+  `POST /v1/companies/{tk}/mints`) — it re-syncs Hoodi and HashKey after the BlockID mint.
+
+## Timed beats (7 slides)
+
+| Time | Slide / screen | Say |
 |---|---|---|
-| 0:00–0:20 | Home page | "Startups in Australia, Vietnam and emerging markets can't afford a valuation, a proper share register or dividend admin — cap tables live in spreadsheets. BlockID lets AI agents do the work and tokenises the equity as an RWA — but agents never hold keys." |
-| 0:20–0:50 | `/new` wizard → paste a website, start valuation; switch to the pre-run valuation `/v/:id` | "The agent crawls the public site through an SSRF-safe fetcher, finds competitors, builds a market view and scores 7 SVI dimensions. The maths is code; the AI only suggests qualitative scores, labelled `ai_suggested`, and every claim links to a fetched source." |
-| 0:50–1:15 | Evidence list, dimension bases, then `/admin` approvals queue | "The graph stops at a human gate. The admin — a different person, with their own wallet — approves or overrides. The agent's policy forbids signing, sending, deploying, reading keys or running a shell — enforced in code, not in the prompt." |
-| 1:15–1:50 | `/admin` → Approvals → the pending **mint** → Approve; open the company page (e.g. `/c/ART`) | "One human approval. The isolated issuer — the only component with a key — KYCs the new holder in the identity registry, mints on our zero-gas BlockID chain, then re-syncs the paused mirrors and the Merkle root on Ethereum Hoodi and HashKey Chain (~80 s)." Point at the activity feed and the tx links to scan.blockid.au. `/c/ARW` shows a completed one-approval issuance on all three chains. |
-| 1:50–2:10 | Company page of an anchored company (e.g. **EBA**): contract-address cards for BlockID / Hoodi / HashKey, "Add to MetaMask" | "Each chain gets a paused mirror of the cap table plus a Merkle root in `CapTableAnchor`; every shareholder can import the token and prove their balance." |
-| 2:10–2:40 | `/verify/EBA` → green banner (BlockID ✓ Hoodi ✓ HashKey ✓) → **Tamper test** → red | "Auditable AI: the model only scores; a fixed public formula computes the value — recomputed here in your browser. The keccak of the report is on three chains. Change one score and the hash no longer matches." Then mention `/hsk` + `AgentProvenance` four-eyes approval for the HashKey track |
-| 2:40–3:00 | Back to home | "AI proposes, code computes, humans approve with their own wallets, an isolated issuer signs, and every step is provable on-chain. Next: ERC-4337 agent accounts with spending limits, agent reputation from this provenance log, real stablecoin dividends and HSK mainnet." |
+| 0:00–0:20 | 1 · Hook | "Every startup has two questions it can't answer cheaply: what are we worth, and who exactly owns us? BlockID Startup Passport answers both. Agents propose, humans approve, chains prove." |
+| 0:20–0:45 | 2 · Problem → solution | "Cap tables live in spreadsheets, valuations are slow and unsourced, shareholders can't verify anything. The founder pastes a website, gets a cited valuation in minutes, and after one approval has KYC-gated shares on-chain that anyone can verify." |
+| 0:45–1:15 | 3 · How it works (whole system) | "AI agents read up to six pages and run at most three searches; a fixed formula computes the value; the agents hold no keys. A human admin signs one approval. Only then does the isolated issuer — the only component with a key — create the register on our zero-gas chain and mirror it to Ethereum Hoodi and HashKey." |
+| 1:15–1:40 | 4 · Valuation → pre-run report `/v/:id` | "The AI only suggests scores, labelled `ai_suggested`. A fixed public formula turns seven weighted dimensions into a grade and a range; any claim without a fetched source is dropped." Point at the evidence list and dimension bases. |
+| 1:40–2:05 | 5 · One approval → 3 chains → **live**: `/admin` → Approvals → the prepared company → **Approve issuance**; open `/c/:ticker` | "One approval. The issuer deploys the registry and token, KYCs each holder and issues on BlockID Chain, then mirrors the cap table with a Merkle root to Hoodi and HashKey." Let the tracker run (BlockID → Hoodi → HashKey, about 1–2 min); show the contract cards with QR + Add to MetaMask. |
+| 2:05–2:25 | 6 · Verify → **live**: `/verify/EBA` → green (BlockID ✓ Hoodi ✓ HashKey ✓) → **Tamper test** → red | "You don't have to trust us. The page recomputes keccak256 of the canonical report in your browser and compares it with the hash on all three chains. Change one score and it turns red." |
+| 2:25–3:00 | 7 · Live results / ask | "This is live today: ten real companies, thirty token contracts on three chains, A$5.63B of marked valuation, ten out of ten verified, 147 automated tests. We're looking for pilot startups and licensed partners — try it at eth.blockid.au." Come back to the tracker: the new company should now be live on all three chains. |
 
 Fallback if the live site or a chain RPC is slow: run `make demo` (offline end-to-end with fake LLM) in a
 terminal and show the pre-deployed contracts on the explorers.
@@ -28,8 +39,8 @@ terminal and show the pre-deployed contracts on the explorers.
 
 **Why not just give the agent a wallet with limits?**
 Equity issuance is irreversible and regulated; one prompt injection could mint shares. We keep agents keyless
-today and put limits on-chain later (ERC-4337 session keys, roadmap) — the provenance contract is the audit trail
-either way.
+today and put limits on-chain later (Safe + Zodiac Roles on HashKey, session keys on Ethereum — roadmap) — the
+provenance contract is the audit trail either way.
 
 **What stops the issuer from executing something unapproved?**
 Off-chain, the issuer only acts on rows in an admin-approved state, claimed atomically. On-chain, `markExecuted`
@@ -44,19 +55,25 @@ It is evidence-backed and transparent: each dimension shows its basis and source
 starting point for SMEs who otherwise have nothing; weights are documented and calibration is ongoing.
 
 **Is this legal?**
-It is a testnet demo, not an offer of securities. Production requires audited ERC-3643 (T-REX), a Safe multisig
+Testnet demo. Not an offer of securities. Production requires audited ERC-3643 (T-REX), a Safe multisig
 issuer, an independent audit and an AFSL / licensed partner in Australia (details in SECURITY.md).
 
 **Why three chains?**
-BlockID EVM gives zero-gas day-to-day operations for small holders; Ethereum Hoodi is a neutral public anchor;
-HashKey Chain is the compliance-focused home for the RWA stack going forward.
+BlockID EVM (chain 262626) gives zero-gas day-to-day operations for small holders; Ethereum Hoodi (560048, the
+current Ethereum testnet) is a neutral public anchor; HashKey Chain testnet (133) is the compliance-focused home for
+the RWA stack. One approval syncs all three.
 
 **Where is personal data?**
 Never on-chain — the registry stores only a hash of the KYC record. PII-handling agents are restricted to the
 local model tier in code.
 
 **How do you make money?**
-Fees per valuation, per issuance and per dividend round for SMEs; transfer-agent services once licensed.
+Issuance fee, cap-table SaaS, a transfer-agent fee per transfer, 0.5–1% of dividend rounds, and custody via a
+licensed partner.
 
 **What did you build during the hackathon?**
-`AgentProvenance`; the HashKey Chain deployment and page; one-approval sync BlockID → Hoodi → HashKey with a live issuance tracker; the `/verify` page (report hash recomputed in the browser and compared on three chains); a Claude-CLI web-search fallback with a 3-query research budget; English docs. The core platform existed before the event.
+`AgentProvenance`; the HashKey Chain deployment and `/hsk` page; one-approval sync BlockID → Hoodi → HashKey with a
+live issuance tracker; the canonical report hash and the `/verify` page (recomputed in the browser, compared on
+three chains); the 3-search research budget with the Claude web-search bridge; the SambaNova → Claude bridge →
+DeepInfra LLM chain; English docs, diagrams and the pitch deck. The core platform existed before the event
+(details in [HACKATHON.md](HACKATHON.md) §8).

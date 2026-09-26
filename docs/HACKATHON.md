@@ -1,15 +1,26 @@
 # BlockID Startup Passport — technical documentation (EAG Global Buildathon, Sydney)
 
-*Agents propose. Humans approve. Chains prove.* (Built on the BlockID Issuance Studio platform.)
+*Agents propose. Humans approve. Chains prove.*
 
 > **Testnet demo. Not an offer of securities.**
 
-**Pitch.** AI agents value startups and tokenise their equity as a real-world asset, but agents never hold keys:
-every agent proposal is hashed on-chain, a human approves with their own wallet, and only then does the isolated
-issuer execute.
+**Know what your startup is worth, and who owns it.** BlockID turns your company website into an evidence-cited
+valuation in minutes, then turns your shareholder list into a verified, KYC-gated cap table you can grow and pay
+dividends from — on-chain, with AI that never holds the keys.
 
-- Live app: https://eth.blockid.au · HashKey Chain page: https://eth.blockid.au/hsk · Explorer: https://scan.blockid.au
-- Repo guide: [README.md](../README.md) · Demo script: [DEMO.md](DEMO.md) · Security: [SECURITY.md](SECURITY.md)
+- Live app: https://eth.blockid.au · Verify: https://eth.blockid.au/verify/EBA · HashKey Chain page:
+  https://eth.blockid.au/hsk · Explorer: https://scan.blockid.au
+- Pitch deck (3 min): [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) ·
+  [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx) · demo video: https://eth.blockid.au/demo.mp4
+- Repo guide: [README.md](../README.md) · Demo script: [DEMO.md](DEMO.md) · Security: [SECURITY.md](SECURITY.md) ·
+  Facts: [FACTS.md](FACTS.md)
+
+**Results (live, 26 Sep 2026):** 10 companies tokenised (ARW, GAA, SFT, MOM, ART, BVN, EHE, SVI, VBC, EBA), all
+anchored on 3 chains · 30 share-token contracts · A$5.63B marked valuation (median A$71.1M) · `/verify` 10 / 10 match
+on all three chains · 147 automated tests (110 pytest + 37 Foundry).
+
+Tracks entered: **Sydney Hackathon — AI x Ethereum & Agent Economy** · **Real-World Ethereum Applications** ·
+**HashKey Chain (RWA / AI Agents)**.
 
 ---
 
@@ -27,14 +38,23 @@ product where the hard problem is exactly the one the track names: **how do you 
 | Agent identity | `AgentProvenance.registerAgent(agentId, name, policyHash)` — each agent has an on-chain id bound to the hash of its permission policy (`policy.py`) |
 | Permissioned agent execution / wallets | Agents have **no wallet at all**. Only the isolated issuer service signs, and only for rows a human approved. On-chain, `markExecuted` reverts unless the proposal was approved |
 | Safe spending / execution policies | `policy.py` whitelists tools and model tiers per agent, enforced in code before every call; `FORBIDDEN_TOOLS` = `sign_tx, send_tx, read_private_key, deploy_contract, shell`. Rate limits on valuations. Four-eyes rule on-chain: approver ≠ recorder |
-| AI-driven on-chain execution | Approved valuations become share tokens, cap-table anchors, mints and dividend rounds — executed automatically by the issuer after approval |
-| AI-generated content provenance | Every AI output (valuation report, cap-table plan, dividend plan) is registered by `contentHash` + `modelId` + `uri`; `verify(id, contentHash)` proves a published report is the one a human approved. The SVI report hash is also anchored on the share token (`anchorValuation`) |
+| AI-driven on-chain execution | Approved valuations become share tokens, cap-table anchors, mints and dividend rounds — executed automatically by the issuer after **one** admin approval |
+| AI-generated content provenance | Every AI output (valuation report, cap-table plan, dividend plan) is registered by `contentHash` + `modelId` + `uri`; `verify(id, contentHash)` proves a published report is the one a human approved. The report hash (keccak256 of the canonical report JSON) is also anchored on the share token on all three chains (`anchorValuation`) and recomputed in the browser at `/verify/:ticker` |
 | Agent reputation (roadmap) | The provenance log (proposals, approvals, rejections, overrides) is the raw data for an on-chain reputation score per agent/model |
+
+### Real-World Ethereum Applications
+
+A live product for a real problem, not a mock: real websites crawled, real cited valuations, 10 companies issued
+with 30 token contracts, the cap table anchored on **Ethereum Hoodi** (`CapTableAnchor`
+`0xF3dC95D5d207dE9f2aC98184Fd32b45B72334263`), MetaMask add-token on every chain, and a public `/verify` page that
+anyone can use to check a valuation report against the chain without trusting us.
 
 ### HashKey Chain track — RWA / AI Agents
 
 Tokenised private-company equity is an RWA with a real, under-served market, and HashKey Chain's compliance
-positioning fits permissioned securities. For the hackathon we deployed the **complete stack on HashKey Chain
+positioning fits permissioned securities. **Every company issued in the live flow is synced to HashKey Chain
+testnet automatically** (paused mirror token with the same balances + cap-table Merkle root in `CapTableAnchor`
+`0x728c834DE493DC3e9Ae2f7C0e79d86701B6F9F04`). In addition we deployed the **complete stack on HashKey Chain
 testnet (chain id 133, RPC `https://testnet.hsk.xyz`)**: `IdentityRegistry`, `BlockIDShareToken`,
 `DividendDistributor`, `DemoAUD`, `CapTableAnchor` and `AgentProvenance`, via `scripts/hsk-demo.sh`, with a
 public page at https://eth.blockid.au/hsk.
@@ -80,8 +100,9 @@ Against the HSK judging criteria:
   wallet, humans approve with their own wallet, agents hold no keys.
 - **Emerging regions**: built for Australian and Vietnamese SMEs; EN/VI UI; zero-gas operational chain so
   shareholders never need to buy gas; relayer-paid dividend claims.
-- **Sustainability**: low-cost batch AI (jobs queued, GPU only on demand), per-issuance and per-dividend fees
-  are a natural business model once licensed.
+- **Sustainability**: low-cost AI (free SambaNova models first, then the Claude subscription bridge, paid DeepInfra
+  last; a valuation typically costs US$0 in LLM fees). Revenue: issuance fee, cap-table SaaS, transfer-agent fee per
+  transfer, 0.5–1% of dividend rounds, custody via a licensed partner.
 
 ## 2. Problem and users
 
@@ -99,7 +120,7 @@ Today these cap tables live in spreadsheets; valuations are opinions without evi
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │ 1. UI  (React + viem, MetaMask, SIWE EIP-4361, EN/VI)                     │
-│    /new wizard · /v/:id valuation · /c/:ticker company · /admin · /hsk    │
+│    /new · /v/:id · /c/:ticker · /verify/:ticker · /admin · /hsk           │
 └──────────────────────────────┬────────────────────────────────────────────┘
                                │ HTTPS, session cookie, CSRF origin check
 ┌──────────────────────────────▼────────────────────────────────────────────┐
@@ -113,7 +134,7 @@ Today these cap tables live in spreadsheets; valuations are opinions without evi
                                │ rows in Postgres (status = pending)
 ┌──────────────────────────────▼────────────────────────────────────────────┐
 │ 3. CONTROL PLANE                                                          │
-│    agents-api: approval queue; admin approves with own wallet (SIWE)      │
+│    agents-api: approval queue; admin approves (SIWE wallet or account)    │
 │    issuer service: only key holder, isolated docker networks, internal    │
 │    token; atomically claims *approved* rows; checks on-chain results      │
 │    before retry; records tx hashes as events                              │
@@ -124,22 +145,26 @@ Today these cap tables live in spreadsheets; valuations are opinions without evi
 │ 4. CHAINS                                                                 │
 │    BlockID EVM 262626 (zero gas): operational register + dividends        │
 │    Ethereum Hoodi 560048: CapTableAnchor Merkle roots, paused mirrors     │
-│    HashKey Chain testnet 133: full RWA stack + AgentProvenance            │
+│    HashKey Chain testnet 133: roots + paused mirrors, RWA stack,          │
+│      AgentProvenance                                                      │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Lifecycle of one company
 
 1. Founder signs in with MetaMask and submits a website (+ optional self-reported metrics).
-2. Worker runs the valuation graph; SVI index, band and low/mid/high valuation are computed by code; LLM-suggested
-   qualitative scores are labelled `ai_suggested`. The graph stops at `gate_valuation`.
+2. Worker runs the valuation graph (≤ 6 pages, ≤ 3 web searches; LLM chain SambaNova → Claude bridge → DeepInfra);
+   SVI index, band and low/mid/high valuation are computed by code; LLM-suggested qualitative scores are labelled
+   `ai_suggested`. The graph stops at `gate_valuation`.
 3. Admin reviews evidence, approves or overrides scores (overrides become `human`).
 4. Founder creates the company: name, ticker (suggested), holders and percentages (validated to sum to 100%,
    EIP-55 addresses). Total shares = valuation mid / A$1.00.
-5. Admin approves issuance → issuer deploys `IdentityRegistry`, `BlockIDShareToken`, `DividendDistributor`,
-   registers KYC for each holder, issues shares and anchors the valuation hash on BlockID EVM.
-6. Admin approves anchoring → issuer mirrors balances on Hoodi (paused token) and anchors the cap-table Merkle root
-   in `CapTableAnchor`.
+5. Admin gives **one issuance approval** → issuer deploys `IdentityRegistry`, `BlockIDShareToken`,
+   `DividendDistributor`, registers KYC for each holder, issues shares and anchors the report hash (keccak256 of the
+   canonical report JSON) on BlockID EVM.
+6. Automatically, in the same run → issuer mirrors balances on Ethereum Hoodi and then HashKey Chain testnet (paused
+   token, same report hash) and anchors the cap-table Merkle root in `CapTableAnchor` on each. A failed chain shows
+   its error on the tracker; an admin re-sync re-runs only that chain.
 7. Later: mint requests and dividend plans follow the same propose → approve → execute path; dividends are paid
    via `claimFor` by a relayer so holders pay nothing.
 
@@ -155,7 +180,7 @@ transaction from the approver's wallet, and the execution tx is linked back with
 | Deterministic maths | SVI index and valuation computed by code; LLM only suggests qualitative scores | `tools/svi.py`, `agents/valuation.py` |
 | Prompt injection | Web content treated as untrusted data; schema-validated outputs; uncited claims dropped | agents, `schemas.py` |
 | Network | SSRF-safe crawler; worker cannot reach the issuer network | `tools/safefetch.py`, docker networks |
-| Human-in-the-loop | LangGraph `interrupt()` gates + admin approval for issue / anchor / mint / dividend | `graph.py`, studio routes |
+| Human-in-the-loop | LangGraph `interrupt()` valuation gate + one admin issuance approval; separate approvals for mint / dividend | `graph.py`, studio routes |
 | Four-eyes on-chain | Approver wallet ≠ recorder (issuer) wallet; `markExecuted` requires approval | `AgentProvenance.sol` |
 | Execution integrity | Issuer atomically claims only approved rows; retries check chain state first | `issuer/service.py` |
 | Auditability | Hash-chained audit log, on-chain events, report hashes anchored on the token | `audit.py`, contracts |
@@ -186,7 +211,7 @@ Tooling: Foundry, Solidity 0.8.28, OpenZeppelin v5.4.0, unit + fuzz tests, Slith
 
 ## 7. Key features (summary)
 
-AI valuation with evidence (SVI) · human approval gates · permissioned share tokens · Merkle dividends with gasless
+AI valuation with evidence (SVI) · one human issuance approval · `/verify` report-hash check on three chains · permissioned share tokens · Merkle dividends with gasless
 claims · cross-chain cap-table anchoring and holder proofs · on-chain agent provenance and four-eyes approval ·
 hash-chained audit · SIWE wallet login · EN/VI UI · zero-gas operational chain.
 
@@ -194,27 +219,38 @@ hash-chained audit · SIWE wallet login · EN/VI UI · zero-gas operational chai
 
 Honest scope statement:
 
-- **Before the hackathon** (existing BlockID platform): the agent pipeline (LangGraph, SVI, policy, audit), the
-  Issuance Studio web app and API, the issuer service, the share-token / identity / dividend / anchor contracts,
-  the BlockID EVM chain and Blockscout explorer, and the Ethereum Hoodi deployment.
-- **During the hackathon**:
+- **Before the hackathon** (existing BlockID platform, codename Issuance Studio): the agent pipeline (LangGraph,
+  SVI, policy, audit), the web app and API, the issuer service, the share-token / identity / dividend / anchor
+  contracts, the BlockID EVM chain and Blockscout explorer, and the Ethereum Hoodi anchoring.
+- **During the hackathon (26 Sep 2026)**:
   - `AgentProvenance.sol` — on-chain agent identity, AI-output provenance and four-eyes human approval;
-  - deployment of the full RWA stack + `AgentProvenance` on **HashKey Chain testnet** (`scripts/hsk-demo.sh`);
-  - the HashKey Chain web page (https://eth.blockid.au/hsk);
-  - English documentation for judges (README, this document, DEMO, security clean-up).
+  - deployment of the full RWA stack + `AgentProvenance` on **HashKey Chain testnet** (`scripts/hsk-demo.sh`) and
+    the `/hsk` page;
+  - **one issuance approval → three chains**: automatic sync BlockID → Hoodi → HashKey with per-chain status, a live
+    issuance tracker and admin re-sync;
+  - the **canonical report hash** (keccak256 of the canonical report JSON) anchored on all three chains and the
+    public **`/verify`** page with a tamper test;
+  - a **3-search research budget** with the Claude web-search bridge, and the **SambaNova → Claude bridge →
+    DeepInfra** LLM chain (benchmark in [LLM-ROUTING.md](LLM-ROUTING.md));
+  - 10 companies issued and anchored on three chains (30 token contracts);
+  - English documentation for judges: README, this document, DEMO, FEATURES (39 screenshots), 12 architecture
+    diagrams, user guide, 3-minute pitch deck and demo video.
 
 ## 9. Roadmap
 
-1. **ERC-4337 agent smart accounts** with session keys and on-chain spending limits, so an agent can perform
-   narrow, pre-approved actions (e.g. relaying dividend claims) within a budget.
-2. **Agent reputation** computed from `AgentProvenance` history: approval rate, human override rate, accuracy of
-   valuations against later rounds.
-3. **Real stablecoin dividends on HashKey Chain** and **HSK mainnet** deployment.
-4. **ZK selective disclosure of shareholder KYC** (prove "verified, eligible jurisdiction" without revealing identity).
-5. **Production hardening**: issuance through a Safe multisig, audited ERC-3643 (T-REX) + ONCHAINID, independent
-   audit, multi-validator BlockID chain, AFSL / legal advice (see [SECURITY.md](SECURITY.md)).
-6. **Open-source SDK** of the provenance + approval-gate pattern (Solidity contract + Python/TypeScript client)
-   for any team that wants agents to act on-chain without keys.
+Ranked by impact ÷ effort in [ROADMAP-RESEARCH.md](ROADMAP-RESEARCH.md):
+
+1. **Safe 2-of-3 as admin** on all three chains; the issuer keeps only narrow roles.
+2. **Invariant + static-analysis CI** (Foundry invariants, Aderyn, Halmos).
+3. **On-chain alerting and end-to-end tracing.**
+4. **Valuation eval + red-team harness** and **EAS valuation attestations**.
+5. **Calibrated revenue multiples + backtest.**
+6. **Legal path**: licensed CSF intermediary / AFSL partner (see [SECURITY.md](SECURITY.md)).
+7. **Scoped agent permissions**: Safe + Zodiac Roles on HashKey Chain; session keys (EIP-7702 / ERC-7579, 4337
+   stack) on Ethereum.
+8. **Real KYC** and **ERC-8004 agent identity/reputation** computed from the `AgentProvenance` history.
+9. Later: official ERC-3643 + ONCHAINID and an independent audit, real stablecoin dividends and HashKey mainnet, ZK
+   selective disclosure of KYC, multi-validator BlockID chain, open-source SDK of the provenance + approval pattern.
 
 > **Testnet demo. Not an offer of securities.** Not legal or financial advice.
 

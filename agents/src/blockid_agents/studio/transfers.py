@@ -27,6 +27,7 @@ from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
 from .auth import COOKIE, Session
+from .company_admins import CompanyAuthz
 from .db import ONCHAIN_STATUSES, jsonable
 from .services import IssuerError
 
@@ -94,6 +95,7 @@ def build_transfer_router(ctx) -> APIRouter:
     r = APIRouter()
     s = ctx.settings
     state: dict[str, Any] = {}
+    authz = CompanyAuthz(ctx)  # company admins act on their own company's queue
 
     def w3() -> Web3:
         if "w3" not in state:
@@ -120,6 +122,7 @@ def build_transfer_router(ctx) -> APIRouter:
         return sess
 
     def audit(sess: Session, action: str, target: Any = None, **detail) -> None:
+        detail.setdefault("role", "platform_admin" if sess.is_admin else "user")  # company actions pass their role
         ctx.need_db().audit(sess.actor, action, None if target is None else str(target), **detail)
 
     def company(tk: str) -> dict:
@@ -275,19 +278,25 @@ def build_transfer_router(ctx) -> APIRouter:
         return jsonable(row)
 
     # ---------------------------------------------------------------- admin
+    def queue(sess: Session, sql: str) -> list:
+        ids = authz.scope(sess)  # platform admin: all; company admin: own companies only
+        where = "" if ids is None else "WHERE c.id = ANY(%(ids)s) "
+        return jsonable(ctx.need_db().all(sql.format(where=where), None if ids is None else {"ids": ids}))
+
     @r.get("/v1/admin/transfers")
-    def admin_transfers(sess: Session = Depends(require_admin)):
-        return jsonable(ctx.need_db().all(
-            "SELECT t.*, c.ticker, c.name AS company_name FROM studio.transfers t "
-            "JOIN studio.companies c ON c.id=t.company_id ORDER BY (t.status='pending') DESC, t.id DESC LIMIT 200"))
+    def admin_transfers(sess: Session = Depends(require_user)):
+        return queue(sess, "SELECT t.*, c.ticker, c.name AS company_name FROM studio.transfers t "
+                           "JOIN studio.companies c ON c.id=t.company_id {where}"
+                           "ORDER BY (t.status='pending') DESC, t.id DESC LIMIT 200")
 
     @r.get("/v1/admin/kyc")
-    def admin_kyc(sess: Session = Depends(require_admin)):
-        return jsonable(ctx.need_db().all(
-            "SELECT k.*, c.ticker, c.name AS company_name FROM studio.kyc_requests k "
-            "JOIN studio.companies c ON c.id=k.company_id ORDER BY (k.status='pending') DESC, k.id DESC LIMIT 200"))
+    def admin_kyc(sess: Session = Depends(require_user)):
+        return queue(sess, "SELECT k.*, c.ticker, c.name AS company_name FROM studio.kyc_requests k "
+                           "JOIN studio.companies c ON c.id=k.company_id {where}"
+                           "ORDER BY (k.status='pending') DESC, k.id DESC LIMIT 200")
 
     def approve(table: str, item_id: int, path: str, key: str, sess: Session, action: str) -> dict:
+        _, role = authz.check_item(sess, table, item_id)  # platform admin or an admin of the item's company
         db = ctx.need_db()
         row = db.one(f"UPDATE studio.{table} SET status='approved', decided_by=%s, decided_at=now() "
                      "WHERE id=%s AND status IN ('pending','failed') RETURNING id, company_id",
@@ -295,7 +304,7 @@ def build_transfer_router(ctx) -> APIRouter:
         if not row:
             ex = db.one(f"SELECT status FROM studio.{table} WHERE id=%s", (item_id,))
             raise HTTPException(404 if not ex else 409, "unknown id" if not ex else f"status is {ex['status']}")
-        audit(sess, action, item_id, company_id=row["company_id"])
+        audit(sess, action, item_id, company_id=row["company_id"], role=role)
         err = notify_issuer(path, {key: item_id})
         if err:
             db.exec(f"UPDATE studio.{table} SET status='pending' WHERE id=%s AND status='approved'", (item_id,))
@@ -303,28 +312,29 @@ def build_transfer_router(ctx) -> APIRouter:
         return {"id": item_id, "status": "approved"}
 
     def reject(table: str, item_id: int, sess: Session, action: str, reason: str) -> dict:
+        _, role = authz.check_item(sess, table, item_id)
         row = ctx.need_db().one(f"UPDATE studio.{table} SET status='rejected', decided_by=%s, decided_at=now(), "
                                 "note=coalesce(nullif(%s,''), note) WHERE id=%s AND status='pending' RETURNING id",
                                 (sess.actor, reason, item_id))
         if not row:
             raise HTTPException(409, "not pending")
-        audit(sess, action, item_id, reason=reason)
+        audit(sess, action, item_id, reason=reason, role=role)
         return {"id": item_id, "status": "rejected"}
 
     @r.post("/v1/admin/transfers/{tid}/approve", status_code=202)
-    def approve_transfer(tid: int, sess: Session = Depends(require_admin)):
+    def approve_transfer(tid: int, sess: Session = Depends(require_user)):
         return approve("transfers", tid, "/transfer", "transfer_id", sess, "transfer_approved")
 
     @r.post("/v1/admin/transfers/{tid}/reject")
-    def reject_transfer(tid: int, body: ReasonBody, sess: Session = Depends(require_admin)):
+    def reject_transfer(tid: int, body: ReasonBody, sess: Session = Depends(require_user)):
         return reject("transfers", tid, sess, "transfer_rejected", body.reason)
 
     @r.post("/v1/admin/kyc/{kid}/approve", status_code=202)
-    def approve_kyc(kid: int, sess: Session = Depends(require_admin)):
+    def approve_kyc(kid: int, sess: Session = Depends(require_user)):
         return approve("kyc_requests", kid, "/kyc", "kyc_id", sess, "kyc_approved")
 
     @r.post("/v1/admin/kyc/{kid}/reject")
-    def reject_kyc(kid: int, body: ReasonBody, sess: Session = Depends(require_admin)):
+    def reject_kyc(kid: int, body: ReasonBody, sess: Session = Depends(require_user)):
         return reject("kyc_requests", kid, sess, "kyc_rejected", body.reason)
 
     @r.post("/v1/admin/companies/{cid}/transfer-mode", status_code=202)
