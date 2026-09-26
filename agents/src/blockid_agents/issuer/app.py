@@ -93,6 +93,11 @@ def create_app(service=None, cfg: IssuerConfig | None = None) -> FastAPI:
         s = svc()
         return submit("revalue", lambda: s.revalue(r.company_id), company_id=r.company_id)
 
+    @app.post("/reanchor-valuation", status_code=202, dependencies=[Depends(auth)])
+    def reanchor_valuation(r: CompanyReq) -> dict:
+        s = svc()
+        return submit("reanchor-valuation", lambda: s.reanchor_valuation(r.company_id), company_id=r.company_id)
+
     @app.post("/mint", status_code=202, dependencies=[Depends(auth)])
     def mint(r: MintReq) -> dict:
         s = svc()

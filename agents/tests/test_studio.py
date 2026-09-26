@@ -503,8 +503,22 @@ def test_full_studio_flow(studio_env):
     chain.fail = False
 
     # ---- anchor + revalue
+    d = u.get(f"/v1/companies/{tk}").json()
+    assert d["sync"]["blockid"] == "done" and d["sync"]["hoodi"] == "pending" and d["sync"]["hsk"] == "pending"
+    assert d["hsk"]["chain_id"] == 133 and d["hsk"]["token"] is None and "valuation_report_hash" in d
+    assert [e["kind"] for e in d["events"]][-2:] == ["issue_approved", "submitted"]
+    # issuer reports Hoodi done, HSK failed -> partially anchored; admin re-sync runs only HSK
+    db.exec("UPDATE studio.companies SET status='partially_anchored', hoodi_token=%s, hoodi_anchor_tx='0xdd', "
+            "sync=%s WHERE id=%s", ("0x" + "5" * 40, json.dumps({"blockid": "done", "hoodi": "done", "hsk": "failed",
+                                                                 "errors": {"hsk": "low balance"}}), cid))
+    assert cid in [c["id"] for c in a.get("/v1/admin/approvals").json()["companies"]]
+    assert a.get("/v1/admin/companies").json()[0]["sync"]["errors"] == {"hsk": "low balance"}
     assert a.post(f"/v1/admin/companies/{cid}/approve-anchor").json()["status"] == "anchoring"
     assert calls[-1] == ("/anchor", {"company_id": cid})
+    assert u.get(f"/v1/companies/{tk}").json()["events"][0]["data"]["chains"] == ["hsk"]
+    db.exec("UPDATE studio.companies SET status='anchored', hsk_token=%s, hsk_anchor_tx='0xee', "
+            "sync=%s WHERE id=%s", ("0x" + "4" * 40, json.dumps({"blockid": "done", "hoodi": "done", "hsk": "done"}), cid))
+    assert a.post(f"/v1/admin/companies/{cid}/approve-anchor").status_code == 409  # nothing left to sync
     db.exec("UPDATE studio.companies SET status='anchored', hoodi_token=%s, hoodi_anchor_tx='0xdef' WHERE id=%s",
             ("0x" + "6" * 40, cid))
     r = a.post(f"/v1/admin/companies/{cid}/revalue", json={"valuation_aud": mid * 1.5, "note": "Q3 review"}).json()
@@ -535,7 +549,7 @@ def test_full_studio_flow(studio_env):
     # ---- stats, wallets, audit
     st = u.get("/v1/platform/stats").json()
     k = st["kpis"]
-    assert k["companies"] == 1 and k["tokens"] == 2 and k["anchored"] == 1 and k["anchored_total"] == 1
+    assert k["companies"] == 1 and k["tokens"] == 3 and k["anchored"] == 1 and k["anchored_total"] == 1
     assert k["tx_value_aud"] == pytest.approx(co["total_shares"] + dv["total_units"] / 1e6, rel=1e-6)
     assert len(st["series"]["days"]) == 365 and st["series"]["companies"][-1] == 1
     assert st["series"]["value_aud"][-1] == pytest.approx(mid * 1.5) and st["series"]["value_aud"][0] == 0

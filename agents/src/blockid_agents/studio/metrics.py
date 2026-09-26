@@ -10,7 +10,9 @@ import statistics
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
-ONCHAIN = ("issued", "pending_anchor", "anchoring", "anchored")
+from ..issuer import syncstate
+
+ONCHAIN = ("issued", "pending_anchor", "anchoring", "anchored", "partially_anchored")
 
 
 def f(x) -> float | None:
@@ -78,7 +80,9 @@ def company_summary(c: dict, marks: list[dict], holders: int, now: datetime) -> 
         "status": c["status"],
         "local_token": c.get("local_token"),
         "hoodi_token": c.get("hoodi_token"),
+        "hsk_token": c.get("hsk_token"),
         "anchored": c["status"] == "anchored" or bool(c.get("hoodi_anchor_tx")),
+        "sync": syncstate.view(c),
     }
 
 
@@ -94,7 +98,15 @@ EVENT_TEXT = {
     "valuation_anchored": "valuation anchored on BlockID Chain",
     "revalued": "revalued",
     "hoodi_mirrored": "cap table mirrored to Hoodi",
-    "anchored": "cap table anchored on Hoodi",
+    "hsk_mirrored": "cap table mirrored to HashKey Chain",
+    "anchored": "cap table anchored",
+    "deployed": "contract deployed",
+    "sync_started": "chain sync started",
+    "sync_failed": "chain sync failed",
+    "sync_skipped": "chain sync skipped",
+    "submitted": "submitted for approval",
+    "issue_approved": "issuance approved",
+    "resync_requested": "re-sync requested",
     "dividend_created": "dividend round created",
     "dividend_claimed": "dividend claimed",
     "mint_requested": "mint requested",
@@ -111,6 +123,12 @@ def event_text(e: dict) -> str:
         return f"{int(d['shares']):,} shares to {d.get('name') or d.get('wallet', '')}".strip()
     if e["kind"] == "revalued" and d.get("mark_aud"):
         return f"revalued to A${float(d['mark_aud']):.4f}/share"
+    if e["kind"] == "anchored":
+        return f"cap table anchored on {syncstate.LABELS.get(str(e.get('chain')), e.get('chain') or 'Hoodi')}"
+    if e["kind"] == "deployed" and d.get("contract"):
+        return f"{d['contract']} deployed on {syncstate.LABELS.get(str(e.get('chain')), e.get('chain') or '')}"
+    if e["kind"] in ("sync_failed", "sync_skipped") and d.get("error"):
+        return f"{syncstate.LABELS.get(str(e.get('chain')), e.get('chain'))}: {d['error']}"[:300]
     if e["kind"] == "dividend_created" and d.get("total_units"):
         return f"dividend round {int(d['total_units']) / 1e6:,.2f} mAUD"
     return base
@@ -160,7 +178,8 @@ def platform_stats(companies: list[dict], marks: dict[int, list[dict]], holders:
         "block": block,
         "kpis": {
             "companies": len(live),
-            "tokens": sum(1 for c in live if c.get("local_token")) + sum(1 for c in live if c.get("hoodi_token")),
+            "tokens": sum(1 for c in live if c.get("local_token")) + sum(1 for c in live if c.get("hoodi_token"))
+            + sum(1 for c in live if c.get("hsk_token")),
             "shares": sum(int(c["total_shares"]) for c in live),
             "tx_value_aud": round(tx_value, 2),
             "total_valuation_aud": round(sum(vals), 2),

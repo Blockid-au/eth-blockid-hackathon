@@ -14,6 +14,7 @@ import { useAsync, useNow, usePageVisible, useTitle, type Async } from "../lib/h
 import { bandGrade } from "../lib/svi";
 import { CHAINS, chainOf, isAddressValid, shortAddr } from "../wallet";
 import type { DictKey } from "../dict";
+import { SyncChips } from "../components/Tracker";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
@@ -232,7 +233,7 @@ function ApprovalsTab({ ap, signer, onChanged }: { ap: Async<Approvals>; signer?
   const a = ap.data;
   if (!a) return ap.error ? <ErrorBox error={ap.error} retry={ap.reload} /> : <p className="note">{t("common.loading")}</p>;
   const pendingIssue = a.companies.filter((c) => c.status === "pending_issue");
-  const toAnchor = a.companies.filter((c) => c.status === "issued" || c.status === "pending_anchor");
+  const toAnchor = a.companies.filter((c) => c.status === "issued" || c.status === "pending_anchor" || c.status === "partially_anchored");
   const empty = !a.valuations.length && !a.companies.length && !a.mints.length && !a.dividends.length;
   return (
     <div style={{ display: "grid", gap: 20 }} aria-busy={busy}>
@@ -265,6 +266,7 @@ function ApprovalsTab({ ap, signer, onChanged }: { ap: Async<Approvals>; signer?
                 <span><b className="mono">{c.ticker}</b> · {c.name} <span className="muted-sm">· {money(Number(c.valuation_aud))} · {fmt(Number(c.total_shares))} {t("t.shares").toLowerCase()} · {t("ap.holders", { n: holdersOf(c).length || Number(c.holders) || 0 })}{c.created_by ? " · " + t("ap.req", { w: shortAddr(c.created_by) || c.created_by }) : ""}</span></span>
                 <span className="gatepill">{t("gate.admin")}</span>
               </div>
+              <p className="note">{t("trk.approve")}: BlockID Chain → Ethereum Hoodi → HashKey Chain testnet</p>
               {c.error && <p className="banner bad">{c.error}</p>}
               {open === c.id ? <IssueReview c={c} signer={signer} onAct={(fn) => act(fn)} /> : null}
               <div className="row">
@@ -284,10 +286,10 @@ function ApprovalsTab({ ap, signer, onChanged }: { ap: Async<Approvals>; signer?
                 <span><b className="mono">{c.ticker}</b> · {c.name} <span className="muted-sm">· {c.local_token ? shortAddr(c.local_token) : ""}</span></span>
                 <span className="gatepill">{t("gate.admin")}</span>
               </div>
-              <p className="note">{t("ap.anchor.txs", { n: holdersOf(c).length || Number(c.holders) || 0 })}</p>
+              <SyncChips sync={c.sync} />
               {c.error && <p className="banner bad">{c.error}</p>}
               <div className="row">
-                <button className="btn gold sm" type="button" disabled={busy} onClick={() => act(() => api.approveAnchor(c.id))}>{t("ap.anchorbtn")}</button>
+                <button className="btn gold sm" type="button" disabled={busy} onClick={() => act(() => api.approveAnchor(c.id))}>{t("trk.resync")}</button>
                 <Link className="btn ghost sm" to={`/c/${c.ticker}`}>{t("ad.co.open")}</Link>
               </div>
             </div>
@@ -379,7 +381,7 @@ function CompanyDetailPane({ tk, row, onChanged }: { tk: string; row?: AdminComp
     try { await fn(); setMsg({ ok: true, s: t("ap.sent") }); await d.reload(); onChanged(); }
     catch (e) { setMsg({ ok: false, s: errText(e, t) }); }
   };
-  const onchain = status === "issued" || status === "pending_anchor" || status === "anchoring" || status === "anchored";
+  const onchain = status === "issued" || status === "pending_anchor" || status === "anchoring" || status === "anchored" || status === "partially_anchored";
   const localToken = c?.local?.token ?? c?.local_token ?? row?.local_token;
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -387,8 +389,8 @@ function CompanyDetailPane({ tk, row, onChanged }: { tk: string; row?: AdminComp
         <span className="row"><b className="mono" style={{ fontSize: "1.1rem" }}>{tk}</b><span>{c?.name ?? row?.name}</span>{status && <span className="pill">{t(("c.st." + status) as DictKey)}</span>}</span>
         <span className="row">
           {id != null && status === "pending_issue" && <button className="btn gold sm" type="button" onClick={() => act(() => api.approveIssue(id))}>{t("s6.sign")}</button>}
-          {id != null && (status === "issued" || status === "pending_anchor") && <button className="btn gold sm" type="button" onClick={() => act(() => api.approveAnchor(id))}>{t("ap.anchorbtn")}</button>}
-          {id != null && status === "failed" && <button className="btn gold sm" type="button" onClick={() => act(() => (localToken ? api.approveAnchor(id) : api.approveIssue(id)))}>{t("common.retry")}</button>}
+          {id != null && (status === "issued" || status === "pending_anchor" || status === "partially_anchored" || (status === "anchored" && c?.sync && (c.sync.hoodi !== "done" || c.sync.hsk !== "done"))) && <button className="btn gold sm" type="button" onClick={() => act(() => api.approveAnchor(id))}>{t("trk.resync")}</button>}
+          {id != null && status === "failed" && <button className="btn gold sm" type="button" onClick={() => act(() => (c?.local?.block ? api.approveAnchor(id) : api.approveIssue(id)))}>{t("common.retry")}</button>}
           {id != null && status && ["draft", "pending_issue", "issued", "pending_anchor", "failed"].includes(status) && <button className="btn danger sm" type="button" onClick={() => act(() => api.rejectCompany(id, "rejected by admin"))}>{t("ap.reject")}</button>}
           <Link className="btn ghost sm" to={`/c/${tk}`}>{t("ad.co.open")}</Link>
         </span>
@@ -423,7 +425,7 @@ function CompaniesTab({ sel, setSel, onChanged }: { sel: string | null; setSel: 
                   <tr key={c.id} tabIndex={0} aria-selected={c.ticker === sel} onClick={() => setSel(c.ticker)} onKeyDown={(e) => { if (e.key === "Enter") setSel(c.ticker); }}>
                     <td className="mono" style={{ fontWeight: 600 }}>{c.ticker}</td>
                     <td>{c.name}</td>
-                    <td><span className={"pill" + (c.status === "anchored" ? " ok" : c.status === "failed" || c.status === "rejected" ? " bad" : c.status === "pending_issue" || c.status === "issued" || c.status === "pending_anchor" ? " gold" : "")}>{t(("c.st." + c.status) as DictKey)}</span></td>
+                    <td><span className={"pill" + (c.status === "anchored" ? " ok" : c.status === "failed" || c.status === "rejected" ? " bad" : c.status === "pending_issue" || c.status === "issued" || c.status === "pending_anchor" || c.status === "partially_anchored" ? " gold" : "")}>{t(("c.st." + c.status) as DictKey)}</span>{c.status !== "draft" && c.status !== "pending_issue" && c.status !== "rejected" ? <div style={{ marginTop: 4 }}><SyncChips sync={c.sync} /></div> : null}</td>
                     <td className="r">{money(Number(c.valuation_aud))}</td>
                     <td className="r">{fmt(Number(c.total_shares))}</td>
                     <td className="r">{Array.isArray(c.holders) ? c.holders.length : c.holders ?? "–"}</td>

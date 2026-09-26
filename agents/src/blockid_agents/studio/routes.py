@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from ..agents import dividend as dividend_agent
 from ..agents.site_intake import SiteError, normalize_url
 from ..config import Settings
+from ..issuer import syncstate
 from ..schemas import QualitativeScores, SelfReportedMetrics
 from ..tools import captable
 from ..tools import ticker as tickers
@@ -433,6 +434,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         out = jsonable({k: v for k, v in c.items()})
         out["grade"] = _grade(c.get("grade"))
         out["holders"] = jsonable(hs)
+        out["sync"] = jsonable(syncstate.view(c))
         return out
 
     @r.post("/v1/studio/companies", status_code=201)
@@ -499,6 +501,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
         if c["status"] != "draft":
             raise HTTPException(409, f"company is {c['status']}, not draft")
         db.exec("UPDATE studio.companies SET status='pending_issue', error=NULL, updated_at=now() WHERE id=%s", (cid,))
+        db.exec("INSERT INTO studio.events(company_id,kind,data) VALUES (%s,'submitted',%s)",
+                (cid, Jsonb({"by": sess.actor})))
         audit(sess, "company_submitted", c["ticker"], company_id=cid)
         return company_view(company_row(cid))
 
@@ -509,7 +513,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
         vals = [valuation_view(x) for x in db.all(
             "SELECT * FROM studio.valuations WHERE status='waiting_approval' ORDER BY created_at")]
         comps = [company_view(c) for c in db.all(
-            "SELECT * FROM studio.companies WHERE status IN ('pending_issue','issued') ORDER BY updated_at")]
+            "SELECT * FROM studio.companies WHERE status IN ('pending_issue','issued','pending_anchor','partially_anchored') "
+            "OR (status='failed' AND local_token IS NULL AND local_block IS NULL) ORDER BY updated_at")]
         mints = db.all("SELECT m.*, c.ticker, c.name AS company_name FROM studio.mints m "
                        "JOIN studio.companies c ON c.id=m.company_id WHERE m.status='pending' ORDER BY m.created_at")
         divs = db.all("SELECT d.id, d.company_id, d.total_units, d.merkle_root, d.status, d.requested_by, d.created_at,"
@@ -523,7 +528,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
     def all_companies(sess: Session = Depends(require_admin)):
         return [company_view(c) for c in ctx.need_db().all("SELECT * FROM studio.companies ORDER BY id DESC")]
 
-    def transition(cid: int, where: str, new_status: str, path: str, sess: Session, action: str) -> dict:
+    def transition(cid: int, where: str, new_status: str, path: str, sess: Session, action: str,
+                   event: str | None = None, **event_data) -> dict:
         """Atomic status flip (single UPDATE guarded by `where`), then ask the issuer; revert on failure."""
         db = ctx.need_db()
         issuer = ctx.need_issuer()
@@ -538,6 +544,9 @@ def build_router(ctx: StudioContext) -> APIRouter:
                 raise HTTPException(404, "unknown company")
             raise HTTPException(409, f"company is {cur['status']}")
         audit(sess, action, row["ticker"], company_id=cid, previous=row["previous"])
+        if event:
+            db.exec("INSERT INTO studio.events(company_id,kind,data) VALUES (%s,%s,%s)",
+                    (cid, event, Jsonb(jsonable({"by": sess.actor, "previous": row["previous"], **event_data}))))
         try:
             issuer.post(path, {"company_id": cid})
         except IssuerError as e:
@@ -549,20 +558,26 @@ def build_router(ctx: StudioContext) -> APIRouter:
 
     @r.post("/v1/admin/companies/{cid}/approve-issue", status_code=202)
     def approve_issue(cid: int, sess: Session = Depends(require_admin)):
-        return transition(cid, "c.status = 'pending_issue' OR (c.status = 'failed' AND c.local_token IS NULL)",
-                          "issuing", "/issue", sess, "approve_issue")
+        """ONE approval: the issuer issues on BlockID Chain, then syncs Hoodi and HSK automatically."""
+        return transition(cid, "c.status = 'pending_issue' OR (c.status = 'failed' AND c.local_block IS NULL)",
+                          "issuing", "/issue", sess, "approve_issue", event="issue_approved")
 
     @r.post("/v1/admin/companies/{cid}/approve-anchor", status_code=202)
     def approve_anchor(cid: int, sess: Session = Depends(require_admin)):
-        return transition(cid, "c.status IN ('issued', 'pending_anchor') "
-                                "OR (c.status = 'failed' AND c.local_token IS NOT NULL)",
-                          "anchoring", "/anchor", sess, "approve_anchor")
+        """Retry / re-sync: re-runs only the external chains (Hoodi, HSK) that are missing or failed."""
+        c = company_row(cid)
+        todo = syncstate.missing(c)
+        if c["status"] == "anchored" and not todo:
+            raise HTTPException(409, "every chain is already synced")
+        return transition(cid, "c.status IN ('issued', 'pending_anchor', 'partially_anchored', 'anchored') "
+                                "OR (c.status = 'failed' AND c.local_block IS NOT NULL)",
+                          "anchoring", "/anchor", sess, "approve_anchor", event="resync_requested", chains=todo)
 
     @r.post("/v1/admin/companies/{cid}/reject")
     def reject_company(cid: int, body: ReasonBody, sess: Session = Depends(require_admin)):
         db = ctx.need_db()
         c = company_row(cid)
-        if c["status"] not in ("draft", "pending_issue", "issued", "pending_anchor", "failed"):
+        if c["status"] not in ("draft", "pending_issue", "issued", "pending_anchor", "failed"):  # never once mirrored
             raise HTTPException(409, f"company is {c['status']}")
         db.exec("UPDATE studio.companies SET status='rejected', error=%s, updated_at=now() WHERE id=%s",
                 (body.reason or "rejected by admin", cid))
@@ -598,6 +613,19 @@ def build_router(ctx: StudioContext) -> APIRouter:
             issuer_status = f"error: {getattr(e, 'detail', e)}"
         return {"id": cid, "ticker": c["ticker"], "valuation_aud": float(val), "mark_aud": float(mark),
                 "issuer": issuer_status}
+
+    @r.post("/v1/admin/companies/{cid}/reanchor-valuation", status_code=202)
+    def reanchor_valuation(cid: int, sess: Session = Depends(require_admin)):
+        """Backfill: anchor the valuation REPORT hash on BlockID Chain and every existing mirror."""
+        c = company_row(cid)
+        if not c.get("local_token"):
+            raise HTTPException(409, "company is not issued yet")
+        try:
+            ctx.need_issuer().post("/reanchor-valuation", {"company_id": cid})
+        except IssuerError as e:
+            raise HTTPException(502, str(e)) from None
+        audit(sess, "reanchor_valuation", c["ticker"], company_id=cid)
+        return {"id": cid, "ticker": c["ticker"], "issuer": "queued"}
 
     # -------------------------------------------------------------- public company data
     def load_marks(ids: list[int] | None = None) -> dict[int, list[dict]]:
@@ -679,6 +707,12 @@ def build_router(ctx: StudioContext) -> APIRouter:
             "hoodi": {"chain_id": s.hoodi_chain_id, "registry": c.get("hoodi_registry"), "token": c.get("hoodi_token"),
                       "anchor_tx": c.get("hoodi_anchor_tx"), "merkle_root": c.get("merkle_root"),
                       "block": c.get("anchored_block"), "anchored_at": c.get("anchored_at")},
+            "hsk": {"chain_id": s.hsk_chain_id, "registry": c.get("hsk_registry"), "token": c.get("hsk_token"),
+                    "anchor_tx": c.get("hsk_anchor_tx"), "merkle_root": c.get("hsk_merkle_root"),
+                    "block": c.get("hsk_block"), "anchored_at": c.get("hsk_anchored_at")},
+            "sync": jsonable(syncstate.view(c)),
+            "valuation_report_hash": c.get("valuation_report_hash"),
+            "created_at": c.get("created_at"), "updated_at": c.get("updated_at"),
         })
         return out
 
@@ -845,7 +879,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         from eth_utils import to_checksum_address
 
         health = ctx.issuer.health() if ctx.issuer else {"ok": False, "error": "issuer not configured"}
-        blank = {"address": None, "local_balance": None, "hoodi_balance": None}
+        blank = {"address": None, "local_balance": None, "hoodi_balance": None, "hsk_balance": None}
         return {
             "admins": [to_checksum_address(a) for a in s.admin_wallets if len(a) == 42],
             "issuer": health.get("issuer") or blank,

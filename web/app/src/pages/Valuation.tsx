@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { DictKey } from "../dict";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
@@ -236,7 +237,7 @@ function TickerStep({ name, setName, ticker, setTicker }: { name: string; setNam
       } catch (e) {
         if (live) setErr(errText(e, t));
       }
-    }, 350);
+    }, 400);
     return () => { live = false; clearTimeout(id); };
   }, [name]); // eslint-disable-line react-hooks/exhaustive-deps
   const bad = custom !== "" && !/^[A-Z]{3}$/.test(custom);
@@ -286,6 +287,7 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
   const [total, setTotal] = useState<string>(String(mid));
   const [rows, setRows] = useState<Row[]>(() => [{ id: rowSeq++, name: "", wallet: defaultWallet ?? "", pct: "100" }]);
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<"" | "creating" | "submitting" | "opening">("");
   const [err, setErr] = useState("");
   const [touched, setTouched] = useState(false);
 
@@ -313,22 +315,26 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
   const submit = async () => {
     setTouched(true);
     if (!valid) { setErr(t("v.sh.need")); return; }
-    setBusy(true); setErr("");
+    setBusy(true); setErr(""); setStage("creating");
     try {
       const holders = rows.map((r, i) => ({ name: r.name.trim(), wallet: isAddressValid(r.wallet)!, pct: Math.round(pcts[i] * 100) / 100 }));
       const c = await api.createCompany({ valuation_id: v.id, name: name.trim(), ticker, share_price_aud: 1, total_shares: T, holders });
       const tk = c.ticker ?? ticker;
+      setStage("submitting");
       try {
         if (c.id != null) await api.submitCompany(c.id);
       } catch (e) {
+        setStage("opening");
         nav(`/c/${tk}`, { state: { flash: t("v.sh.draft", { e: errText(e, t) }), companyId: c.id } });
         return;
       }
+      setStage("opening");
       nav(`/c/${tk}`, { state: { flash: t("c.submitted") } });
     } catch (e) {
       setErr(errText(e, t));
     } finally {
       setBusy(false);
+      setStage("");
     }
   };
 
@@ -382,7 +388,7 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
       <p className="err" role="alert">{err}</p>
       <div className="pnav" style={{ borderTop: 0, paddingTop: 0 }}>
         <span />
-        <button className="btn" type="button" disabled={busy} onClick={submit}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{busy ? t("v.sh.creating") : t("v.sh.submit")}</button>
+        <button className="btn" type="button" disabled={busy} onClick={submit}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{busy ? t(stage ? (("sh.stage." + stage) as DictKey) : "v.sh.creating") : t("v.sh.submit")}</button>
       </div>
     </>
   );

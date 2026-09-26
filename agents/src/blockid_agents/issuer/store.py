@@ -8,7 +8,21 @@ from psycopg.types.json import Jsonb
 _COMPANY_COLS = {
     "status", "error", "total_shares", "local_registry", "local_token", "local_distributor", "local_block",
     "hoodi_registry", "hoodi_token", "hoodi_anchor_tx", "merkle_root", "anchored_block", "anchored_at",
+    "hsk_registry", "hsk_token", "hsk_anchor_tx", "hsk_merkle_root", "hsk_block", "hsk_anchored_at", "sync",
+    "valuation_report_hash",
 }
+
+# idempotent: the API applies schema.sql at start, but the issuer may come up first after a deploy
+_MIGRATIONS = [
+    "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS hsk_registry text",
+    "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS hsk_token text",
+    "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS hsk_anchor_tx text",
+    "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS hsk_merkle_root text",
+    "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS hsk_block bigint",
+    "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS hsk_anchored_at timestamptz",
+    "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS sync jsonb NOT NULL DEFAULT '{}'",
+    "ALTER TABLE studio.companies ADD COLUMN IF NOT EXISTS valuation_report_hash text",
+]
 _MINT_COLS = {"status", "tx_hash"}
 _DIVIDEND_COLS = {"status", "merkle_root", "claims", "round_id", "tx_hash"}
 
@@ -22,6 +36,20 @@ class Store:
         if not dsn:
             raise RuntimeError("DATABASE_URL is not set")
         self.dsn = dsn
+
+    def migrate(self) -> None:
+        """Add the multi-chain columns if the API has not done it yet (never fatal)."""
+        try:
+            with self._conn() as c:
+                if not c.execute("SELECT 1 FROM information_schema.tables WHERE table_schema='studio' "
+                                 "AND table_name='companies'").fetchone():
+                    return
+                for sql in _MIGRATIONS:
+                    c.execute(sql)
+        except Exception:  # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).exception("issuer column migration failed (API will apply schema.sql)")
 
     def _conn(self):
         import psycopg
@@ -57,6 +85,9 @@ class Store:
 
     def update_company(self, company_id: int, **fields) -> None:
         self._update("studio.companies", _COMPANY_COLS, company_id, fields, touch=True)
+
+    def valuation(self, valuation_id: str) -> dict | None:
+        return self._one("SELECT * FROM studio.valuations WHERE id = %s", (valuation_id,))
 
     def holders(self, company_id: int) -> list[dict]:
         return self._all("SELECT * FROM studio.holders WHERE company_id = %s ORDER BY id", (company_id,))

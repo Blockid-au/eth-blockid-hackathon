@@ -1,7 +1,8 @@
-"""Issuer service end-to-end against two local anvil nodes (no Postgres: in-memory store).
+"""Issuer service end-to-end against three local anvil nodes (no Postgres: in-memory store).
 
 - "local" anvil: chain id 262626, base fee 0, gasPrice 20 wei  -> legacy-gas path (like BlockID Chain)
 - "hoodi" anvil: chain id 560048, EIP-1559 base fee            -> EIP-1559 path (like Hoodi)
+- "hsk" anvil:   chain id 133, EIP-1559, 1 gwei base fee        -> like HashKey Chain testnet
 Skipped when anvil or the forge artifacts are missing.
 """
 from __future__ import annotations
@@ -47,11 +48,17 @@ class FakeStore:
         self.marks: list[dict] = []
         self.mints: dict[int, dict] = {}
         self.dividends: dict[int, dict] = {}
+        self.valuations: dict[str, dict] = {}
+
+    def valuation(self, vid):
+        return copy.deepcopy(self.valuations.get(vid))
 
     def company(self, cid):
         return copy.deepcopy(self.companies.get(cid))
 
     def update_company(self, cid, **f):
+        if "sync" in f:
+            f["sync"] = json.loads(json.dumps(f["sync"]))  # must be JSON-serialisable (jsonb)
         self.companies[cid].update(f)
 
     def holders(self, cid):
@@ -136,26 +143,36 @@ def env():
         pytest.skip("anvil / artifacts missing")
     p1, local_url = _anvil(262626, "--base-fee", "0", "--gas-price", "20", "--disable-min-priority-fee")
     p2, hoodi_url = _anvil(560048)
+    p3, hsk_url = _anvil(133, "--base-fee", "1000000000")
     try:
         dep, rel = Account.from_key(DEV_KEYS[0]), Account.from_key(DEV_KEYS[1])
         local = Chain("blockid", local_url, 262626, dep, receipt_timeout=30, poll_latency=0.05)
         hoodi = Chain("hoodi", hoodi_url, 560048, dep, receipt_timeout=30, poll_latency=0.05)
+        hsk = Chain("hsk", hsk_url, 133, dep, receipt_timeout=30, poll_latency=0.05)
         local.check_chain_id()
         hoodi.check_chain_id()
         anchor, _ = hoodi.deploy("CapTableAnchor", dep.address)
         hoodi.transact(anchor.functions.grantRole(anchor.functions.ANCHOR_ROLE().call(), dep.address))
+        hsk_anchor, _ = hsk.deploy("CapTableAnchor", dep.address)
+        hsk.transact(hsk_anchor.functions.grantRole(hsk_anchor.functions.ANCHOR_ROLE().call(), dep.address))
         aud, _ = local.deploy("DemoAUD", dep.address)
         cfg = IssuerConfig(internal_token="t", hoodi_captable_anchor=anchor.address, local_demo_aud=aud.address,
-                           local_rpc_url=local_url, hoodi_rpc_url=hoodi_url, public_base_url="https://eth.blockid.au")
+                           local_rpc_url=local_url, hoodi_rpc_url=hoodi_url, public_base_url="https://eth.blockid.au",
+                           hsk_rpc_url=hsk_url, hsk_chain_id=133, hsk_captable_anchor=hsk_anchor.address)
         store = FakeStore()
-        svc = Service(cfg, store, local, hoodi, local.with_account(rel))
-        yield {"svc": svc, "store": store, "local": local, "hoodi": hoodi, "anchor": anchor, "aud": aud, "cfg": cfg}
+        svc = Service(cfg, store, local, hoodi, local.with_account(rel), hsk)
+        yield {"svc": svc, "store": store, "local": local, "hoodi": hoodi, "anchor": anchor, "aud": aud, "cfg": cfg,
+               "hsk": hsk, "hsk_anchor": hsk_anchor}
     finally:
         p1.kill()
         p2.kill()
+        p3.kill()
 
 
 def _seed(store: FakeStore, cid=1, ticker="ABC", status="issuing"):
+    store.valuations[f"val-{cid}"] = {"id": f"val-{cid}", "url": f"https://{ticker.lower()}.example",
+                                      "result": {"profile": {"name": ticker}, "svi": {"index": 61.5}},
+                                      "self_reported": None}
     store.companies[cid] = {"id": cid, "ticker": ticker, "name": f"{ticker} Pty Ltd", "valuation_id": f"val-{cid}",
                             "valuation_aud": 10000, "share_price_aud": 1, "total_shares": 10000, "status": status}
     for name, w, pct, sh in [("Alice", H1, 60, 6000), ("Bob", H2, 30, 3000), ("Carol", H3, 10, 1000)]:
@@ -167,6 +184,7 @@ def _seed(store: FakeStore, cid=1, ticker="ABC", status="issuing"):
 def test_fee_modes(env):
     assert "gasPrice" in env["local"].fee_fields()
     assert "maxFeePerGas" in env["hoodi"].fee_fields()
+    assert "maxFeePerGas" in env["hsk"].fee_fields() and env["hsk"].expected_gas_price() >= 10**9
 
 
 @needs_anvil
@@ -181,37 +199,48 @@ def test_full_lifecycle(env):
     svc, st, L, H = env["svc"], env["store"], env["local"], env["hoodi"]
     _seed(st)
 
-    # ---- issue on "BlockID Chain"
+    # ---- ONE approval: issue on "BlockID Chain", then sync Hoodi and HSK automatically
     svc.issue(1)
     c = st.companies[1]
-    assert c["status"] == "issued", c.get("error")
+    assert c["status"] == "anchored", (c.get("error"), c.get("sync"))
+    assert {k: c["sync"][k] for k in ("blockid", "hoodi", "hsk")} == {"blockid": "done", "hoodi": "done", "hsk": "done"}
+    assert c["sync"]["errors"] == {} and c["sync"]["finished_at"] and c["sync"]["step"] is None
     token = L.contract("BlockIDShareToken", c["local_token"])
     assert token.functions.symbol().call() == "ABC"
     assert [token.functions.balanceOf(w).call() for w in (H1, H2, H3)] == [6000, 3000, 1000]
     assert token.functions.valuationPerShareCents().call() == 100
+    # the valuation REPORT hash is anchored (studio/report_hash.py), on BlockID and on both mirrors
+    from blockid_agents.studio.report_hash import report_hash_from_row
+    rh = report_hash_from_row(st.valuations["val-1"])
+    assert c["valuation_report_hash"] == rh and "0x" + token.functions.valuationReportHash().call().hex() == rh
     assert L.balance(H1) == env["cfg"].drip_wei
     assert st.kinds().count("kyc") == 3 and st.kinds().count("drip") == 3 and st.kinds().count("issued") == 3
     assert "valuation_anchored" in st.kinds() and st.marks[0]["source"] == "issuance"
-    assert all(e["chain"] == "blockid" and e["tx_hash"] and e["block"] for e in st.events)
+    deployed = [(e["chain"], e["data"]["contract"]) for e in st.events if e["kind"] == "deployed"]
+    assert deployed == [("blockid", "IdentityRegistry"), ("blockid", "BlockIDShareToken"),
+                        ("blockid", "DividendDistributor"), ("hoodi", "IdentityRegistry"),
+                        ("hoodi", "BlockIDShareToken"), ("hsk", "IdentityRegistry"), ("hsk", "BlockIDShareToken")]
+    assert all(e["tx_hash"] and e["block"] for e in st.events if e["chain"] == "blockid")
+    order = [(e["kind"], e["chain"]) for e in st.events if e["kind"] in ("hoodi_mirrored", "hsk_mirrored", "anchored")]
+    assert order == [("hoodi_mirrored", "hoodi"), ("anchored", "hoodi"), ("hsk_mirrored", "hsk"), ("anchored", "hsk")]
 
     svc.issue(1)  # wrong status now -> no-op
     assert token.functions.totalSupply().call() == 10000
 
-    # ---- anchor on "Hoodi"
-    st.companies[1]["status"] = "anchoring"
-    svc.anchor(1)
-    c = st.companies[1]
-    assert c["status"] == "anchored", c.get("error")
     anchor = env["anchor"]
-    a = anchor.functions.latest("ABC").call()
     tree = build_tree({H1: 6000, H2: 3000, H3: 1000})
-    assert "0x" + a[3].hex() == tree.root == c["merkle_root"]
-    assert a[0] == c["local_token"] and a[1] == 262626 and a[4] == 10000
-    assert anchor.functions.verify("ABC", H1, 6000, [bytes.fromhex(p[2:]) for p in tree.proof(H1)]).call()
+    for ch, anc, pre in ((H, anchor, ""), (env["hsk"], env["hsk_anchor"], "hsk_")):
+        a = anc.functions.latest("ABC").call()
+        assert "0x" + a[3].hex() == tree.root == c[pre + "merkle_root" if pre else "merkle_root"]
+        assert a[0] == c["local_token"] and a[1] == 262626 and a[4] == 10000
+        assert anc.functions.verify("ABC", H1, 6000, [bytes.fromhex(p[2:]) for p in tree.proof(H1)]).call()
+        m = ch.contract("BlockIDShareToken", c[pre + "token" if pre else "hoodi_token"])
+        assert m.functions.paused().call() and m.functions.totalSupply().call() == 10000
+        assert "0x" + m.functions.valuationReportHash().call().hex() == rh
     mirror = H.contract("BlockIDShareToken", c["hoodi_token"])
-    assert mirror.functions.paused().call() and mirror.functions.totalSupply().call() == 10000
+    hsk_mirror = env["hsk"].contract("BlockIDShareToken", c["hsk_token"])
     assert c["hoodi_anchor_tx"] and c["anchored_block"] and c["anchored_at"] and c["hoodi_registry"]
-    assert [e["chain"] for e in st.events if e["kind"] in ("hoodi_mirrored", "anchored")] == ["hoodi", "hoodi"]
+    assert c["hsk_anchor_tx"] and c["hsk_block"] and c["hsk_anchored_at"] and c["hsk_registry"]
 
     # ---- mint to a new holder -> re-anchor
     new = Account.create().address
@@ -223,6 +252,9 @@ def test_full_lifecycle(env):
     assert anchor.functions.anchorCount("ABC").call() == 2
     assert anchor.functions.latest("ABC").call()[4] == 10500
     assert mirror.functions.balanceOf(new).call() == 500
+    assert hsk_mirror.functions.balanceOf(new).call() == 500
+    assert env["hsk_anchor"].functions.anchorCount("ABC").call() == 2
+    assert st.companies[1]["status"] == "anchored"
     assert st.companies[1]["total_shares"] == 10500
     first_tx = st.mints[7]["tx_hash"]
     svc.mint(7)  # not 'approved' any more -> no-op
@@ -260,18 +292,73 @@ def test_full_lifecycle(env):
     svc.revalue(1)
     assert token.functions.valuationPerShareCents().call() == 200
     assert mirror.functions.valuationPerShareCents().call() == 200
+    assert hsk_mirror.functions.valuationPerShareCents().call() == 200
     assert anchor.functions.anchorCount("ABC").call() == 4  # +1 from the mint retry above (re-anchor is idempotent)
+    assert env["hsk_anchor"].functions.anchorCount("ABC").call() == 4
 
-    # ---- failure path: bad status transitions to failed with error
+    # ---- backfill: a token anchored with an old (non-report) hash gets the report hash on all 3 chains
+    old = b"\x11" * 32
+    L.transact(token.functions.anchorValuation(old, 200))
+    H.transact(mirror.functions.anchorValuation(old, 200))
+    env["hsk"].transact(hsk_mirror.functions.anchorValuation(old, 200))
+    svc.reanchor_valuation(1)
+    for tk in (token, mirror, hsk_mirror):
+        assert "0x" + tk.functions.valuationReportHash().call().hex() == rh
+        assert tk.functions.valuationPerShareCents().call() == 200
+
+    # ---- failure path: anchor without a BlockID token -> failed with error
     _seed(st, cid=2, ticker="XYZ", status="anchoring")
     svc.anchor(2)
     assert st.companies[2]["status"] == "failed" and "not issued" in st.companies[2]["error"]
 
 
 @needs_anvil
+def test_partial_sync_insufficient_funds_then_retry(env):
+    """HSK issuer wallet empty -> Hoodi still syncs, HSK fails with a clear error; admin retry syncs only HSK."""
+    svc, st, hsk = env["svc"], env["store"], env["hsk"]
+    _seed(st, cid=5, ticker="PQR")
+    dep = hsk.address
+    funded = hsk.balance(dep)
+    hsk.w3.provider.make_request("anvil_setBalance", [dep, hex(10**12)])
+    svc.issue(5)
+    c = st.companies[5]
+    assert c["status"] == "partially_anchored", c.get("error")
+    assert c["sync"]["blockid"] == "done" and c["sync"]["hoodi"] == "done" and c["sync"]["hsk"] == "failed"
+    assert "top up" in c["sync"]["errors"]["hsk"] and "HSK" in c["sync"]["errors"]["hsk"]
+    assert "HashKey" in c["error"] and not c.get("hsk_token")
+    assert ("sync_failed", "hsk") in [(e["kind"], e["chain"]) for e in st.events if e["company_id"] == 5]
+    hoodi_anchors = env["anchor"].functions.anchorCount("PQR").call()
+
+    hsk.w3.provider.make_request("anvil_setBalance", [dep, hex(funded)])
+    st.companies[5]["status"] = "anchoring"  # what POST /approve-anchor does
+    svc.anchor(5)
+    c = st.companies[5]
+    assert c["status"] == "anchored", c.get("error")
+    assert c["sync"]["hsk"] == "done" and c["sync"]["errors"] == {} and c["error"] is None
+    assert env["anchor"].functions.anchorCount("PQR").call() == hoodi_anchors  # Hoodi not re-run
+    assert env["hsk_anchor"].functions.anchorCount("PQR").call() == 1
+
+
+@needs_anvil
+def test_unconfigured_chain_is_skipped(env):
+    from dataclasses import replace
+
+    base = env["svc"]
+    svc = Service(replace(base.cfg, hsk_captable_anchor=""), base.store, base.local, base.hoodi, base.relayer, base.hsk)
+    st = base.store
+    _seed(st, cid=6, ticker="LMN")
+    svc.issue(6)
+    c = st.companies[6]
+    assert c["status"] == "partially_anchored" and c["sync"]["hsk"] == "skipped"
+    assert "not configured" in c["sync"]["errors"]["hsk"]
+
+
+@needs_anvil
 def test_health(env):
     h = env["svc"].health()
     assert h["local"]["ok"] and h["hoodi"]["ok"] and h["local"]["chain_id"] == 262626
+    assert h["hsk"]["ok"] and h["hsk"]["chain_id"] == 133 and int(h["issuer"]["hsk_balance"]) > 0
+    assert h["sync_targets"] == ["hoodi", "hsk"]
     assert int(h["issuer"]["local_balance"]) > 0
 
 
@@ -314,7 +401,7 @@ def test_app_auth_and_202():
     assert cl.post("/issue", json={"company_id": 1}).status_code == 401
     assert cl.post("/issue", json={"company_id": 1}, headers={"X-Internal-Token": "nope"}).status_code == 401
     h = {"X-Internal-Token": "tok"}
-    for path, body in [("/issue", {"company_id": 1}), ("/anchor", {"company_id": 1}), ("/revalue", {"company_id": 1}),
+    for path, body in [("/issue", {"company_id": 1}), ("/anchor", {"company_id": 1}), ("/revalue", {"company_id": 1}), ("/reanchor-valuation", {"company_id": 1}),
                        ("/mint", {"mint_id": 2}), ("/dividend", {"dividend_id": 3}),
                        ("/drip", {"wallet": H1.lower()})]:
         r = cl.post(path, json=body, headers=h)
@@ -322,4 +409,4 @@ def test_app_auth_and_202():
     assert cl.post("/drip", json={"wallet": "0x12"}, headers=h).status_code == 422
     assert cl.get("/health", headers=h).json()["ok"] is True
     app.state.pool.shutdown(wait=True)
-    assert [c[0] for c in svc.calls] == ["issue", "anchor", "revalue", "mint", "dividend", "drip"]
+    assert [c[0] for c in svc.calls] == ["issue", "anchor", "revalue", "reanchor_valuation", "mint", "dividend", "drip"]

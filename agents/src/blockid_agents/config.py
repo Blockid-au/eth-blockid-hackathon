@@ -107,6 +107,7 @@ class Settings:
     local_chain_id: int = field(default_factory=lambda: int(_env("LOCAL_CHAIN_ID", "262626")))
     hoodi_rpc_url: str = field(default_factory=lambda: _env("HOODI_RPC_URL"))
     hoodi_chain_id: int = field(default_factory=lambda: int(_env("HOODI_CHAIN_ID", "560048")))
+    hsk_chain_id: int = field(default_factory=lambda: int(_env("HSK_CHAIN_ID", "133")))
     public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", "https://eth.blockid.au"))
     valuations_per_day: int = field(default_factory=lambda: int(_env("VALUATIONS_PER_DAY", "3")))
     site_max_pages: int = field(default_factory=lambda: int(_env("SITE_MAX_PAGES", "6")))

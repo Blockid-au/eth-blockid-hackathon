@@ -29,8 +29,8 @@ function checksum(a: string) {
 export function AddrCard({ chain, address, ticker, onToast }: { chain: ChainInfo; address?: string | null; ticker: string; onToast: (s: string) => void }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
-  const hoodi = chain.key === "hoodi";
-  const lbl = hoodi ? t("s8.hoodi") : t("s8.local");
+  const hoodi = chain.key === "hoodi" || chain.key === "hsk";
+  const lbl = chain.key === "hoodi" ? t("s8.hoodi") : chain.key === "hsk" ? t("s8.hsk") : t("s8.local");
   if (!address) {
     return (
       <div className={"addrcard" + (hoodi ? " hoodi" : "")} style={{ gridTemplateColumns: "1fr" }}>
@@ -64,7 +64,7 @@ export function AddrCard({ chain, address, ticker, onToast }: { chain: ChainInfo
       <QR text={addr} label={t("c.qr", { a: addr })} />
       <div className="acts">
         <button className="btn ghost sm" type="button" onClick={copy}>{t("s8.copy")}</button>
-        <a className="btn ghost sm" href={chain.tokenUrl(addr)} target="_blank" rel="noopener noreferrer">{hoodi ? t("s8.ether") : t("s8.scan")}</a>
+        <a className="btn ghost sm" href={chain.tokenUrl(addr)} target="_blank" rel="noopener noreferrer">{chain.key === "hoodi" ? t("s8.ether") : chain.key === "hsk" ? "HashKey explorer" : t("s8.scan")}</a>
         <button className={"btn sm" + (hoodi ? " gold" : "")} type="button" onClick={add} disabled={busy}>{t("s8.add")}</button>
       </div>
     </div>
@@ -73,7 +73,7 @@ export function AddrCard({ chain, address, ticker, onToast }: { chain: ChainInfo
 
 export function NetworkDetails() {
   const { t } = useI18n();
-  const L = CHAINS.local, H = CHAINS.hoodi;
+  const L = CHAINS.local, H = CHAINS.hoodi, K = CHAINS.hsk;
   return (
     <div className="card">
       <h4>{t("s8.net")}</h4>
@@ -82,6 +82,9 @@ export function NetworkDetails() {
       </dl>
       <dl className="kv" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
         <dt>{t("s8.name")}</dt><dd>{H.name}</dd><dt>RPC</dt><dd>{H.rpc}</dd><dt>Chain ID</dt><dd>{H.id} ({H.hex})</dd><dt>{t("s8.sym")}</dt><dd>{H.currency} · 18 decimals</dd><dt>Explorer</dt><dd><a href={H.explorer} target="_blank" rel="noopener noreferrer">{H.explorer}</a></dd>
+      </dl>
+      <dl className="kv" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+        <dt>{t("s8.name")}</dt><dd>{K.name}</dd><dt>RPC</dt><dd>{K.rpc}</dd><dt>Chain ID</dt><dd>{K.id} ({K.hex})</dd><dt>{t("s8.sym")}</dt><dd>{K.currency} · 18 decimals</dd><dt>Explorer</dt><dd><a href={K.explorer} target="_blank" rel="noopener noreferrer">{K.explorer}</a></dd>
       </dl>
     </div>
   );

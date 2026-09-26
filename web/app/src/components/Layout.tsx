@@ -71,6 +71,7 @@ export function Nav() {
           <Link to="/#how">{t("nav.how")}</Link>
           <NavLink to="/companies">{t("nav.companies")}</NavLink>
           <NavLink to="/hsk">{t("nav.hsk")}</NavLink>
+          <NavLink to="/verify">{t("nav.verify")}</NavLink>
           <NavLink to="/admin">{t("nav.admin")}</NavLink>
         </nav>
         <span className="grow" />

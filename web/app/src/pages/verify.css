@@ -1,0 +1,33 @@
+/* /verify — auditable valuation verifier (uses the app tokens from styles.css) */
+.vf-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.vf-steps li { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: .86rem; color: var(--muted); }
+.vf-steps b { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-deep); font: 700 .8rem/1 var(--display); }
+.vf-pick { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.vf-pick .lf { flex: 1; min-width: 220px; max-width: 460px; }
+.vf-verdict { display: flex; gap: 16px; align-items: center; border-radius: 16px; padding: 18px 22px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
+.vf-verdict b { font: 700 1.25rem/1.25 var(--display); letter-spacing: -0.01em; }
+.vf-verdict p { color: var(--muted); font-size: .9rem; margin-top: 4px; }
+.vf-icon { flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font: 800 1.4rem/1 var(--display); background: var(--sunken); color: var(--muted); }
+.vf-verdict.ok { background: var(--up-soft); border-color: var(--up); }
+.vf-verdict.ok b { color: var(--up); } .vf-verdict.ok .vf-icon { background: var(--up); color: var(--surface); }
+.vf-verdict.bad { background: var(--down-soft); border-color: var(--down); }
+.vf-verdict.bad b { color: var(--down); } .vf-verdict.bad .vf-icon { background: var(--down); color: var(--surface); }
+.vf-verdict.info .vf-icon { background: var(--accent-soft); color: var(--accent-deep); font-style: italic; }
+.vf-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.vf-cols .card { background: var(--surface); }
+.vf-full { font-family: var(--mono); font-size: .76rem; overflow-wrap: anywhere; background: var(--sunken); border-radius: 8px; padding: 8px 10px; display: block; }
+.vf-canon { max-height: 220px; overflow: auto; margin-top: 10px; }
+.vf-hash { font-size: .78rem; }
+.vf-chains { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.vf-chains li { display: grid; gap: 4px; padding-bottom: 10px; border-bottom: 1px dashed var(--line); font-size: .84rem; }
+.vf-chains li:last-child { border-bottom: 0; padding-bottom: 0; }
+.vf-editor { font-size: .78rem !important; line-height: 1.45; min-height: 280px !important; }
+.vf-total td { border-top: 2px solid var(--ink); font-weight: 600; }
+.vf-bands { display: flex; flex-wrap: wrap; gap: 8px; }
+.vf-band { display: grid; gap: 2px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: .82rem; min-width: 96px; }
+.vf-band b { font: 800 1.1rem/1 var(--display); }
+.vf-band small { color: var(--muted); font-size: .72rem; }
+.vf-band.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-deep); }
+details.card summary { cursor: pointer; font-weight: 600; font-size: .88rem; }
+@media (max-width: 900px) { .vf-cols { grid-template-columns: 1fr; } .vf-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .vf-steps { grid-template-columns: 1fr; } .vf-verdict { padding: 14px; } }

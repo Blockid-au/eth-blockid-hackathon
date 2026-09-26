@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -52,8 +53,9 @@ def _hex(v) -> str:
 class Chain:
     def __init__(self, name: str, rpc_url: str, chain_id: int, account: LocalAccount | None = None, *,
                  receipt_timeout: float = 300, gas_multiplier: float = 1.25, min_gas_price: int = 0,
-                 poll_latency: float = 1.0, w3: Web3 | None = None):
+                 poll_latency: float = 1.0, w3: Web3 | None = None, read_lag_s: float = 0.0):
         self.name = name
+        self.read_lag_s = float(read_lag_s)
         self.rpc_url = rpc_url
         self.chain_id = int(chain_id)
         self.account = account
@@ -76,7 +78,7 @@ class Chain:
         """Another signer on the same RPC (own lock + nonce tracking)."""
         return Chain(self.name, self.rpc_url, self.chain_id, account, receipt_timeout=self.receipt_timeout,
                      gas_multiplier=self.gas_multiplier, min_gas_price=self.min_gas_price,
-                     poll_latency=self.poll_latency, w3=self.w3)
+                     poll_latency=self.poll_latency, w3=self.w3, read_lag_s=self.read_lag_s)
 
     def check_chain_id(self) -> None:
         actual = self.w3.eth.chain_id
@@ -104,6 +106,14 @@ class Chain:
             tip = max(tip, 1)
             return {"maxPriorityFeePerGas": tip, "maxFeePerGas": int(base) * 2 + tip}
         return {"gasPrice": max(int(self.w3.eth.gas_price), self.min_gas_price)}
+
+    def expected_gas_price(self) -> int:
+        """Price actually expected per gas unit (base fee + tip, or legacy gasPrice) for balance checks."""
+        f = self.fee_fields()
+        if "gasPrice" in f:
+            return int(f["gasPrice"])
+        base = int(self.w3.eth.get_block("latest").get("baseFeePerGas") or 0)
+        return base + int(f["maxPriorityFeePerGas"])
 
     # ------------------------------------------------------------------ sending
     def _nonce(self) -> int:
@@ -158,7 +168,24 @@ class Chain:
         rec = Receipt.of(r)
         if rec.status != 1:
             raise TxFailed(f"{self.name}: tx reverted: {tx_hash}{self._revert_reason(tx_hash, rec.block)}", tx_hash)
+        self._await_reads(rec.block)
         return rec
+
+    def _await_reads(self, block: int) -> None:
+        """Load-balanced public RPCs (e.g. HashKey testnet) may serve reads from a node that has not seen the
+        block yet; stale reads (balanceOf, code) would make the mirror logic re-issue or fail. Wait until the
+        read path reports the receipt's block, then a short grace period."""
+        if not self.read_lag_s:
+            return
+        deadline = time.monotonic() + max(10.0, self.read_lag_s * 5)
+        while time.monotonic() < deadline:
+            try:
+                if int(self.w3.eth.block_number) >= int(block):
+                    break
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(0.5)
+        time.sleep(self.read_lag_s)
 
     def _revert_reason(self, tx_hash: str, block: int) -> str:
         try:
@@ -188,5 +215,9 @@ class Chain:
         rec = self.send({"data": data, "value": 0})
         if not rec.contract_address:
             raise TxFailed(f"{self.name}: {name} deploy produced no contract address", rec.tx_hash)
+        if self.read_lag_s:  # make sure reads can see the new contract before the caller calls it
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline and self.w3.eth.get_code(rec.contract_address) in (b"", "0x", None):
+                time.sleep(1)
         log.info("%s deployed %s at %s", self.name, name, rec.contract_address)
         return self.w3.eth.contract(address=rec.contract_address, abi=abi), rec

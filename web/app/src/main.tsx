@@ -4,7 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import { I18nProvider } from "./i18n";
 import { AuthProvider } from "./auth";
+import { installChunkRecovery } from "./lib/chunks";
 import "./styles.css";
+
+installChunkRecovery();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

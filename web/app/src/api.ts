@@ -90,7 +90,21 @@ export interface HolderIn {
   pct: number;
 }
 export type CoStatus =
-  | "draft" | "pending_issue" | "issuing" | "issued" | "pending_anchor" | "anchoring" | "anchored" | "rejected" | "failed";
+  | "draft" | "pending_issue" | "issuing" | "issued" | "pending_anchor" | "anchoring" | "anchored" | "partially_anchored" | "rejected" | "failed";
+
+export type SyncState = "pending" | "running" | "done" | "failed" | "skipped";
+/** Per-chain issuance/sync state (studio.companies.sync, derived for older rows). */
+export interface SyncInfo {
+  blockid: SyncState;
+  hoodi: SyncState;
+  hsk: SyncState;
+  errors?: Partial<Record<"blockid" | "hoodi" | "hsk", string>>;
+  step?: { chain: string; action: string; n?: number | null; of?: number | null; at?: string } | null;
+  started_at?: string | null;
+  updated_at?: string | null;
+  finished_at?: string | null;
+}
+export interface ChainDeploy { chain_id?: number; registry?: string | null; token?: string | null; anchor_tx?: string | null; merkle_root?: string | null; block?: number | null; anchored_at?: string | null }
 
 export interface CompanySummary {
   id?: number;
@@ -110,7 +124,9 @@ export interface CompanySummary {
   status: CoStatus;
   local_token?: string | null;
   hoodi_token?: string | null;
+  hsk_token?: string | null;
   anchored?: boolean | null;
+  sync?: SyncInfo | null;
   created_at?: string;
   error?: string | null;
   valuation_id?: string | null;
@@ -142,7 +158,10 @@ export interface CompanyDetail extends CompanySummary {
   events: CoEvent[];
   marks: Mark[];
   local?: { chain_id?: number; registry?: string | null; token?: string | null; distributor?: string | null; block?: number | null } | null;
-  hoodi?: { chain_id?: number; registry?: string | null; token?: string | null; anchor_tx?: string | null; merkle_root?: string | null; block?: number | null } | null;
+  hoodi?: ChainDeploy | null;
+  hsk?: ChainDeploy | null;
+  valuation_report_hash?: string | null;
+  updated_at?: string;
   created_by?: string | null;
   cap_table_source?: "chain" | "db" | string;
   cap_table_block?: number | null;
@@ -230,7 +249,7 @@ export interface AuditRow {
   target?: string | null;
   detail?: Record<string, unknown> | null;
 }
-export interface SvcWallet { address: string | null; local_balance?: number | string | null; hoodi_balance?: number | string | null }
+export interface SvcWallet { address: string | null; local_balance?: number | string | null; hoodi_balance?: number | string | null; hsk_balance?: number | string | null }
 export interface AdminWallets {
   admins: string[];
   issuer?: SvcWallet | null;
@@ -239,7 +258,7 @@ export interface AdminWallets {
 }
 
 /** Raw studio.companies row + holders (GET /admin/companies, /studio/companies, approvals). */
-export type AdminCompany = ApprovalCompany & { local_token?: string | null; hoodi_token?: string | null; error?: string | null; created_at?: string; updated_at?: string };
+export type AdminCompany = ApprovalCompany & { local_token?: string | null; hoodi_token?: string | null; hsk_token?: string | null; error?: string | null; created_at?: string; updated_at?: string };
 type Val = Valuation;
 
 export class ApiError extends Error {

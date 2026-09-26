@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 SCHEMA_SQL = Path(__file__).with_name("schema.sql")
 
 STEP_KEYS = ("read_site", "profile", "competitors", "market", "svi", "narrative")
-ONCHAIN_STATUSES = ("issued", "pending_anchor", "anchoring", "anchored")
+ONCHAIN_STATUSES = ("issued", "pending_anchor", "anchoring", "anchored", "partially_anchored")
 
 
 def now() -> datetime:

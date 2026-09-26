@@ -11,9 +11,11 @@ import { useAsync, useTitle } from "../lib/hooks";
 import { colorAt, foldParts, GRADE_C } from "../lib/math";
 import { CHAINS, chainOf, isAddressValid, shortAddr } from "../wallet";
 import type { DictKey } from "../dict";
+import { Tracker } from "../components/Tracker";
 
-const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring"];
-const LIVE: CoStatus[] = ["issued", "pending_anchor", "anchoring", "anchored"];
+const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring", "partially_anchored"];
+const RUNNING: CoStatus[] = ["issuing", "anchoring"];
+const LIVE: CoStatus[] = ["issued", "pending_anchor", "anchoring", "anchored", "partially_anchored"];
 
 /* ---------- status timeline ---------- */
 function Timeline({ status }: { status: CoStatus }) {
@@ -249,7 +251,7 @@ export default function CompanyPage() {
   const flash = (loc.state as { flash?: string; companyId?: number } | null)?.flash;
   const companyId = (loc.state as { companyId?: number } | null)?.companyId;
   const [status, setStatus] = useState<CoStatus | "">("");
-  const q = useAsync<CompanyDetail>(() => api.company(ticker), [ticker], status && TRANSIENT.includes(status) ? 5000 : 30000);
+  const q = useAsync<CompanyDetail>(() => api.company(ticker), [ticker], status && RUNNING.includes(status) ? 3000 : status && (TRANSIENT.includes(status) || status === "draft") ? 15000 : 30000);
   const c = q.data;
   useEffect(() => { if (c) setStatus(c.status); }, [c?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const [toast, setToast] = useState("");
@@ -271,6 +273,7 @@ export default function CompanyPage() {
   const holders = c.cap_table?.length ? c.cap_table : [];
   const localToken = c.local?.token ?? c.local_token ?? null;
   const hoodiToken = c.hoodi?.token ?? c.hoodi_token ?? null;
+  const hskToken = c.hsk?.token ?? c.hsk_token ?? null;
   const g = c.grade ?? "C";
   const canRequest = !!me && (me.role === "admin" || (!!me.address && !!c.created_by && me.address.toLowerCase() === c.created_by.toLowerCase()) || !c.created_by);
   const submit = async () => {
@@ -295,8 +298,8 @@ export default function CompanyPage() {
           {TRANSIENT.includes(c.status) && <span className="live"><i />{t(("c.st." + c.status) as DictKey)}</span>}
         </div>
         {flash && <p className="banner gold" role="status">{flash}</p>}
-        <div className="pane"><Timeline status={c.status} /></div>
-        {c.status === "failed" && <p className="banner bad" role="alert">{t("c.failed", { e: c.error || "" })}</p>}
+        {c.status === "draft" || c.status === "rejected" ? <div className="pane"><Timeline status={c.status} /></div> : null}
+        {c.status !== "draft" && <Tracker c={c} onChanged={() => void q.reload()} />}
         {c.status === "rejected" && <p className="banner bad" role="alert">{t("c.st.rejected")}{c.error ? ": " + c.error : ""}</p>}
         {c.status === "draft" && (
           <div className="banner gold"><span>{t("c.draftnote")}</span>{(c.id ?? companyId) != null && me && <button className="btn gold sm" type="button" onClick={submit}>{t("c.submit")}</button>}{submitMsg && <span>{submitMsg}</span>}</div>
@@ -320,10 +323,11 @@ export default function CompanyPage() {
           <div className="cols">
             <AddrCard chain={CHAINS.local} address={localToken} ticker={c.ticker} onToast={setToast} />
             <AddrCard chain={CHAINS.hoodi} address={hoodiToken} ticker={c.ticker} onToast={setToast} />
+            <AddrCard chain={CHAINS.hsk} address={hskToken} ticker={c.ticker} onToast={setToast} />
           </div>
           <p className="toast" role="status">{toast}</p>
           {c.hoodi?.merkle_root && (
-            <p className="merkle">{t("c.anchor.root")} {c.hoodi.merkle_root}{c.hoodi.anchor_tx ? <> · <a href={CHAINS.hoodi.txUrl(c.hoodi.anchor_tx)} target="_blank" rel="noopener noreferrer">{shortAddr(c.hoodi.anchor_tx)}</a></> : null}</p>
+            <p className="merkle">{t("c.anchor.root")} {c.hoodi.merkle_root}{c.hoodi.anchor_tx ? <> · <a href={CHAINS.hoodi.txUrl(c.hoodi.anchor_tx)} target="_blank" rel="noopener noreferrer">Hoodi {shortAddr(c.hoodi.anchor_tx)}</a></> : null}{c.hsk?.anchor_tx ? <> · <a href={CHAINS.hsk.txUrl(c.hsk.anchor_tx)} target="_blank" rel="noopener noreferrer">HSK {shortAddr(c.hsk.anchor_tx)}</a></> : null}</p>
           )}
           <div className="cols">
             <ManualSteps ticker={c.ticker} />

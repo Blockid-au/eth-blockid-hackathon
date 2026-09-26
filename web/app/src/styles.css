@@ -461,3 +461,22 @@ td .xbtn:hover { color: var(--bad); background: var(--sunken); }
 .hskgrid .card h4, .hskcard h3 { margin: 0; }
 .hskaddr { font-size: .78rem; overflow-wrap: anywhere; }
 .hskcard { border-color: var(--gold-mark); background: var(--surface); }
+
+/* ---------- issuance tracker (/c/:ticker) ---------- */
+.tracker { display: grid; gap: 12px; }
+.trk-now { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--gold-soft); font-size: .92rem; }
+.trk { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.trk-st { display: grid; grid-template-columns: 28px 1fr; gap: 12px; position: relative; padding-bottom: 14px; }
+.trk-st:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--line); }
+.trk-st.done:not(:last-child)::before { background: var(--ok); }
+.trk-dot { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: .8rem; font-weight: 700; border: 2px solid var(--line); background: var(--bg, transparent); }
+.trk-dot .spinner { width: 14px; height: 14px; margin: 0; }
+.trk-st.done .trk-dot { background: var(--ok); border-color: var(--ok); color: #fff; }
+.trk-st.running .trk-dot { border-color: var(--gold-mark); }
+.trk-st.failed .trk-dot, .trk-st.rejected .trk-dot, .trk-st.skipped .trk-dot { background: var(--bad); border-color: var(--bad); color: #fff; }
+.trk-st.pending .trk-body > .between b { opacity: .6; }
+.trk-body { min-width: 0; display: grid; gap: 4px; }
+.trk-body .note { margin: 0; }
+.trk-subs { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; font-size: .85rem; color: var(--muted, inherit); }
+.trk-subs li.done span { color: var(--ok); }
+.trk-subs a.tx { font-family: var(--mono, monospace); font-size: .8rem; }

@@ -254,7 +254,7 @@ cd web/app && npm install && npm run dev                       # web app
 
 ## License
 
-No license file has been added yet; all rights reserved by the authors until one is published.
+[MIT](LICENSE) © 2026 BlockID. Open source so other teams can reuse the agent-provenance + human-approval pattern (`AgentProvenance.sol`) in their own AI x Ethereum apps. Third-party code (OpenZeppelin, forge-std) keeps its own license.
 
 > **Testnet demo. Not an offer of securities.** Contracts are simplified ERC-3643-compatible versions and have not
 > been audited. Nothing here is legal or financial advice.
