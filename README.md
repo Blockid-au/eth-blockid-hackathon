@@ -133,6 +133,7 @@ company https://eth.blockid.au/c/CNV · proof https://eth.blockid.au/verify/CNV.
 | Doc | What is inside |
 |---|---|
 | **Pitch deck (3 min)** — [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx) · full deck [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-pitch.pdf) ([source](docs/pitch/)) | 7 slides, one key point each: hook, problem → solution, how it works, valuation, one approval → 3 chains, verify, live results / ask; timed speaker notes |
+| **Pitch video (2:56, narrated)** — [MP4](https://eth.blockid.au/deck/blockid-startup-passport-pitch-3min.mp4) · [with captions](https://eth.blockid.au/deck/blockid-startup-passport-pitch-3min-captions.mp4) · [SRT](https://eth.blockid.au/deck/blockid-startup-passport-pitch-3min.srt) ([build](docs/video/pitch3/)) | The 3-minute deck with English voice-over, ready to upload |
 | [User guide](docs/USER-GUIDE.md) | Task-by-task guide with screenshots: value a startup, tokenise, approve, MetaMask, new rounds, dividends, transfers/KYC, verify, operations |
 | [Feature gallery](docs/FEATURES.md) | Every feature with screenshots from the live app (desktop, mobile, EN/VI) |
 | [Deployments and tokens](docs/DEPLOYMENTS.md) | Every company token and contract on BlockID Chain, Hoodi and HashKey testnet, supply checked on-chain (generated) |

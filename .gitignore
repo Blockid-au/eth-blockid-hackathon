@@ -18,3 +18,5 @@ web/dist/
 *keystore*
 *.tfvars
 !*.tfvars.example
+docs/pitch/img/
+docs/pitch/out/
