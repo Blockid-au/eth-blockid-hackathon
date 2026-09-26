@@ -1,4 +1,6 @@
-# BlockID Issuance Studio — technical documentation (EAG Global Buildathon, Sydney)
+# BlockID Startup Passport — technical documentation (EAG Global Buildathon, Sydney)
+
+*Agents propose. Humans approve. Chains prove.* (Built on the BlockID Issuance Studio platform.)
 
 > **Testnet demo. Not an offer of securities.**
 

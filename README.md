@@ -1,4 +1,9 @@
-# BlockID Issuance Studio
+# BlockID Startup Passport
+
+### Agents propose. Humans approve. Chains prove.
+
+*Every startup gets a passport: an AI-researched valuation, a tokenised share register and automatic dividends —
+with every AI decision stamped on-chain and signed off by a human.*
 
 **AI agents value startups and tokenise their equity as a real-world asset — but agents never hold keys.**
 Every agent proposal is hashed on-chain, a human approves it with their own wallet, and only then does an

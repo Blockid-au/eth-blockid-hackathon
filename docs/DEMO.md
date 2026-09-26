@@ -1,4 +1,4 @@
-# Demo script (3 minutes) + Q&A prep (2 minutes)
+# BlockID Startup Passport — demo script (3 minutes) + Q&A prep (2 minutes)
 
 > **Testnet demo. Not an offer of securities.**
 
