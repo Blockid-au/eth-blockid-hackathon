@@ -82,7 +82,7 @@ def main() -> None:
     for i in range(n):
         ms = round((starts[i] + LEAD) * 1000)
         f.append(f"[{n + i}:a]adelay={ms}|{ms},aresample=48000[a{i}]")
-    f.append("".join(f"[a{i}]" for i in range(n)) + f"amix=inputs={n}:normalize=0,apad,atrim=0:{total:.3f}[aout]")
+    f.append("".join(f"[a{i}]" for i in range(n)) + f"amix=inputs={n}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,apad,atrim=0:{total:.3f}[aout]")
     graph = ";".join(f)
 
     base = ["-y", "-loglevel", "error"] + inputs + ["-filter_complex", graph, "-map", "[vout]", "-map", "[aout]",
@@ -92,9 +92,9 @@ def main() -> None:
     subprocess.run(FFMPEG + base + [f"/w/{NAME}.mp4"], check=True)
     # burned-in captions for platforms that ignore .srt files
     subprocess.run(FFMPEG + ["-y", "-loglevel", "error", "-i", f"/w/{NAME}.mp4", "-vf",
-                             f"subtitles=/w/{NAME}.srt:force_style='FontName=DejaVu Sans,FontSize=15,"
+                             f"subtitles=/w/{NAME}.srt:force_style='FontName=DejaVu Sans,FontSize=12,"
                              "PrimaryColour=&H00FFFFFF,BackColour=&H99000000,BorderStyle=4,Outline=0,Shadow=0,"
-                             "MarginV=18'", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "copy",
+                             "MarginV=8'", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "copy",
                              "-movflags", "+faststart", f"/w/{NAME}-captions.mp4"], check=True)
     for i, r in enumerate(rows):
         print(f"slide {r[0]}: {starts[i]:6.1f}s  on screen {dur[i]:5.1f}s  (planned {r[1]}s, voice {dur_a[i]:.1f}s)")

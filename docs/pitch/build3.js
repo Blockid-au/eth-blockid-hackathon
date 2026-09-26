@@ -61,9 +61,9 @@ async function img(file, { top = 0, height } = {}) {
   const I = {
     hero: await img("01-home-hero.png", { height: 1800 }),
     wizard: await img("07-new-wizard-step1.png", { height: 1500 }),
-    radar: await img("09-valuation-radar-contribution.png"),
+    radar: await img("canva-report.png", { top: 122, height: 1540 }),
     agents: await img("08-valuation-agent-log.png", { height: 1300 }),
-    tracker: await img("15-company-arw-tracker-kpis.png", { height: 2000 }),
+    tracker: await img("16c-company-pending-tracker-admin.png", { height: 1730 }),
     cards: await img("19-company-eba-contracts-qr.png"),
     ok: await img("22-verify-eba-verified.png", { height: 1250 }),
     bad: await img("24-verify-eba-tamper-mismatch.png", { height: 1250 }),
@@ -145,9 +145,9 @@ async function img(file, { top = 0, height } = {}) {
   point(s, 9.5, 2.85, 3.2, "Grade A–E → A$ low · mid · high");
   point(s, 9.5, 3.65, 3.2, "Uncited claims are dropped");
   point(s, 9.5, 4.45, 3.2, "Admin can override any AI score");
-  T(s, "Airwallex → 8 competitors found (Wise, Revolut, OFX…) → SVI 54.5 · grade C", { x: 9.5, y: 5.35, w: 3.1, h: 1.2, fontSize: 13, color: C.gold, bold: true });
+  T(s, "Canva: 9 competitors · ARR A$6B cited · 10.5x implied · A$64B mid", { x: 9.5, y: 5.35, w: 3.1, h: 1.2, fontSize: 13, color: C.gold, bold: true });
   foot(s);
-  s.addNotes("[1:15–1:40] The AI only suggests scores. A fixed, public formula turns seven weighted dimensions into a grade and a valuation range, and any claim without a fetched source is dropped. For Airwallex it found eight real competitors and graded it C.");
+  s.addNotes("[1:15–1:40] The AI only suggests scores. A fixed, public formula turns seven weighted dimensions into a grade and a valuation range, and any claim without a fetched source is dropped. For Canva it found nine real competitors, a cited ARR of A$6 billion and an implied multiple from its last round.");
 
   // ============ 5. Issuance
   s = pres.addSlide(); s.background = { color: C.bg };
@@ -180,7 +180,7 @@ async function img(file, { top = 0, height } = {}) {
   // ============ 7. Results + who + ask
   s = pres.addSlide(); s.background = { color: C.bg };
   head(s, 7, "Live today", "Live today — and built for the people who issue equity.");
-  const st = [["12", "companies tokenised"], ["36", "token contracts, 3 chains"], ["A$69.8B", "indicative valuation on-chain"], ["100%", "hashes verified"]];
+  const st = [["12", "companies tokenised"], ["36", "token contracts, 3 chains"], ["A$87B", "valuation on-chain"], ["12/12", "hashes verified"]];
   st.forEach((x, i) => {
     const X = 0.55 + i * 2.2; rr(s, X, 1.8, 2.05, 1.5, C.card);
     T(s, x[0], { x: X + 0.18, y: 1.88, w: 1.8, h: 0.75, fontFace: H, fontSize: 30, bold: true, color: i % 2 ? C.gold : C.teal });
@@ -199,7 +199,7 @@ async function img(file, { top = 0, height } = {}) {
   T(s, "Looking for: pilot startups, accelerators, licensed partners", { x: 9.55, y: 5.05, w: 3.05, h: 0.8, fontSize: 12.5, color: C.text, align: "center" });
   T(s, "Long Do · long@blockid.au", { x: 9.5, y: 6.05, w: 3.15, h: 0.35, fontSize: 12, color: C.muted, align: "center" });
   foot(s);
-  s.addNotes("[2:25–3:00] This is live today: twelve real companies, thirty-six token contracts on three chains, A$69.8 billion of indicative valuation on-chain, every hash verified. Our customers are founders, accelerators and licensed intermediaries who issue and administer startup equity. Scan the code and try it at eth.blockid.au — we're looking for pilot startups and licensed partners. Thank you.");
+  s.addNotes("[2:25–3:00] This is live today: twelve real companies, thirty-six token contracts on three chains, A$87 billion of valuation on-chain, every hash verified. Our full demo run took Canva from its website to a share register on three chains, a new round, a dividend and a shareholder transfer in eleven minutes. Our customers are founders, accelerators and licensed intermediaries who issue and administer startup equity. Scan the code and try it at eth.blockid.au — we're looking for pilot startups and licensed partners. Thank you.");
 
   await pres.writeFile({ fileName: "out/BlockID-Startup-Passport-3min.pptx" });
   console.log("written");
