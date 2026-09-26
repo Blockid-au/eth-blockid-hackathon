@@ -1,5 +1,8 @@
 # Architecture
 
+> **Note:** §1 describes the original two-VM GCP design (Caddy, Sepolia). The live single-host deployment (nginx, Hoodi + HashKey, isolated issuer) is documented in [ARCHITECTURE-DIAGRAMS.md](ARCHITECTURE-DIAGRAMS.md).
+
+
 ## 1. Overview
 
 ```mermaid

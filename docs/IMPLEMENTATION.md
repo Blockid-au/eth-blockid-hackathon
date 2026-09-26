@@ -1,5 +1,8 @@
 # BlockID Issuance Studio — implementation spec
 
+> **Update (26 Sep 2026):** issuance is now one admin approval that runs BlockID → Hoodi → HashKey (`approve-anchor` is only a retry/re-sync), and `anchorValuation` stores keccak256 of the canonical report JSON (see `studio/report_hash.py`, `/verify`). Current diagrams: [ARCHITECTURE-DIAGRAMS.md](ARCHITECTURE-DIAGRAMS.md).
+
+
 Source of truth for the parallel build. Plan: https://claude.ai/artifact/YaGUNf6oJfiUmc3UwNrzhg ·
 visual prototype (copy its design, copy and charts): https://claude.ai/artifact/8Sr8pjR2ZhaiivVcNiKjjw
 (local copy: `docs/prototype.html`).

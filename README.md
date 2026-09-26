@@ -86,7 +86,7 @@ an isolated issuer signs, and every step is verifiable on-chain.**
 
 <p align="center">
   <a href="docs/FEATURES.md"><img src="docs/screenshots/01-home-hero.png" width="49%" alt="Home"></a>
-  <a href="docs/FEATURES.md"><img src="docs/screenshots/19-company-eba-contract-cards.png" width="49%" alt="Contract address cards on three chains"></a>
+  <a href="docs/FEATURES.md"><img src="docs/screenshots/19-company-eba-contracts-qr.png" width="49%" alt="Contract address cards on three chains"></a>
 </p>
 
 ## Architecture

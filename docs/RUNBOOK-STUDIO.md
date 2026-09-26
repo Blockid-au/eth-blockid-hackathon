@@ -8,7 +8,7 @@ Spec: [IMPLEMENTATION.md](IMPLEMENTATION.md). Testnet only.
 |---|---|---|
 | Web app (SPA) | `web/dist`, served by host nginx | source `web/app`; build: see below |
 | API | container `agents-api` → `127.0.0.1:8080`, public at `https://eth.blockid.au/api/` | FastAPI; studio tables in Postgres schema `studio` |
-| AI worker | container `agents-worker` | runs `site_valuation` jobs (DeepInfra + Brave, fallback without Brave) |
+| AI worker | container `agents-worker` | runs `site_valuation` jobs (LLM chain SambaNova → Claude bridge → DeepInfra; ≤3 web searches via Brave → Claude web-search bridge; see LLM-ROUTING.md) |
 | Issuer | container `issuer`, internal `:8090` only | the only holder of keys (`/opt/blockid/keys`, read-only, uid 10001) |
 | BlockID Chain | container `evmd`, RPC `127.0.0.1:8545`, public `https://eth.blockid.au/rpc` | EVM chain id 262626, gas price 0 |
 | Blockscout | `deploy/blockscout`, `https://scan.blockid.au` | backend :8200, frontend :8201 |
