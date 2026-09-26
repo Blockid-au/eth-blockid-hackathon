@@ -1,0 +1,72 @@
+{
+  "agentProvenance": "0x6B96bcE8937e1416Ec1DAC4ADAdD71FE879F8e84",
+  "approver": "0xC40052702B48631C26AD7c88b499bF230faCa21F",
+  "capTableAnchor": "0x728c834DE493DC3e9Ae2f7C0e79d86701B6F9F04",
+  "chainId": 133,
+  "dividendDistributor": "0xc0Ad2C03f04ce656Ba5820531a6E45d85C37511e",
+  "identityRegistry": "0x985cd14495320b1adb2Eb170B62db19b12e901Eb",
+  "operator": "0x2567Bb502ac840cF93957C60A410160a8cCb5ddf",
+  "payToken": "0xD40D9cb55b56b508A9Ee09E3967dAe14a6a0E058",
+  "proposalId": 0,
+  "relayer": "0x1B43f0d3297F79cE6c8BbA12F4FadFBE9112DA4a",
+  "reportHash": "0x3c273fe671ed6024caede1240085a14a67c89a2f94ee08e0f82918af24efebf4",
+  "shareToken": "0x0107a9aF204113baD3a47a5BF23d84a3302A8cc1",
+  "explorer": "https://testnet-explorer.hskchain.net",
+  "roundId": 0,
+  "holders": [
+    {
+      "account": "0x1000000000000000000000000000000000000001",
+      "amount": 600000000
+    },
+    {
+      "account": "0x2000000000000000000000000000000000000002",
+      "amount": 300000000
+    },
+    {
+      "account": "0x3000000000000000000000000000000000000003",
+      "amount": 99999999
+    }
+  ],
+  "merkleRoot": "0xfc8f39522a635e9188e860dbc8d1d827c9c354f52e8beb3e53b12e24b805de5f",
+  "dividendTotal": 999999999,
+  "capTableRoot": "0x7444130304582519a36a27ee2cbfbe3f302aac27a96456af3b47dab508075d0c",
+  "shares": [
+    {
+      "account": "0x1000000000000000000000000000000000000001",
+      "shares": 6000
+    },
+    {
+      "account": "0x2000000000000000000000000000000000000002",
+      "shares": 3000
+    },
+    {
+      "account": "0x3000000000000000000000000000000000000003",
+      "shares": 1000
+    }
+  ],
+  "txs": {
+    "propose": "0x27b9f58aa16754102e521de4fe1ff787ec327433eaf1df6815e60687f1c36b9f",
+    "approve": "0xc0e1821d6a439536f2fc85132a53c893d07da4cacefe12eb2722b4b9a3bce9fa",
+    "issue": "0xf4d5a5e0d623df3e28201a4eeddcbd361451e967fc6891bcbdb7644c636a9562",
+    "anchorValuation": "0x26b1484ade80f8a28ee452e3292d3338b58b9af08bbd2c65485187f93b5e86d4",
+    "anchorCapTable": "0x8f984f02400da39e8dd105be7546dc55a3bd7c734ac4dfa025052b0c56159577",
+    "createDividendRound": "0x09932f105dc1b879c0d82764e5c5e7eb2e4f46a629367803b081d2c530f3b7ef",
+    "execute": "0x8896743fc9d7f62857206ccae0ccea407fe9c03d2a71e8b5792680ffccad79e0",
+    "claim0": "0x89b1edc1d65ed7288bc2a3d35ae6d5334b62cebddb26f6597995e070cfab349a",
+    "claim1": "0xd05f2a09a217e79bc14d733fce1abc7860237b62962098c4ec3581546cac97e5",
+    "claim2": "0x9bd4a2ea44a0343420b6046c84b93d10ff873646084780b12456757b8b5a5c6b"
+  },
+  "provenance": [
+    {
+      "id": 0,
+      "agent": "valuation",
+      "kind": "svi_report",
+      "contentHash": "0x3c273fe671ed6024caede1240085a14a67c89a2f94ee08e0f82918af24efebf4",
+      "modelId": "claude-opus-5-5",
+      "status": "Executed",
+      "proposeTx": "0x27b9f58aa16754102e521de4fe1ff787ec327433eaf1df6815e60687f1c36b9f",
+      "approveTx": "0xc0e1821d6a439536f2fc85132a53c893d07da4cacefe12eb2722b4b9a3bce9fa",
+      "executeTx": "0x8896743fc9d7f62857206ccae0ccea407fe9c03d2a71e8b5792680ffccad79e0"
+    }
+  ]
+}

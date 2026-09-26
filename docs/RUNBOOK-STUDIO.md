@@ -23,8 +23,8 @@ Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid
   Values containing `$` (the bcrypt hash) must be single-quoted.
 - Keystores (encrypted, Foundry format): `~/.foundry/keystores/blockid-{deployer,relayer,admin}`, passwords in `~/.blockid/*.password` (600).
   Copies for the issuer: `/opt/blockid/keys` (owned by uid 10001, read-only mount).
-- Wallets: issuer/deployer `0x2567…5ddf`, relayer `0x1B43…DA4a`, server admin `0xC400…a21F`, owner admin (MetaMask) `0xc309…4585`.
-- Admin login: `admin` / `admin` (testnet demo; change with `POST /api/v1/auth/change-password` before any real use).
+- Wallets: issuer/deployer `0x2567…5ddf`, relayer `0x1B43…DA4a`, server admin `0xC400…a21F`, owner admin (MetaMask) `0xc309…4585`, project admin `0x02B1…1E2F`. Admin list = `ADMIN_WALLETS` in app.env (restart agents-api after editing).
+- Admin login: SIWE wallet in `ADMIN_WALLETS`, or the username/password configured via `ADMIN_PASSWORD_HASH` (change it with `POST /api/v1/auth/change-password`).
 - Platform contracts: CapTableAnchor (Hoodi) `0xF3dC95D5d207dE9f2aC98184Fd32b45B72334263`, DemoAUD (BlockID) `0x286C1eD22A741F4939A3C7637011B0fAE2C7FFBc`.
 
 ## Common tasks

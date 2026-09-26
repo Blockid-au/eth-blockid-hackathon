@@ -138,7 +138,7 @@ Vite + React + TypeScript + react-router, i18n via a small dictionary module (EN
 viem for MetaMask (SIWE, `wallet_addEthereumChain`, `wallet_switchEthereumChain`, `wallet_watchAsset`). Charts are
 hand-drawn SVG as in the prototype. Routes: `/` home, `/new` wizard (8 steps), `/v/:id` valuation progress/report,
 `/c/:ticker` company (cap table, contract address cards, add-to-wallet, mint/dividend), `/companies` list,
-`/admin` (login: MetaMask or admin/admin; overview dashboard, approvals queue, companies, issuer wallets, audit).
+`/admin` (login: SIWE wallet in ADMIN_WALLETS or a username/password configured via ADMIN_PASSWORD_HASH; overview dashboard, approvals queue, companies, issuer wallets, audit).
 Design tokens, copy, flows and charts: copy the prototype.
 
 ## File ownership during the build

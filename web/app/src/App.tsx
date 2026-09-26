@@ -9,6 +9,7 @@ const ValuationPage = lazy(() => import("./pages/Valuation"));
 const CompanyPage = lazy(() => import("./pages/Company"));
 const CompaniesPage = lazy(() => import("./pages/Companies"));
 const AdminPage = lazy(() => import("./pages/Admin"));
+const HskPage = lazy(() => import("./pages/Hsk"));
 
 export function App() {
   return (
@@ -24,6 +25,7 @@ export function App() {
             <Route path="/c/:ticker" element={<CompanyPage />} />
             <Route path="/companies" element={<CompaniesPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/hsk" element={<HskPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

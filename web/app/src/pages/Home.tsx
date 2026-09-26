@@ -8,6 +8,7 @@ import { GATES } from "../components/Stepper";
 import { GRADE_C } from "../lib/math";
 import { arrow } from "../i18n";
 import type { DictKey } from "../dict";
+import { HskHomeCard } from "./HskCard";
 
 const HERO_PARTS = [
   { name: "Maya Chen", v: 42, c: "--c1" }, { name: "Tom Nguyen", v: 25, c: "--c2" }, { name: "Seed Fund I", v: 15, c: "--c3" },
@@ -227,6 +228,10 @@ export function Home() {
       </section>
 
       <LiveStats />
+
+      <section className="block" id="hsk" style={{ paddingTop: 0, borderTop: 0 }}>
+        <div className="wrap"><HskHomeCard /></div>
+      </section>
 
       <section className="block" style={{ borderTop: 0, paddingTop: 0 }}>
         <div className="wrap">

@@ -70,6 +70,7 @@ export function Nav() {
         <nav className="links" aria-label={t("nav.primary")}>
           <Link to="/#how">{t("nav.how")}</Link>
           <NavLink to="/companies">{t("nav.companies")}</NavLink>
+          <NavLink to="/hsk">{t("nav.hsk")}</NavLink>
           <NavLink to="/admin">{t("nav.admin")}</NavLink>
         </nav>
         <span className="grow" />

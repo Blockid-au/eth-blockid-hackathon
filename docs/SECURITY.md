@@ -1,41 +1,41 @@
-# Bảo mật & pháp lý
+# Security & legal
 
-## Mô hình bảo mật
+## Security model
 
-| Rủi ro | Biện pháp trong khung |
+| Risk | Mitigation in the framework |
 |---|---|
-| Agent tự ký/chuyển tài sản | Không có key trong runtime. Registry/Dividend chỉ tạo **unsigned** Safe batch. Tool ký/gửi/deploy bị cấm ở `policy.py` |
-| Prompt injection từ tài liệu/web | Nội dung luôn được bọc `<data>` và đánh dấu là untrusted. Quyền enforce bằng code, không bằng prompt. Output phải qua schema Pydantic. Research tự loại nhận định trích URL không có thật |
-| PII rời máy chủ | Agent chứa PII chỉ được dùng tier `local` (code chặn). Gateway không fallback sang cloud. Tên founder bị ẩn trước khi valuation gọi model. Query Brave được lọc email/số điện thoại |
-| AI bịa số | Chỉ số SVI và định giá do code tính (tất định, có hash). LLM chỉ đề xuất điểm định tính và phải qua người duyệt |
-| Contract lỗi | Template cố định + 20 test/fuzz + dry-run + Slither. Cổng 2 từ chối cứng khi có lỗi. Deploy do người chạy với keystore riêng |
-| Sửa lịch sử | Audit log chuỗi hash (`verify-audit`). Nên neo head hash lên chain hằng ngày |
-| Lộ máy chủ | VM AI không có IP public, chỉ mở :4000 cho VM app. SSH chỉ qua IAP. Secret nằm trong Secret Manager. Service account quyền tối thiểu (app chỉ được *start* VM AI) |
-| Mất dữ liệu | Snapshot ổ dữ liệu hằng ngày, giữ 14 ngày. Postgres/evmd nằm trên ổ riêng |
+| Agent self-signing/transferring assets | No keys in the runtime. Registry/Dividend only create **unsigned** Safe batches. Sign/send/deploy tools are forbidden in `policy.py` |
+| Prompt injection from documents/web | Content is always wrapped in `<data>` and marked as untrusted. Permissions are enforced by code, not by the prompt. Output must pass a Pydantic schema. Research automatically discards claims citing URLs that don't actually exist |
+| PII leaving the server | Agents that handle PII are restricted to the `local` tier (enforced by code). The gateway never falls back to cloud. Founder names are anonymized before valuation calls the model. Brave queries are filtered to strip email/phone numbers |
+| AI fabricating numbers | SVI scores and valuation are computed by code (deterministic, hashed). The LLM only proposes qualitative scores, which must go through an approver |
+| Faulty contracts | Fixed templates + 20 tests/fuzzing + dry-run + Slither. Gate 2 hard-rejects on any failure. Deployment is run by a human using their own keystore |
+| History tampering | Hash-chained audit log (`verify-audit`). The head hash should be anchored on-chain daily |
+| Server compromise | The AI VM has no public IP and only exposes port :4000 to the app VM. SSH only via IAP. Secrets live in Secret Manager. Service account has minimal privileges (the app can only *start* the AI VM) |
+| Data loss | Daily snapshots of the data disk, retained for 14 days. Postgres/evmd live on a separate disk |
 
-## Việc bắt buộc trước khi có khách hàng thật
+## Mandatory work before onboarding real customers
 
 1. **Contract:**
-   - Thay `IdentityRegistry` và compliance bằng bộ **ERC-3643 (T-REX) chính thức + ONCHAINID**. Token hiện tại giữ cùng giao diện `isVerified()` để chuyển đổi dễ dàng.
-   - Thuê **audit độc lập**.
-   - Đặt ngưỡng Safe tối thiểu 2/3.
+   - Replace `IdentityRegistry` and compliance logic with the official **ERC-3643 (T-REX) + ONCHAINID** stack. The current token keeps the same `isVerified()` interface to make migration easy.
+   - Commission an **independent audit**.
+   - Set the Safe threshold to at least 2/3.
 2. **Chain:**
-   - Chạy tối thiểu **4 validator độc lập**. Một node chỉ đủ cho demo.
-   - Pin phiên bản `cosmos/evm`.
-   - Rà soát genesis.
-   - Không mở `26657` công khai nếu không cần explorer.
-3. **Pháp lý (Úc)** *(không phải tư vấn pháp lý)*:
-   - ASIC coi tokenised securities là sản phẩm tài chính.
-   - Digital Assets Framework Act 2026 có hiệu lực từ **9/4/2027**, yêu cầu giấy phép AFSL cho digital asset platform và tokenised custody platform.
-   - Các dịch vụ lưu ký, quản lý chuyển nhượng và chia cổ tức có thu phí cần luật sư fintech đánh giá.
-   - Nghĩa vụ AML/CTF với AUSTRAC có thể áp dụng song song.
-4. **Dữ liệu cá nhân:**
-   - Privacy Act 1988 (APP 8) áp dụng khi xử lý dữ liệu ở nước ngoài, và VM AI đặt tại Singapore.
-   - Nếu hồ sơ KYC phải nằm hoàn toàn tại Úc, hãy chạy intake trên máy AI tại Úc (T4 ở Sydney, hoặc nhà cung cấp GPU của Úc).
-5. **Vận hành:**
-   - Pin tag image (`vllm`, `litellm`).
-   - Bật Cloud Monitoring alert.
-   - Diễn tập khôi phục từ snapshot.
+   - Run at least **4 independent validators**. A single node is only good enough for a demo.
+   - Pin the `cosmos/evm` version.
+   - Review the genesis file.
+   - Do not expose port `26657` publicly unless an explorer requires it.
+3. **Legal (Australia)** *(not legal advice)*:
+   - ASIC treats tokenised securities as a financial product.
+   - The Digital Assets Framework Act 2026 takes effect on **9 April 2027**, requiring an AFSL license for digital asset platforms and tokenised custody platforms.
+   - Custody, transfer agent, and dividend distribution services that charge fees need review by a fintech lawyer.
+   - AML/CTF obligations with AUSTRAC may apply in parallel.
+4. **Personal data:**
+   - The Privacy Act 1988 (APP 8) applies when data is processed overseas, and the AI VM is located in Singapore.
+   - If KYC records must remain entirely within Australia, run intake on an AI machine located in Australia (a T4 in Sydney, or an Australian GPU provider).
+5. **Operations:**
+   - Pin image tags (`vllm`, `litellm`).
+   - Enable Cloud Monitoring alerts.
+   - Rehearse recovery from snapshot.
 
 ## Issuance Studio (single-host deployment, 2026-09)
 
@@ -52,5 +52,5 @@ Controls added after the internal security review (all verified on the live site
 | Public RPC | `/rpc` goes through `POST /v1/rpc` (eth_/net_/web3_ only). `/cometbft/` only exposes read routes. |
 | Web | CSP (self + hashed inline bootstrap, Google Fonts, Hoodi RPC), X-Frame-Options DENY, HSTS, nosniff; API docs disabled in production. |
 
-Known testnet-only choices: admin/admin password kept at the owner's request (change it before any real use); the issuer
-key is a hot key on the server (production must move issuance to a Safe multisig — see above).
+Known testnet-only choices: admin login is a SIWE wallet in `ADMIN_WALLETS` or a username/password configured via
+`ADMIN_PASSWORD_HASH` (bcrypt; rotate before any real use); the issuer key is a hot key on the server (production must move issuance to a Safe multisig — see above).

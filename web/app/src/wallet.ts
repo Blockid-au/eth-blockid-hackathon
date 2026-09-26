@@ -8,7 +8,7 @@ export const SIWE_DOMAIN = LOCAL ? location.host : "eth.blockid.au";
 export const SIWE_URI = LOCAL ? `${location.protocol}//${location.host}` : "https://eth.blockid.au";
 
 export interface ChainInfo {
-  key: "local" | "hoodi";
+  key: "local" | "hoodi" | "hsk";
   id: number;
   hex: string;
   name: string;
@@ -21,7 +21,7 @@ export interface ChainInfo {
   addrUrl: (a: string) => string;
 }
 
-export const CHAINS: Record<"local" | "hoodi", ChainInfo> = {
+export const CHAINS: Record<"local" | "hoodi" | "hsk", ChainInfo> = {
   local: {
     key: "local",
     id: 262626,
@@ -48,12 +48,26 @@ export const CHAINS: Record<"local" | "hoodi", ChainInfo> = {
     txUrl: (h) => `https://hoodi.etherscan.io/tx/${h}`,
     addrUrl: (a) => `https://hoodi.etherscan.io/address/${a}`,
   },
+  hsk: {
+    key: "hsk",
+    id: 133,
+    hex: "0x85",
+    name: "HashKey Chain Testnet",
+    rpc: "https://testnet.hsk.xyz",
+    currency: "HSK",
+    decimals: 18,
+    explorer: "https://testnet-explorer.hskchain.net",
+    tokenUrl: (a) => `https://testnet-explorer.hskchain.net/token/${a}`,
+    txUrl: (h) => `https://testnet-explorer.hskchain.net/tx/${h}`,
+    addrUrl: (a) => `https://testnet-explorer.hskchain.net/address/${a}`,
+  },
 };
 
 /** Map an events.chain value (\"local\", \"hoodi\", 262626, \"560048\", …) to a chain. */
 export function chainOf(c: unknown): ChainInfo {
   const s = String(c ?? "").toLowerCase();
   if (s.includes("hoodi") || s === "560048" || s === "0x88bb0") return CHAINS.hoodi;
+  if (s === "hsk" || s.includes("hashkey") || s === "133" || s === "0x85") return CHAINS.hsk;
   return CHAINS.local;
 }
 
@@ -112,7 +126,7 @@ export async function signInWithEthereum(): Promise<{ address: string; role: Rol
     try {
       const hex = (await eth.request({ method: "eth_chainId" })) as string;
       const id = parseInt(hex, 16);
-      if (id === 262626 || id === 560048) chainId = id;
+      if (id === 262626 || id === 560048) chainId = id; // HSK (133) falls back to 262626: backend SIWE_CHAINS does not accept 133 yet
     } catch {
       /* default */
     }

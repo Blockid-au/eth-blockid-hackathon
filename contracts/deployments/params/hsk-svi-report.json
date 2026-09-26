@@ -1,0 +1,17 @@
+{
+  "kind": "svi_report",
+  "note": "Demo fixture (synthetic company) used for the HashKey Chain testnet provenance demo. Not an offer of securities.",
+  "company": {"name": "Demo Startup Pty Ltd", "ticker": "DEM", "website": "https://example.com"},
+  "agent": "valuation",
+  "model_id": "claude-opus-5-5",
+  "svi": {
+    "index": 66.77,
+    "band": "B - strong",
+    "valuation_low_aud": 2690000,
+    "valuation_mid_aud": 3360000,
+    "valuation_high_aud": 4030000,
+    "method": "SVI weighted scorecard x sector revenue multiple"
+  },
+  "issue": {"share_price_aud": 1.0, "total_shares_demo": 10000, "mark_cents_per_share": 33600},
+  "human_gate": "Admin approval required before any on-chain issuance"
+}

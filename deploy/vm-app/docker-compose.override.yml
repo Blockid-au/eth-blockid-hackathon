@@ -1,4 +1,4 @@
-# Máy đơn (không Caddy): nginx trên host giữ 80/443 và reverse proxy vào các cổng localhost này.
+# Single VM (no Caddy): nginx on the host owns 80/443 and reverse-proxies to these localhost ports.
 services:
   web:
     ports: ["127.0.0.1:8081:80"]
