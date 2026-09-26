@@ -73,6 +73,25 @@ class FakeStore:
             self.holders_.append({"company_id": cid, "name": name, "wallet": wallet, "pct": 0, "shares": shares})
         self.companies[cid]["total_shares"] = sum(h["shares"] for h in self.holders(cid))
 
+    def reconcile_holders(self, cid, balances):
+        bal = {w.lower(): (w, int(n)) for w, n in balances.items() if int(n) > 0}
+        before = [(h["wallet"].lower(), h["shares"]) for h in self.holders(cid)]
+        keep, seen = [], set()
+        for h in self.holders_:
+            if h["company_id"] != cid:
+                keep.append(h)
+                continue
+            w = h["wallet"].lower()
+            if w in bal and w not in seen:
+                seen.add(w)
+                keep.append({**h, "shares": bal[w][1]})
+        for w, (addr, n) in bal.items():
+            if w not in seen:
+                keep.append({"company_id": cid, "name": "Unlabelled holder", "wallet": addr, "pct": 0, "shares": n})
+        self.holders_ = keep
+        self.companies[cid]["total_shares"] = sum(n for _, n in bal.values())
+        return {} if before == [(h["wallet"].lower(), h["shares"]) for h in self.holders(cid)] else {"changed": 1}
+
     def add_event(self, cid, kind, chain=None, tx_hash=None, block=None, data=None):
         self.events.append({"company_id": cid, "kind": kind, "chain": chain, "tx_hash": tx_hash, "block": block,
                             "data": json.loads(json.dumps(data or {}))})  # must be JSON-serialisable
@@ -414,3 +433,52 @@ def test_app_auth_and_202():
     assert cl.get("/health", headers=h).json()["ok"] is True
     app.state.pool.shutdown(wait=True)
     assert [c[0] for c in svc.calls] == ["issue", "anchor", "revalue", "reanchor_valuation", "mint", "dividend", "drip"]
+
+
+@needs_anvil
+def test_secondary_transfer_then_refresh_from_chain(env):
+    """A transfer outside studio.holders used to break every re-sync ('cap table incomplete'). The paged Transfer
+    scan finds the receiver, studio.holders follows the chain, and Refresh clears the error and re-syncs."""
+    from web3 import Web3
+
+    svc, st, L = env["svc"], env["store"], env["local"]
+    _seed(st, cid=7, ticker="XYZ")
+    svc.issue(7)
+    c = st.companies[7]
+    assert c["status"] == "anchored", c.get("error")
+    h4 = Web3.to_checksum_address("0x4000000000000000000000000000000000000004")
+    reg = L.contract("IdentityRegistry", c["local_registry"])
+    token = L.contract("BlockIDShareToken", c["local_token"])
+    svc._kyc(L, reg, h4, "Angel", 7)
+    L.transact(token.functions.forcedTransfer(Web3.to_checksum_address(H2), h4, 500, Web3.keccak(text="t:1")))
+    # the state a failed re-sync left behind
+    st.companies[7].update(status="issued", error="Ethereum Hoodi: RuntimeError: cap table incomplete: "
+                                                  "sum(balances)=9500 != totalSupply=10000")
+    old_chunk, svc.LOG_CHUNK = svc.LOG_CHUNK, 3  # force many pages
+    try:
+        svc.refresh(7)
+    finally:
+        svc.LOG_CHUNK = old_chunk
+    c = st.companies[7]
+    assert c["status"] == "anchored" and c["error"] is None, (c.get("error"), c.get("sync"))
+    by = {h["wallet"].lower(): h for h in st.holders(7)}
+    assert by[h4.lower()]["shares"] == 500 and by[H2.lower()]["shares"] == 2500
+    assert sum(h["shares"] for h in st.holders(7)) == 10000
+    mirror = env["hoodi"].contract("BlockIDShareToken", c["hoodi_token"])
+    assert mirror.functions.balanceOf(h4).call() == 500
+    assert "refreshed" in st.kinds(7)
+
+
+def test_error_classification_points_to_the_fix():
+    from blockid_agents.studio.errors import classify, company_error_info
+
+    cnv = "RuntimeError: cap table incomplete: sum(balances)=68589675000 != totalSupply=70512750000"
+    info = classify(cnv)
+    assert info["code"] == "cap_table_mismatch" and info["action"] == "refresh" and info["target"] == "cap-table"
+    assert info["detail"]["missing"] == 1923075000
+    gas = classify("InsufficientFunds: issuer 0xabc has 0.000001 HSK on HashKey Chain testnet, needs about 0.0075 HSK")
+    assert gas["action"] == "top_up" and gas["target"] == "issuer-wallets"
+    assert classify("mint 12: boom")["code"] == "mint_failed"
+    assert classify(None) is None and classify("weird")["code"] == "unknown"
+    both = company_error_info({"error": None, "sync": {"errors": {"hsk": cnv}}})
+    assert both["code"] == "cap_table_mismatch" and both["chains"]["hsk"]["code"] == "cap_table_mismatch"

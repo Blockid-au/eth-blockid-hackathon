@@ -399,7 +399,13 @@ class Service:
     def reanchor(self, company_id: int) -> None:
         """After a mint / revaluation: refresh every external mirror that was synced and anchor a new root."""
         c = self.store.company(company_id)
-        if not c or c["status"] not in ("anchored", "partially_anchored") or not c.get("local_token"):
+        if not c or not c.get("local_token"):
+            return
+        if c["status"] not in ("anchored", "partially_anchored"):
+            try:  # no mirror to refresh yet, but keep the studio cap table equal to the chain
+                self.snapshot(c)
+            except Exception as e:  # noqa: BLE001
+                log.warning("reanchor %s: holder reconcile failed: %s", company_id, e)
             return
         s = syncstate.view(c)
         chains = [ch for ch in syncstate.EXTERNAL if s[ch] == "done"]
@@ -409,19 +415,55 @@ class Service:
             self._sync_one(company_id, key)
         self._finish(company_id)
 
+    LOG_CHUNK = 5_000  # the BlockID RPC rejects eth_getLogs ranges over 10,000 blocks
+
+    def refresh(self, company_id: int) -> None:
+        """Admin "Refresh from chain": rebuild studio.holders from BlockID Chain balances, clear the error, then
+        re-sync every external chain (mirror balances + new Merkle root). Safe to run any time; idempotent."""
+        with self._exclusive(f"company:{company_id}") as ok:
+            if not ok:
+                return
+            c = self.store.company(company_id)
+            if not c or not c.get("local_token"):
+                log.warning("refresh: company %s is not issued on BlockID Chain; skipped", company_id)
+                return
+            try:
+                _, balances, supply = self.snapshot(c)  # reconciles studio.holders as a side effect
+            except Exception as e:  # noqa: BLE001
+                log.exception("refresh %s: snapshot failed", company_id)
+                self.store.update_company(company_id, error=f"refresh: {_err(e)}"[:1000])
+                return
+            self._event(company_id, "refreshed", LOCAL, holders=len(balances), supply=supply)
+            self._sync(company_id, started_at=_iso(), finished_at=None)
+            self._sync_external(company_id, list(syncstate.EXTERNAL))  # clears the error, _finish sets status
+
+    def _transfer_receivers(self, token, from_block: int, to_block: int) -> set[str]:
+        out: set[str] = set()
+        start = max(int(from_block or 0), 0)
+        while start <= to_block:
+            end = min(start + self.LOG_CHUNK - 1, to_block)
+            for ev in token.events.Transfer().get_logs(from_block=start, to_block=end):
+                to = ev["args"]["to"]
+                if int(to, 16):
+                    out.add(to)
+            start = end + 1
+        return out
+
     def snapshot(self, c: dict) -> tuple[int, dict[str, int], int]:
-        """(local block, {wallet: balance>0}, totalSupply) of the BlockID Chain share token."""
+        """(local block, {wallet: balance>0}, totalSupply) of the BlockID Chain share token.
+        Wallets come from studio.holders plus every Transfer receiver since the token was deployed (secondary
+        transfers are not in studio.holders); studio.holders is then reconciled to the chain balances."""
         L = self.local
         token = L.contract("BlockIDShareToken", c["local_token"])
         blk = L.block_number()
         wallets = {h["wallet"].lower(): cs(h["wallet"]) for h in self.store.holders(c["id"])}
-        try:  # also pick up wallets that received shares outside the studio (transfers)
-            for ev in token.events.Transfer().get_logs(from_block=0, to_block=blk):
-                to = ev["args"]["to"]
-                if int(to, 16):
-                    wallets.setdefault(to.lower(), cs(to))
+        # local_block is set after issuance; the token was deployed a few blocks earlier
+        first = max(int(c.get("local_block") or 0) - 200, 0)
+        try:
+            for to in self._transfer_receivers(token, first, blk):
+                wallets.setdefault(to.lower(), cs(to))
         except Exception as e:  # noqa: BLE001
-            log.warning("Transfer log scan failed (%s); using studio.holders only", e)
+            raise RuntimeError(f"could not scan share transfers on BlockID Chain: {e}") from e
 
         def bal(w: str) -> int:
             try:
@@ -436,6 +478,9 @@ class Service:
             supply = int(token.functions.totalSupply().call())
         if sum(balances.values()) != supply:
             raise RuntimeError(f"cap table incomplete: sum(balances)={sum(balances.values())} != totalSupply={supply}")
+        changed = self.store.reconcile_holders(c["id"], balances)
+        if changed:
+            log.info("company %s: studio.holders reconciled to chain (%s)", c["id"], changed)
         return blk, balances, supply
 
     def _sync_and_anchor(self, c: dict, t: Target | None = None) -> None:

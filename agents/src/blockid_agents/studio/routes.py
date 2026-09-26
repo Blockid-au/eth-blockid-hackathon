@@ -31,6 +31,7 @@ from ..tools import captable
 from ..tools import ticker as tickers
 from ..tools.merkle import build_distribution
 from . import metrics
+from .errors import company_error_info
 from .company_admins import CompanyAuthz, seed_owner
 from .gas import GasDripper
 from .auth import (
@@ -444,6 +445,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         out["grade"] = _grade(c.get("grade"))
         out["holders"] = jsonable(hs)
         out["sync"] = jsonable(syncstate.view(c))
+        out["error_info"] = company_error_info({**c, "sync": out["sync"]})
         return out
 
     @r.post("/v1/studio/companies", status_code=201)
@@ -591,6 +593,14 @@ def build_router(ctx: StudioContext) -> APIRouter:
                                 "OR (c.status = 'failed' AND c.local_block IS NOT NULL)",
                           "anchoring", "/anchor", sess, "approve_anchor", event="resync_requested", chains=todo)
 
+    @r.post("/v1/admin/companies/{cid}/refresh", status_code=202)
+    def refresh_company(cid: int, sess: Session = Depends(require_admin)):
+        """Clear the error and refresh from chain: the issuer rebuilds the studio cap table from BlockID Chain
+        balances (including secondary transfers), then re-syncs Hoodi and HSK. The fix for 'cap table incomplete'."""
+        return transition(cid, "c.local_token IS NOT NULL AND c.status IN "
+                                "('issued', 'pending_anchor', 'partially_anchored', 'anchored', 'failed', 'anchoring')",
+                          "anchoring", "/refresh", sess, "refresh_company", event="refresh_requested")
+
     @r.post("/v1/admin/companies/{cid}/reject")
     def reject_company(cid: int, body: ReasonBody, sess: Session = Depends(require_admin)):
         db = ctx.need_db()
@@ -733,6 +743,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
                     "anchor_tx": c.get("hsk_anchor_tx"), "merkle_root": c.get("hsk_merkle_root"),
                     "block": c.get("hsk_block"), "anchored_at": c.get("hsk_anchored_at")},
             "sync": jsonable(syncstate.view(c)),
+            "error_info": company_error_info({**c, "sync": syncstate.view(c)}),
             "valuation_report_hash": c.get("valuation_report_hash"),
             "created_at": c.get("created_at"), "updated_at": c.get("updated_at"),
         })

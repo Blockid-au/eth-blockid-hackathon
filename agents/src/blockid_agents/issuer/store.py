@@ -120,6 +120,47 @@ class Store:
                 c.execute("UPDATE studio.companies SET total_shares = %s, updated_at = now() WHERE id = %s",
                           (tot, company_id))
 
+    def reconcile_holders(self, company_id: int, balances: dict[str, int]) -> dict[str, int]:
+        """Make studio.holders equal to the chain: one row per wallet with a positive balance.
+        New wallets (secondary transfers) are named from the transfer / KYC request that brought them in.
+        Returns counts of what changed ({} when already in sync)."""
+        bal = {w.lower(): (w, int(n)) for w, n in balances.items() if int(n) > 0}
+        added = updated = removed = 0
+        with self._conn() as c, c.transaction():
+            rows = c.execute("SELECT id, wallet, shares FROM studio.holders WHERE company_id = %s ORDER BY id",
+                             (company_id,)).fetchall()
+            seen: set[str] = set()
+            for r in rows:
+                w = r["wallet"].lower()
+                if w in seen or w not in bal:  # duplicate row, or the wallet no longer holds shares
+                    c.execute("DELETE FROM studio.holders WHERE id = %s", (r["id"],))
+                    removed += 1
+                    continue
+                seen.add(w)
+                if int(r["shares"]) != bal[w][1]:
+                    c.execute("UPDATE studio.holders SET shares = %s WHERE id = %s", (bal[w][1], r["id"]))
+                    updated += 1
+            for w, (addr, n) in bal.items():
+                if w in seen:
+                    continue
+                name = c.execute(
+                    "SELECT name FROM (SELECT to_name AS name, id FROM studio.transfers WHERE company_id = %s "
+                    "AND lower(to_wallet) = %s AND coalesce(to_name,'') <> '' ORDER BY id DESC LIMIT 1) t "
+                    "UNION ALL SELECT name FROM (SELECT name, id FROM studio.kyc_requests WHERE company_id = %s "
+                    "AND lower(wallet) = %s ORDER BY id DESC LIMIT 1) k LIMIT 1",
+                    (company_id, w, company_id, w)).fetchone()
+                c.execute("INSERT INTO studio.holders (company_id, name, wallet, pct, shares) VALUES (%s,%s,%s,0,%s)",
+                          (company_id, (name or {}).get("name") or "Unlabelled holder", addr, n))
+                added += 1
+            if added or updated or removed:
+                tot = sum(n for _, n in bal.values())
+                if tot:
+                    c.execute("UPDATE studio.holders SET pct = round(shares * 100.0 / %s, 2) WHERE company_id = %s",
+                              (tot, company_id))
+                    c.execute("UPDATE studio.companies SET total_shares = %s, updated_at = now() WHERE id = %s",
+                              (tot, company_id))
+        return {k: v for k, v in (("added", added), ("updated", updated), ("removed", removed)) if v}
+
     # ------------------------------------------------------------------ events / marks
     def add_event(self, company_id: int | None, kind: str, chain: str | None = None, tx_hash: str | None = None,
                   block: int | None = None, data: dict | None = None) -> None:

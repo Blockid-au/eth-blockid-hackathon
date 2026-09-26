@@ -103,6 +103,11 @@ def create_app(service=None, cfg: IssuerConfig | None = None) -> FastAPI:
         s = svc()
         return submit("anchor", lambda: s.anchor(r.company_id), company_id=r.company_id)
 
+    @app.post("/refresh", status_code=202, dependencies=[Depends(auth)])
+    def refresh(r: CompanyReq) -> dict:
+        s = svc()
+        return submit("refresh", lambda: s.refresh(r.company_id), company_id=r.company_id)
+
     @app.post("/revalue", status_code=202, dependencies=[Depends(auth)])
     def revalue(r: CompanyReq) -> dict:
         s = svc()
