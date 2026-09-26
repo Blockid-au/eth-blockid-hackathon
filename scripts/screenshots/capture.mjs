@@ -178,7 +178,7 @@ const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, 
     const docH = await page.evaluate(() => document.documentElement.scrollHeight);
     await shotBand(page, "28b-admin-overview-companies-activity", t.top, docH, { padTop: 40, padBottom: 0, maxH: 1000 });
   }
-  // Approvals (ARW pending). Do NOT click anything inside.
+  // Approvals queue (read-only). Do NOT click anything inside.
   await page.locator("#tab-ap").click(); await settle_(page, 1800);
   { const docH = await page.evaluate(() => document.documentElement.scrollHeight); await shotBand(page, "29-admin-approvals", 0, Math.max(docH, 900), { padTop: 0, padBottom: 0, maxH: 1600 }); }
   // Companies tab: select EBA row to open the detail pane (selection only)
@@ -191,10 +191,13 @@ const desktop = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, 
   await page.locator("#tab-au").click(); await settle_(page, 1800);
   { const a = await rect(page.locator("#tab-ov"), "[role=tablist]"); await shotBand(page, "32-admin-audit-log", a.top, a.top + 1300, { padTop: 24, padBottom: 0 }); }
 
-  // Company ARW (visible to admins only while pending): issuance tracker awaiting approval.
-  // NEVER click the "Approve issuance" button.
-  await go(page, APP + "/c/ARW", 2500);
-  { const a = await rect(page.locator("section.block").first()); const b = await rect(page.locator("h4", { hasText: "Cap table" }), ".cols, .panel, .pane"); await shotBand(page, "15-company-arw-awaiting-approval", a.top, b.top, { padTop: 0, padBottom: 0 }); }
+  // Company ARW: issued on BlockID Chain + Hoodi + HSK, full anonymised cap table (15 holders).
+  await go(page, APP + "/c/ARW", 3000);
+  { const a = await rect(page.locator("section.block").first()); const b = await rect(page.locator(".kpis")); await shotBand(page, "15-company-arw-tracker-kpis", a.top, b.bottom, { padTop: 0, padBottom: 16 }); }
+  { const r = await rect(page.locator("h4", { hasText: "Cap table" }), ".cols, .panel, .pane"); await shotBand(page, "15b-company-arw-cap-table", r.top, r.bottom, { padTop: 16, padBottom: 16, maxH: 1400 }); }
+  // Company ART: original holders + 10 anonymised holders minted through the admin-approved flow.
+  await go(page, APP + "/c/ART", 3000);
+  { const r = await rect(page.locator("h4", { hasText: "Cap table" }), ".cols, .panel, .pane"); await shotBand(page, "15c-company-art-cap-table", r.top, r.bottom, { padTop: 16, padBottom: 16, maxH: 1400 }); }
 
   // Company EBA: fully live
   await go(page, APP + "/c/EBA", 3000);

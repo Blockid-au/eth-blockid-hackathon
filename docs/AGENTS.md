@@ -3,12 +3,14 @@
 | # | Agent | Model | Tools allowed | Contains PII | Never allowed to |
 |---|---|---|---|---|---|
 | 1 | **intake** | local | `read_dataroom`, `store_profile` | yes | call cloud models, access the network |
-| 2 | **research** | local | `brave_search`, `fetch_url`, `store_evidence` | no (query is filtered) | touch the chain |
-| 3 | **valuation** | local (cloud if needed; input name-anonymized) | `svi_score`, `hash_report` | no | compute metrics/valuation itself (code computes it) |
+| 2 | **research** | `SVI_TIER` (cloud in production) | `brave_search`, `fetch_url`, `store_evidence` | no (query is filtered) | touch the chain |
+| 3 | **valuation** | `SVI_TIER` (cloud in production; input name-anonymized) | `svi_score`, `hash_report` | no | compute metrics/valuation itself (code computes it) |
 | 4 | **contract_builder** | cloud / cloud_max | `render_params`, `forge_test`, `slither` | no | write Solidity, deploy |
 | 5 | **registry** | (no LLM) | `build_unsigned_tx` | yes | sign/send transactions |
 | 6 | **dividend** | (no LLM) | `read_balances`, `build_merkle`, `build_unsigned_tx` | no | sign/send transactions |
 | – | **supervisor** | – | LangGraph: step ordering + 3 approval gates | – | be altered by a prompt |
+
+In production `SVI_TIER=cloud`: the cloud tier is a fallback chain of free SambaNova models, then Claude Sonnet on the host bridge, then paid DeepInfra models; web search is Brave, then Claude web search on the same bridge. Benchmarks and the exact order are in [LLM-ROUTING.md](LLM-ROUTING.md). PII agents (intake, registry) stay on the local tier.
 
 Tools forbidden to every agent: `sign_tx`, `send_tx`, `read_private_key`, `deploy_contract`, `shell`. The permission table lives in `policy.py` and is enforced **in code** before every model or tool call, so a document containing a prompt injection still cannot expand an agent's permissions.
 
@@ -16,7 +18,7 @@ Tools forbidden to every agent: `sign_tx`, `send_tx`, `read_private_key`, `deplo
 
 **1. Intake**: reads the data room (OCR'd text) and extracts a `StartupProfile` according to the schema. Any figure missing from the documents is set to 0, and missing documents are listed (audited financial statements, constitution, IP assignment, etc.).
 
-**2. Research (Brave)**: see ARCHITECTURE §3. The result is a `MarketAnalysis` containing market growth, revenue multiples (low/median/high), and claims with source URLs.
+**2. Research (Brave → Claude web search)**: see ARCHITECTURE §3 and [LLM-ROUTING.md](LLM-ROUTING.md). The result is a `MarketAnalysis` containing market growth, revenue multiples (low/median/high), and claims with source URLs.
 
 **3. Valuation (SVI)**: 7 pillars weighted as Founder 20%, Product 15%, Market 20%, Revenue 20%, Growth 10%, Investment Readiness 10%, Trust 5%.
 - Revenue and Growth: **computed by code** from the figures.

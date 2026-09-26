@@ -39,6 +39,12 @@ Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid
 | Logs | `sudo docker compose --env-file /opt/blockid/app.env logs -f agents-worker issuer` |
 | Seed real companies | `scripts/seed-companies.sh "https://site|Name|revalue_pct" ...` |
 | Hoodi-only demo | `scripts/hoodi-demo.sh` |
+| Token / contract registry → [DEPLOYMENTS.md](DEPLOYMENTS.md) | `agents/.venv/bin/python scripts/export-deployments.py` (Postgres + on-chain supply check on all three chains) |
+| Retake screenshots | `scripts/screenshots/run.sh` (read-only; `ONLY='^15'` for a subset) |
+| LLM chain (see [LLM-ROUTING.md](LLM-ROUTING.md)) | edit `LLM_PROVIDER_ORDER` / `SAMBANOVA_MODELS` / `DEEPINFRA_MODELS` in `/opt/blockid/app.env`, then `up -d --no-build --force-recreate agents-worker`; the startup log prints `cloud LLM chain: …` |
+| Claude bridge (`/search` + `/complete`) | `sudo systemctl restart claude-search-bridge`; health `curl -s http://172.18.0.1:8765/healthz` (daily counters for both endpoints) |
+| BlockID Chain gas | `cast gas-price --rpc-url http://127.0.0.1:8545` → 0; feemarket params `curl -s 127.0.0.1:1317/cosmos/evm/feemarket/v1/params`. Gov proposal #1 sets `no_base_fee=true` (expedited, voting ends 2026-09-27 04:08 UTC) |
+| Demo holder wallets | `~/.blockid/holder-wallets/{ART,ARW}/` encrypted keystores + `password` + `index.tsv` (label → address); sign with `cast … --keystore <file> --password-file ~/.blockid/holder-wallets/password` |
 
 ## Funding
 

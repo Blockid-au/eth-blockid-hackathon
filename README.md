@@ -81,7 +81,10 @@ an isolated issuer signs, and every step is verifiable on-chain.**
 | Doc | What is inside |
 |---|---|
 | **Pitch deck (3 min)** — [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx) · full 12-slide deck [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-pitch.pdf) ([source](docs/pitch/)) | 7 slides, one key point each, screenshots + whole-system architecture, timed speaker notes |
+| [User guide](docs/USER-GUIDE.md) | Task-by-task guide with screenshots: value a startup, tokenise, approve, MetaMask, new rounds, dividends, transfers/KYC, verify, operations |
 | [Feature gallery](docs/FEATURES.md) | Every feature with screenshots from the live app (desktop, mobile, EN/VI) |
+| [Deployments and tokens](docs/DEPLOYMENTS.md) | Every company token and contract on BlockID Chain, Hoodi and HashKey testnet, supply checked on-chain (generated) |
+| [LLM routing](docs/LLM-ROUTING.md) | Free-first model chain (SambaNova → Claude subscription → DeepInfra) with the benchmark behind it |
 | [Architecture diagrams](docs/ARCHITECTURE-DIAGRAMS.md) | 12 diagrams: system context, deployment topology, valuation pipeline, SVI scoring, LLM/search routing, issuance sequence, `/verify`, security boundaries, contracts, data model, state machines |
 | [Upgrade roadmap](docs/ROADMAP-RESEARCH.md) | Sourced research: Safe multisig, invariant CI, monitoring, eval harness, EAS, valuation calibration, AU legal path, KYC, ERC-8004 |
 | [Security](docs/SECURITY.md) · [Runbook](docs/RUNBOOK-STUDIO.md) · [Demo script](docs/DEMO.md) · [Hackathon write-up](docs/HACKATHON.md) | Operations and judging material |

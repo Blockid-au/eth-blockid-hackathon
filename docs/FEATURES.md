@@ -107,10 +107,16 @@ A public, example-data passport (Harbourline) shows the full report without sign
 
 **What it does:** It is a live, self-updating tracker for a company's issuance. The stages are Submitted → Waiting for admin approval → Issuing on BlockID Chain → Sync to Ethereum Hoodi → Sync to HashKey Chain → Live. Each sub-step links to its transaction.
 **Why it matters:** Founders can see exactly where their issuance is and cannot skip the human gate.
-**URL:** https://eth.blockid.au/c/ARW (pending; visible to admins) · https://eth.blockid.au/c/EBA (live)
+**URL:** https://eth.blockid.au/c/ARW · https://eth.blockid.au/c/ART · https://eth.blockid.au/c/EBA (all live)
 
-![ARW awaiting approval](screenshots/15-company-arw-awaiting-approval.png)
-*Airwallex (ARW) waiting for admin approval. The approve button is shown only to admins.*
+![ARW tracker and KPIs](screenshots/15-company-arw-tracker-kpis.png)
+*Airwallex (ARW) after one admin approval: issued on BlockID Chain (registry, token, distributor, KYC 15/15, shares, report hash), then mirrored and Merkle-anchored on Ethereum Hoodi and HashKey Chain testnet.*
+
+![ARW cap table](screenshots/15b-company-arw-cap-table.png)
+*ARW cap table read from BlockID Chain: the three original holders plus twelve anonymised holders (co-founder, funds, strategic investor, angel, advisor, ESOP grantees) added through admin-approved mints.*
+
+![ART cap table](screenshots/15c-company-art-cap-table.png)
+*Airtasker (ART) after ten admin-approved mints to server-generated wallets; supply is identical on all three chains (see [DEPLOYMENTS.md](DEPLOYMENTS.md)).*
 
 ![EBA tracker and KPIs](screenshots/16-company-eba-tracker-kpis.png)
 *EBA fully live: every stage done with transaction links, followed by KPI tiles for valuation, shares, holders and last anchor block.*
