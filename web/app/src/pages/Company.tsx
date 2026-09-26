@@ -245,6 +245,8 @@ function useEventDetail() {
         return d.total_units != null ? `${fmt(Number(d.total_units) / 1e6, 2)} mAUD` : null;
       case "sync_failed": case "sync_skipped":
         return [ch, d.error ? String(d.error) : ""].filter(Boolean).join(": ") || null;
+      case "refreshed":
+        return d.holders != null ? t("evd.holders", { n: fmt(Number(d.holders)) }) : null;
       case "resync_requested":
         return Array.isArray(d.chains) ? d.chains.map((c) => chainOf(c).name).join(", ") : null;
       case "valuation_anchored": case "anchored": case "sync_started": case "hoodi_mirrored": case "hsk_mirrored":

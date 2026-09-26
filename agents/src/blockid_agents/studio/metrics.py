@@ -107,6 +107,8 @@ EVENT_TEXT = {
     "submitted": "submitted for approval",
     "issue_approved": "issuance approved",
     "resync_requested": "re-sync requested",
+    "refresh_requested": "refresh from chain requested",
+    "refreshed": "cap table refreshed from BlockID Chain",
     "dividend_created": "dividend round created",
     "dividend_claimed": "dividend claimed",
     "mint_requested": "mint requested",

@@ -28,6 +28,8 @@ async function tour(ctx, list, tag) {
     console.log(`${tag} ${name.padEnd(22)} ${url.padEnd(34)} -> ${new URL(page.url()).pathname.padEnd(32)} rail=${info.rail} h1="${info.h1}"${info.wide ? " HORIZONTAL-SCROLL" : ""}`);
     if (info.wide) problems.push(`${tag} ${url}: horizontal scroll`);
     await page.screenshot({ path: path.join(OUT, `${tag}-${name}.png`), fullPage: false });
+    const bad = await page.evaluate(() => { const t = document.querySelector("main")?.innerText || ""; const m = t.match(/.{0,40}(NaN|undefined|\[object Object\]|Infinity|null%).{0,30}/g) || []; const banners = [...document.querySelectorAll(".banner.bad, .err, [role=alert]")].map((e) => e.innerText.trim()).filter(Boolean); return { m: m.slice(0, 3), banners: banners.slice(0, 3) }; });
+    if (bad.m.length || bad.banners.length) problems.push(`${tag} ${url}: TEXT ${JSON.stringify(bad)}`.slice(0, 400));
   }
   return page;
 }

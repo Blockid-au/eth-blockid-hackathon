@@ -1,6 +1,6 @@
 # Deployments and tokens
 
-_Generated 2026-09-26 04:48 UTC by `scripts/export-deployments.py` from Postgres + live on-chain reads. Do not edit by hand; re-run the script._
+_Generated 2026-09-26 07:55 UTC by `scripts/export-deployments.py` from Postgres + live on-chain reads. Do not edit by hand; re-run the script._
 
 ## Networks
 
@@ -26,6 +26,8 @@ Each company is issued on BlockID Chain (live token, KYC-gated) and mirrored to 
 | **ARW** | Airwallex | anchored | 15 | 5,712,714,601 | [`0x720b…74F9`](https://scan.blockid.au/token/0x720b9cDAf1CfC9fB5d8DdCad8898F1B7684b74F9) | [`0xbf80…9a9b`](https://hoodi.etherscan.io/token/0xbf802637a6Ce2B48A6aaBa74FC907b6595C29a9b) | [`0x3591…Bf88`](https://testnet-explorer.hskchain.net/token/0x35913D5837CD2e223F5909028eD3874d5Dc5Bf88) | ✅ equal on 3 chains |
 | **VBC** | Vietnamblockchain | anchored | 2 | 52,800,000 | [`0x3Bc0…f2fa`](https://scan.blockid.au/token/0x3Bc01D7c114B81758EcDcdA61083E18cAd4df2fa) | [`0x2FfE…C2e6`](https://hoodi.etherscan.io/token/0x2FfECD9E6ef98c4F65da716b788cB85f05F8C2e6) | [`0xbF3E…D302`](https://testnet-explorer.hskchain.net/token/0xbF3ED53c16EE12EFa59040feB52DAf4d222BD302) | ✅ equal on 3 chains |
 | **SVI** | Startupvalueindex | anchored | 2 | 57,200,000 | [`0xa3E0…d8b6`](https://scan.blockid.au/token/0xa3E09b2EC28777668a8Cad6932f69Bb5DFB5d8b6) | [`0x718a…E454`](https://hoodi.etherscan.io/token/0x718a30741C341DB88C06b4C025579BbC817fE454) | [`0xe466…60e2`](https://testnet-explorer.hskchain.net/token/0xe46635467184157e7618489e650AF686F36060e2) | ✅ equal on 3 chains |
+| **DPT** | Deputy | anchored | 3 | 60,600,000 | [`0xfa17…e285`](https://scan.blockid.au/token/0xfa176608B8B51a8db620Da116E6753785803e285) | [`0xfa17…e285`](https://hoodi.etherscan.io/token/0xfa176608B8B51a8db620Da116E6753785803e285) | [`0xb8F9…1204`](https://testnet-explorer.hskchain.net/token/0xb8F909F8A2d8FdB41dBa2CaEe6b99A274da51204) | ✅ equal on 3 chains |
+| **CNV** | Canva | anchored | 5 | 70,512,750,000 | [`0x209D…Cc30`](https://scan.blockid.au/token/0x209D5009b93ec4be4C399544b8eB74a21A89Cc30) | [`0x5279…38B4`](https://hoodi.etherscan.io/token/0x527985c7A65Aeb8c0e4fb0c73d7Dfef3B9e238B4) | [`0x3709…d2b9`](https://testnet-explorer.hskchain.net/token/0x370977A0303D5F7047dF28875c18044CACd8d2b9) | ✅ equal on 3 chains |
 
 ### Full addresses
 
@@ -61,6 +63,12 @@ Each company is issued on BlockID Chain (live token, KYC-gated) and mirrored to 
 | SVI | Share token | `0xa3E09b2EC28777668a8Cad6932f69Bb5DFB5d8b6` | `0x718a30741C341DB88C06b4C025579BbC817fE454` | `0xe46635467184157e7618489e650AF686F36060e2` |
 | SVI | Identity registry | `0x2bFDD817628D4d4023BA1F39fbfE00E45d33ad1b` | `0xa3E09b2EC28777668a8Cad6932f69Bb5DFB5d8b6` | `0x30749B9beeFa96f173Bd08beac83bE937240f04A` |
 | SVI | Dividend distributor | `0x43bF4682Abb06e72adFb0873357427f91bCc1Da5` | – | – |
+| DPT | Share token | `0xfa176608B8B51a8db620Da116E6753785803e285` | `0xfa176608B8B51a8db620Da116E6753785803e285` | `0xb8F909F8A2d8FdB41dBa2CaEe6b99A274da51204` |
+| DPT | Identity registry | `0x062883c01cD927E3c7A3778385d566c963CAE54B` | `0x062883c01cD927E3c7A3778385d566c963CAE54B` | `0x43bF4682Abb06e72adFb0873357427f91bCc1Da5` |
+| DPT | Dividend distributor | `0x6462D6D073B27e3eC29ff4a40CE5FD87430767cb` | – | – |
+| CNV | Share token | `0x209D5009b93ec4be4C399544b8eB74a21A89Cc30` | `0x527985c7A65Aeb8c0e4fb0c73d7Dfef3B9e238B4` | `0x370977A0303D5F7047dF28875c18044CACd8d2b9` |
+| CNV | Identity registry | `0x527985c7A65Aeb8c0e4fb0c73d7Dfef3B9e238B4` | `0x0FD3CB2b336973E7bfb8E82c9302aF8793B4FaD1` | `0x6462D6D073B27e3eC29ff4a40CE5FD87430767cb` |
+| CNV | Dividend distributor | `0x9b11fE156f84a786Da14C7486960ccBc4b11bA30` | – | – |
 
 ## Platform and demo contracts
 

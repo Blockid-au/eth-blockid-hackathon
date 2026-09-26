@@ -466,6 +466,20 @@ def test_secondary_transfer_then_refresh_from_chain(env):
     assert sum(h["shares"] for h in st.holders(7)) == 10000
     mirror = env["hoodi"].contract("BlockIDShareToken", c["hoodi_token"])
     assert mirror.functions.balanceOf(h4).call() == 500
+    # the sender's mirror balance must go DOWN too, or the mirror supply exceeds the register (CNV bug)
+    assert mirror.functions.balanceOf(Web3.to_checksum_address(H2)).call() == 2500
+    assert mirror.functions.totalSupply().call() == 10000
+    hsk_mirror = env["hsk"].contract("BlockIDShareToken", c["hsk_token"])
+    assert hsk_mirror.functions.totalSupply().call() == 10000
+
+    # a holder who sells everything disappears from studio.holders but must be zeroed on the mirrors as well
+    L.transact(token.functions.forcedTransfer(Web3.to_checksum_address(H3), h4, 1000, Web3.keccak(text="t:2")))
+    svc.reanchor(7)
+    c = st.companies[7]
+    assert c["status"] == "anchored", (c.get("error"), c.get("sync"))
+    assert H3.lower() not in {h["wallet"].lower() for h in st.holders(7)}
+    assert mirror.functions.balanceOf(Web3.to_checksum_address(H3)).call() == 0
+    assert mirror.functions.balanceOf(h4).call() == 1500 and mirror.functions.totalSupply().call() == 10000
     assert "refreshed" in st.kinds(7)
 
 

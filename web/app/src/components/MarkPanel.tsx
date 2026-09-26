@@ -56,6 +56,8 @@ export function MarkPanel(p: MarkPanelProps) {
   const pR = (mNow / (mStart || 1) - 1) * 100;
   const yrs = issueAgo / 365;
   const cagr = (Math.pow(mNow / (series[0].m || 1), 1 / Math.max(yrs, 1 / 12)) - 1) * 100;
+  // annualising a few days or hours of history gives absurd numbers (e.g. +454%), so only show it after 90 days
+  const showCagr = (now - issueT) / DAY >= 90;
 
   const F = useMemo(() => (sim ? fan(p.ticker, p.grade, mNow, HORIZON) : []), [sim, p.ticker, p.grade, mNow]);
 
@@ -121,7 +123,7 @@ export function MarkPanel(p: MarkPanelProps) {
           <div style={{ display: "grid", gap: 6 }}>
             <span className="eyebrow">{p.ticker} · {p.name} · {t("ad.c.grade")} {p.grade}{p.svi != null ? ` · SVI ${fmt(Number(p.svi), 1)}` : ""}</span>
             <span className="px">{aud(mNow, 3)}</span>
-            <span className={"chg " + arrow(pR)}>{chg(pR)} · {t("ad.range")} · {t("ad.cagr")} {fmt(cagr, 1)}%</span>
+            <span className={"chg " + arrow(pR)}>{chg(pR)} · {t("ad.range")}{showCagr ? <> · {t("ad.cagr")} {fmt(cagr, 1)}%</> : null}</span>
           </div>
           <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
             <Ranges label={t("ad.range")} opts={[["1M", 30], ["3M", 90], ["6M", 180], [t("ad.r.all"), 0]]} value={range} onChange={setRange} />

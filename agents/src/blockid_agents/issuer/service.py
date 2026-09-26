@@ -416,6 +416,7 @@ class Service:
         self._finish(company_id)
 
     LOG_CHUNK = 5_000  # the BlockID RPC rejects eth_getLogs ranges over 10,000 blocks
+    _seen_wallets: dict[int, set[str]] = {}  # company id -> every wallet seen by the last snapshot
 
     def refresh(self, company_id: int) -> None:
         """Admin "Refresh from chain": rebuild studio.holders from BlockID Chain balances, clear the error, then
@@ -478,6 +479,7 @@ class Service:
             supply = int(token.functions.totalSupply().call())
         if sum(balances.values()) != supply:
             raise RuntimeError(f"cap table incomplete: sum(balances)={sum(balances.values())} != totalSupply={supply}")
+        self._seen_wallets[c["id"]] = set(wallets.values())  # incl. zero balances, for mirror clean-up
         changed = self.store.reconcile_holders(c["id"], balances)
         if changed:
             log.info("company %s: studio.holders reconciled to chain (%s)", c["id"], changed)
@@ -503,6 +505,19 @@ class Service:
         mirror_txs: list[Receipt] = [deploy_rec] if deploy_rec else []
         ref = k(f"studio-mirror:{cid}:{blk}")
         wallets = {w.lower(): w for w in balances}
+        # every wallet that ever held shares locally may hold a stale mirror balance (a transfer lowers the sender,
+        # a full exit removes it from studio.holders), so shrink those first, then top up the rest
+        ever = dict(wallets)
+        for w in self._seen_wallets.get(cid, ()):
+            ever.setdefault(w.lower(), w)
+        for h in st.holders(cid):
+            ever.setdefault(h["wallet"].lower(), cs(h["wallet"]))
+        for w in ever.values():
+            want = balances.get(w, 0)
+            have = int(token.functions.balanceOf(w).call())
+            if have > want:
+                self._step(cid, key, "mirror_reduce")
+                mirror_txs.append(H.transact(token.functions.cancel(w, have - want, ref)))
         for i, w in enumerate(wallets.values(), 1):
             self._step(cid, key, "mirror_balances", i, len(wallets))
             want = balances.get(w, 0)
@@ -512,15 +527,9 @@ class Service:
                 if r:
                     mirror_txs.append(r)
                 mirror_txs.append(H.transact(token.functions.issue(w, want - have, ref)))
-        # holders that no longer hold shares locally
-        if int(token.functions.totalSupply().call()) != supply:
-            for h in st.holders(cid):
-                w = cs(h["wallet"])
-                if w.lower() in wallets:
-                    continue
-                have = int(token.functions.balanceOf(w).call())
-                if have:
-                    mirror_txs.append(H.transact(token.functions.cancel(w, have, ref)))
+        mirror_supply = int(token.functions.totalSupply().call())
+        if mirror_supply != supply:  # never anchor a root over a mirror that disagrees with the register
+            raise RuntimeError(f"mirror supply {mirror_supply} != BlockID Chain supply {supply} after sync")
         local_tok = self.local.contract("BlockIDShareToken", c["local_token"])
         cents = int(local_tok.functions.valuationPerShareCents().call())
         vh = local_tok.functions.valuationReportHash().call()
