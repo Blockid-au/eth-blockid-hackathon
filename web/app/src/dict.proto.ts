@@ -286,7 +286,8 @@ export const protoEn = {
  "ad.bad.pass": "Wrong username or password.",
  "ad.bad.wallet": "This wallet is not on the admin list.",
  "ad.live": "Live · updated {s}s ago",
- "foot.deck": "Pitch deck",
+ "foot.deck": "Pitch deck (3 min)",
+ "foot.deckFull": "full deck",
  "foot.legal": "Testnet demo. Not an offer of securities or financial advice."
 } as const;
 
@@ -577,6 +578,7 @@ export const protoVi: Record<keyof typeof protoEn, string> = {
  "ad.bad.pass": "Sai tên đăng nhập hoặc mật khẩu.",
  "ad.bad.wallet": "Ví này không có trong danh sách admin.",
  "ad.live": "Trực tiếp · cập nhật {s} giây trước",
- "foot.deck": "Tải slide thuyết trình",
+ "foot.deck": "Slide thuyết trình (3 phút)",
+ "foot.deckFull": "bản đầy đủ",
  "foot.legal": "Bản demo testnet. Không phải chào bán chứng khoán hay tư vấn tài chính."
 };

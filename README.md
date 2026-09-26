@@ -80,7 +80,7 @@ an isolated issuer signs, and every step is verifiable on-chain.**
 
 | Doc | What is inside |
 |---|---|
-| **Pitch deck** — [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-pitch.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-pitch.pptx) ([source](docs/pitch/)) | 12-slide, 3-minute pitch with screenshots and diagrams, speaker notes included |
+| **Pitch deck (3 min)** — [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx) · full 12-slide deck [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-pitch.pdf) ([source](docs/pitch/)) | 7 slides, one key point each, screenshots + whole-system architecture, timed speaker notes |
 | [Feature gallery](docs/FEATURES.md) | Every feature with screenshots from the live app (desktop, mobile, EN/VI) |
 | [Architecture diagrams](docs/ARCHITECTURE-DIAGRAMS.md) | 12 diagrams: system context, deployment topology, valuation pipeline, SVI scoring, LLM/search routing, issuance sequence, `/verify`, security boundaries, contracts, data model, state machines |
 | [Upgrade roadmap](docs/ROADMAP-RESEARCH.md) | Sourced research: Safe multisig, invariant CI, monitoring, eval harness, EAS, valuation calibration, AU legal path, KYC, ERC-8004 |

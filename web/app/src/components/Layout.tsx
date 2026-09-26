@@ -96,8 +96,9 @@ export function Footer() {
         <span>BlockID · eth.blockid.au</span>
         <span>
           {t("foot.deck")}:{" "}
-          <a href="/deck/BlockID-Startup-Passport-pitch.pdf" download>PDF</a>{" · "}
-          <a href="/deck/BlockID-Startup-Passport-pitch.pptx" download>PPTX</a>
+          <a href="/deck/BlockID-Startup-Passport-3min.pdf" download>PDF</a>{" · "}
+          <a href="/deck/BlockID-Startup-Passport-3min.pptx" download>PPTX</a>{" · "}
+          <a href="/deck/BlockID-Startup-Passport-pitch.pdf" download>{t("foot.deckFull")}</a>
         </span>
         <span>{t("foot.legal")}</span>
       </div>
