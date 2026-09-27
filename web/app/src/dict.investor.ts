@@ -4,7 +4,10 @@ export const invEn = {
   "nav.signin": "Sign in",
   "nav.role.guest": "guest",
   "nav.role.google": "Google",
+  "nav.role.demo": "demo",
   "nav.portfolio": "My portfolio",
+  "in.demo.acct": "You are in the demo account, shared by everyone who visits. Sign in to use your own wallet.",
+  "in.acc.m.demo": "Demo account, shared by all visitors",
   "nav.accountlink": "Account and key backup",
 
   "in.title": "My portfolio",
@@ -50,8 +53,8 @@ export const invEn = {
   "in.sample.eyebrow": "See how it looks",
 
   "in.sign.h": "Sign in to see your portfolio",
-  "in.sign.try": "Try it now, no sign-up",
-  "in.sign.trySub": "We create a private key in this browser. Nothing to install.",
+  "in.sign.try": "Use the demo account",
+  "in.sign.trySub": "A shared demo investor with sample shares. No sign-up.",
   "in.sign.googleSub": "Use your Gmail. Your key is created in this browser, and we never see it.",
   "in.sign.mm": "Use my crypto wallet",
   "in.sign.mmSub": "MetaMask or another browser wallet.",
@@ -82,7 +85,10 @@ export const invVi: Record<keyof typeof invEn, string> = {
   "nav.signin": "Đăng nhập",
   "nav.role.guest": "dùng thử",
   "nav.role.google": "Google",
+  "nav.role.demo": "demo",
   "nav.portfolio": "Danh mục của tôi",
+  "in.demo.acct": "Bạn đang dùng tài khoản demo, dùng chung cho mọi khách truy cập. Đăng nhập để dùng ví của riêng bạn.",
+  "in.acc.m.demo": "Tài khoản demo dùng chung cho mọi khách",
   "nav.accountlink": "Tài khoản và sao lưu khoá",
 
   "in.title": "Danh mục của tôi",
@@ -128,8 +134,8 @@ export const invVi: Record<keyof typeof invEn, string> = {
   "in.sample.eyebrow": "Xem trước giao diện",
 
   "in.sign.h": "Đăng nhập để xem danh mục của bạn",
-  "in.sign.try": "Dùng thử ngay, không cần đăng ký",
-  "in.sign.trySub": "Chúng tôi tạo một khoá riêng ngay trong trình duyệt này. Không cần cài gì.",
+  "in.sign.try": "Dùng tài khoản demo",
+  "in.sign.trySub": "Nhà đầu tư demo dùng chung, có sẵn cổ phần mẫu. Không cần đăng ký.",
   "in.sign.googleSub": "Dùng Gmail của bạn. Khoá được tạo ngay trong trình duyệt này, chúng tôi không bao giờ thấy nó.",
   "in.sign.mm": "Dùng ví crypto của tôi",
   "in.sign.mmSub": "MetaMask hoặc ví trình duyệt khác.",

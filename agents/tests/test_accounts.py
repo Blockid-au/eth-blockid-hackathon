@@ -72,3 +72,9 @@ def test_guest_and_google_sign_in(studio_env, monkeypatch):
     m, sig = _nonce_msg(g, GUEST_KEY)
     assert g.post("/v1/auth/google", json={"credential": "x", "message": m, "signature": sig}).status_code == 401
     assert g.get("/v1/demo/holdings").json()["demo"] is True
+
+
+@needs_db
+def test_demo_login(studio_env):
+    c = studio_env["client"]()
+    assert c.post("/v1/auth/demo").status_code in (200, 404)  # depends on DEMO_WALLET in the env

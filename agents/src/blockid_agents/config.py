@@ -163,6 +163,9 @@ class Settings:
     # OPEN_ISSUE=1 (demo default): any signed-in wallet may submit its company for admin approval, without first
     # being granted the issuer-wallet role. The admin approval gate is unchanged.
     open_issue: bool = field(default_factory=lambda: _env("OPEN_ISSUE", "1").lower() in ("1", "true", "yes"))
+    # DEMO_WALLET: the project's shared demo investor. POST /v1/auth/demo opens a session for it (no login), so a first
+    # visit lands straight in a working account. Its key is not used by the app (/opt/blockid/demo-wallet.key, root).
+    demo_wallet: str = field(default_factory=lambda: _env("DEMO_WALLET"))
     # Wallet whose holdings /v1/demo/holdings shows ("" = the wallet holding shares in the most companies).
     demo_holder: str = field(default_factory=lambda: _env("DEMO_HOLDER"))
     # STUDIO_DEV=1: accept localhost SIWE domains / Origins and expose /docs. Never set in production.

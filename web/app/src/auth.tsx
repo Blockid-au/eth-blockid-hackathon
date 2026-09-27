@@ -1,5 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, ApiError, type Me } from "./api";
+import { api, ApiError, isMock, type Me } from "./api";
+
+const DEMO_OFF = "blockid-demo-off";
+function demoOff(): boolean {
+  try { return localStorage.getItem(DEMO_OFF) === "1"; } catch { return false; }
+}
+function setDemoOff(v: boolean) {
+  try { if (v) localStorage.setItem(DEMO_OFF, "1"); else localStorage.removeItem(DEMO_OFF); } catch { /* private mode */ }
+}
 import type { DictKey } from "./dict";
 
 interface AuthState {
@@ -10,6 +18,8 @@ interface AuthState {
   connect: () => Promise<Me | null>;
   /** Instant guest sign-in: a key is created in this browser and signs in silently (no wallet, no sign-up). */
   tryDemo: () => Promise<Me | null>;
+  /** Switch to the shared demo account of the project. */
+  useDemo: () => Promise<Me | null>;
   /** Google sign-in (Gmail): the Google ID token is bound to a key created in this browser. */
   google: (credential: string) => Promise<Me | null>;
   login: (u: string, p: string) => Promise<Me>;
@@ -37,8 +47,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // First visit: open the project's demo account straight away (no login). Signing out turns this off for this browser.
   useEffect(() => {
-    void refresh();
+    (async () => {
+      const m = await refresh();
+      if (m || demoOff() || isMock) return;
+      try {
+        await api.demoLogin();
+        await refresh();
+      } catch {
+        /* demo account not enabled: stay signed out */
+      }
+    })();
   }, [refresh]);
 
   const connect = useCallback(async () => {
@@ -58,6 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (me?.address) return me;
     setBusy(true);
     try {
+      try {
+        setDemoOff(false);
+        await api.demoLogin(); // the project's demo account when it is enabled
+        const m = await refresh();
+        if (m) return m;
+      } catch {
+        /* fall back to a key created in this browser */
+      }
       const { signInWithDeviceKey } = await import("./devicewallet");
       await signInWithDeviceKey({ method: "guest" });
       return await refresh();
@@ -85,7 +113,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return m;
   }, [refresh]);
 
+  const useDemo = useCallback(async () => {
+    setDemoOff(false);
+    await api.demoLogin();
+    return refresh();
+  }, [refresh]);
+
   const logout = useCallback(async () => {
+    setDemoOff(true);
     try {
       await api.logout();
     } catch {
@@ -94,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMe(null);
   }, []);
 
-  const value = useMemo(() => ({ me, loading, busy, refresh, connect, tryDemo, google, login, logout, setMe }), [me, loading, busy, refresh, connect, tryDemo, google, login, logout]);
+  const value = useMemo(() => ({ me, loading, busy, refresh, connect, tryDemo, useDemo, google, login, logout, setMe }), [me, loading, busy, refresh, connect, tryDemo, useDemo, google, login, logout]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

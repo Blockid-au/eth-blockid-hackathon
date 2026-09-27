@@ -11,7 +11,7 @@ export interface Me {
   /** admin or active issuer wallet: may submit companies */
   issuer?: boolean;
   /** wallet (MetaMask) | guest (key in this browser) | google | password */
-  auth_method?: "wallet" | "guest" | "google" | "password";
+  auth_method?: "wallet" | "guest" | "google" | "password" | "demo";
   account?: { provider: string; email?: string | null; name?: string | null; picture?: string | null; wallets: string[] };
 }
 
@@ -377,6 +377,7 @@ export const api = {
   changePassword: (current: string, next: string) => request<{ ok: boolean }>("POST", "/v1/auth/change-password", { current, new: next }),
   logout: () => request<{ ok: boolean }>("POST", "/v1/auth/logout"),
   me: () => request<Me>("GET", "/v1/auth/me"),
+  demoLogin: () => request<{ address: string; role: Role }>("POST", "/v1/auth/demo"),
   authConfig: () => request<AuthConfig>("GET", "/v1/auth/config"),
   holdings: () => request<Holdings>("GET", "/v1/me/holdings"),
   demoHoldings: () => request<Holdings>("GET", "/v1/demo/holdings"),

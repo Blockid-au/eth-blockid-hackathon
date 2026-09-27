@@ -278,7 +278,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
     @r.get("/v1/auth/config")
     def auth_config():
         return {"google_client_id": s.google_client_id or None, "open_issue": s.open_issue,
-                "mail": mailer.configured}
+                "mail": mailer.configured, "demo": bool(s.demo_wallet)}
 
     @r.post("/v1/auth/google")
     def google_login(body: GoogleBody, response: Response, background: BackgroundTasks):
@@ -302,6 +302,14 @@ def build_router(ctx: StudioContext) -> APIRouter:
             subj, text, html = welcome(ident.name, msg.address, body.lang)
             background.add_task(mailer.send, ident.email, subj, text, html)
         return {"address": msg.address, "role": "user", "email": ident.email, "name": ident.name}
+
+    @r.post("/v1/auth/demo")
+    def demo_login(response: Response):
+        """Shared demo investor, no login. Never admin; admin approvals still need the admin console."""
+        if not s.demo_wallet:
+            raise HTTPException(404, "demo account is not enabled")
+        set_cookie(response, ctx.sessions.create("user", address=s.demo_wallet, auth_method="demo", hours=24 * 30))
+        return {"address": s.demo_wallet, "role": "user"}
 
     @r.post("/v1/admin/mail/test")
     def mail_test(body: MailTestBody, sess: Session = Depends(require_admin)):
@@ -794,7 +802,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
 
     @r.get("/v1/demo/holdings")
     def demo_holdings():
-        w = s.demo_holder
+        w = s.demo_holder or s.demo_wallet
         if not w:
             row = ctx.need_db().one("SELECT wallet FROM studio.holders GROUP BY wallet "
                                     "ORDER BY count(DISTINCT company_id) DESC, wallet LIMIT 1")

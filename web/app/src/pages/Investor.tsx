@@ -52,6 +52,7 @@ function Portfolio({ demo = false, tk }: { demo?: boolean; tk?: string }) {
       </div>
       {!me && <SignInCard />}
       {!mine && <div className="banner gold" role="note">{t("in.demo.banner")}</div>}
+      {mine && me?.auth_method === "demo" && <div className="banner gold" role="note">{t("in.demo.acct")} <Link to="/i/account">{t("nav.signin")}</Link></div>}
       {empty ? <Empty /> : <Summary h={h} base={base} />}
       {empty && <SampleBelow />}
       <p className="muted-sm">{t("in.legal")}</p>
@@ -210,6 +211,7 @@ function Account() {
               </div>
             )}
           </section>
+          {method === "demo" && <SignInCard />}
           {local && (
             <section className="card solid">
               <h4>{t("in.acc.backup")}</h4>

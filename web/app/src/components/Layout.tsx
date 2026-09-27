@@ -79,7 +79,7 @@ function Account({ mine }: { mine: MyCompany[] }) {
     );
   }
   const label = me.address ? shortAddr(me.address) : me.username ?? "admin";
-  const roleLabel = me.role === "admin" ? t("nav.role.admin") : me.auth_method === "guest" ? t("nav.role.guest") : me.auth_method === "google" ? t("nav.role.google") : t("nav.role.user");
+  const roleLabel = me.role === "admin" ? t("nav.role.admin") : me.auth_method === "guest" ? t("nav.role.guest") : me.auth_method === "google" ? t("nav.role.google") : me.auth_method === "demo" ? t("nav.role.demo") : t("nav.role.user");
   return (
     <span className="menuwrap" ref={box}>
       <button type="button" className={"addrchip" + (me.role === "admin" ? " admin" : "")} aria-haspopup="menu" aria-expanded={open} aria-label={t("nav.account")} onClick={() => setOpen((o) => !o)}>
