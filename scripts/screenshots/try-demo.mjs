@@ -19,10 +19,8 @@ async function run(label, viewport, scheme) {
   await p.goto(APP + "/", { waitUntil: "networkidle" });
   await shot("home");
   const t0 = Date.now();
-  await p.getByRole("button", { name: /Try it now/i }).first().click();
-  await p.waitForURL(/\/i$/, { timeout: 30000 });
-  await p.waitForLoadState("networkidle");
-  console.log(label, "signed in as guest in", Date.now() - t0, "ms");
+  await p.goto(APP + "/i", { waitUntil: "networkidle" });
+  console.log(label, "demo account open in", Date.now() - t0, "ms");
   await shot("portfolio");
   const me = await p.evaluate(() => fetch("/api/v1/auth/me").then((r) => r.json()));
   console.log(label, "me", JSON.stringify(me));
