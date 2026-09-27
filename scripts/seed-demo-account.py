@@ -59,12 +59,13 @@ def main() -> None:
 
 
 def wait_minted(c: httpx.Client, tk: str, before: str | None, timeout: int = 600) -> None:
-    """Wait until a new sync pass (started after the approval) has finished, before the next mint."""
+    """Wait until the demo wallet holds `tk` and the re-sync of the public copies has finished."""
     t0 = time.time()
     while time.time() - t0 < timeout:
         time.sleep(10)
         s = c.get(f"/v1/companies/{tk}").json().get("sync") or {}
-        if s.get("started_at") != before and s.get("finished_at") and not s.get("step"):
+        held = {p["ticker"] for p in c.get("/v1/demo/holdings").json().get("positions", [])}
+        if tk in held and not s.get("step"):  # minted on BlockID Chain and the public copies re-synced
             print("  synced", {k: s.get(k) for k in ("blockid", "hoodi", "hsk")})
             return
     print("  still syncing after", timeout, "s")

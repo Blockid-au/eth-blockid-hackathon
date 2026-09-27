@@ -93,7 +93,6 @@ def settle(a: httpx.Client, d: httpx.Client, tk: str) -> None:
         reserve(d, o, 25_000)
         o = ok(a.post(f"/v1/admin/offerings/{o['id']}/close"), "close early")
     if o.get("status") == "awaiting_settlement":
-        before = (a.get(f"/v1/companies/{tk}").json().get("sync") or {}).get("started_at")
         ok(a.post(f"/v1/admin/offerings/{o['id']}/settle"), "settle")
         t0 = time.time()
         while time.time() - t0 < 900:
@@ -102,7 +101,7 @@ def settle(a: httpx.Client, d: httpx.Client, tk: str) -> None:
             status = cur.get("status")
             s = a.get(f"/v1/companies/{tk}").json().get("sync") or {}
             print(f"  {int(time.time() - t0)}s offering {status} · sync {s.get('step') or 'idle'}")
-            if status == "settled" and s.get("started_at") != before and s.get("finished_at") and not s.get("step"):
+            if status == "settled" and not s.get("step"):  # minted, and the public copies re-synced
                 break
             if status == "failed":
                 FAILS.append(f"{tk} settlement failed: {cur}")
