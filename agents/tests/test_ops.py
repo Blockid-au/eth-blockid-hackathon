@@ -580,6 +580,7 @@ def test_db_backed_checks_on_empty_and_seeded_tables(opsdb):
         assert {r.status for r in run_check(REGISTRY[cid], e)} <= {"ok"}, cid
     opsdb.exec("INSERT INTO studio.valuations (id, url, status, updated_at) VALUES ('q1','https://x','queued', "
                "now() - interval '90 minutes')")
+    e.now = lambda: datetime.now(timezone.utc)  # the row is aged from the DB clock, so compare with real time
     rs = {r.key: r.status for r in run_check(REGISTRY["jobs.backlog"], e)}
     assert rs == {"valuations": "critical", "hr": "ok"}
 
