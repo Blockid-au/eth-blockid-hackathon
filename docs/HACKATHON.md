@@ -11,6 +11,8 @@ ownership, and dividends paid straight to their wallet — with AI that never ho
 **The investor problem:** low trust in the numbers, no tool to follow the business after investing, unclear
 ownership (silent dilution), and dividends that are slow or never arrive. Clear, regular, checked answers build trust
 sooner, and the business hears about problems early enough to change course.
+**Next:** investors ask questions on each update, and flagged risks become questions the business must answer; the
+answers become part of the recorded disclosure.
 
 - Live app: https://eth.blockid.au · Verify: https://eth.blockid.au/verify/EBA · HashKey Chain page:
   https://eth.blockid.au/hsk · Explorer: https://scan.blockid.au
