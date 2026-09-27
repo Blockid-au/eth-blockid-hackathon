@@ -1,12 +1,16 @@
-# BlockID Startup Passport — technical documentation (EAG Global Buildathon, Sydney)
+# BlockID Business Passport — technical documentation (EAG Global Buildathon, Sydney)
 
 *Agents propose. Humans approve. Chains prove.*
 
 > **Testnet demo. Not an offer of securities.**
 
-**Know what your startup is worth, and who owns it.** BlockID turns your company website into an evidence-cited
-valuation in minutes, then turns your shareholder list into a verified, KYC-gated cap table you can grow and pay
-dividends from — on-chain, with AI that never holds the keys.
+**Know the business you invest in.** BlockID Business Passport gives every shareholder, large or small, a live view
+of the business they own: AI-analysed, human-approved updates and valuations, an on-chain share register as proof of
+ownership, and dividends paid straight to their wallet — with AI that never holds the keys.
+
+**The investor problem:** low trust in the numbers, no tool to follow the business after investing, unclear
+ownership (silent dilution), and dividends that are slow or never arrive. Clear, regular, checked answers build trust
+sooner, and the business hears about problems early enough to change course.
 
 - Live app: https://eth.blockid.au · Verify: https://eth.blockid.au/verify/EBA · HashKey Chain page:
   https://eth.blockid.au/hsk · Explorer: https://scan.blockid.au
