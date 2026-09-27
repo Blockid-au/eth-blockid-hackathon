@@ -10,6 +10,41 @@ export interface Me {
   must_change?: boolean;
   /** admin or active issuer wallet: may submit companies */
   issuer?: boolean;
+  /** wallet (MetaMask) | guest (key in this browser) | google | password */
+  auth_method?: "wallet" | "guest" | "google" | "password";
+  account?: { provider: string; email?: string | null; name?: string | null; picture?: string | null; wallets: string[] };
+}
+
+export interface Position {
+  ticker: string;
+  name: string;
+  website?: string | null;
+  grade?: string | null;
+  shares: number;
+  pct: number;
+  supply: number;
+  mark_aud: number;
+  value_aud: number;
+  issue_price_aud: number;
+  change_30d: number;
+  spark_30d: number[];
+  holders: number;
+  dividends_maud: number;
+  dividends: { at: string; tx_hash?: string | null; amount_maud: number }[];
+  last_update_at?: string | null;
+  names: string[];
+}
+export interface Holdings {
+  wallets: string[];
+  positions: Position[];
+  total_value_aud: number;
+  dividends_total_maud: number;
+  demo?: boolean;
+}
+export interface AuthConfig {
+  google_client_id: string | null;
+  open_issue: boolean;
+  mail: boolean;
 }
 
 export type ValStatus = "queued" | "running" | "waiting_approval" | "approved" | "rejected" | "failed";
@@ -342,6 +377,10 @@ export const api = {
   changePassword: (current: string, next: string) => request<{ ok: boolean }>("POST", "/v1/auth/change-password", { current, new: next }),
   logout: () => request<{ ok: boolean }>("POST", "/v1/auth/logout"),
   me: () => request<Me>("GET", "/v1/auth/me"),
+  authConfig: () => request<AuthConfig>("GET", "/v1/auth/config"),
+  holdings: () => request<Holdings>("GET", "/v1/me/holdings"),
+  demoHoldings: () => request<Holdings>("GET", "/v1/demo/holdings"),
+  mailTest: (to: string) => request<{ ok: boolean }>("POST", "/v1/admin/mail/test", { to }),
   // studio
   createValuation: (url: string, metrics?: SelfReported) =>
     request<{ id: string }>("POST", "/v1/studio/valuations", metrics && Object.keys(metrics).length ? { url, metrics } : { url }),

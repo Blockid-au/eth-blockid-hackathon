@@ -1,123 +1,102 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { api } from "../api";
-import { useAsync, useReducedMotion, useTitle } from "../lib/hooks";
-import { Ring, Spark } from "../components/charts";
-import { GATES } from "../components/Stepper";
+import { useAuth, errText } from "../auth";
+import { useAsync, useTitle } from "../lib/hooks";
+import { Spark } from "../components/charts";
 import { GRADE_C } from "../lib/math";
 import { arrow } from "../i18n";
 import type { DictKey } from "../dict";
-import { HskHomeCard } from "./HskCard";
-
-const HERO_PARTS = [
-  { name: "Maya Chen", v: 42, c: "--c1" }, { name: "Tom Nguyen", v: 25, c: "--c2" }, { name: "Seed Fund I", v: 15, c: "--c3" },
-  { name: "ESOP pool", v: 10, c: "--c4" }, { name: "Angels", v: 8, c: "--c5" },
-];
 
 const Check = () => <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 8.5l3 3 7-7" /></svg>;
 
-function HeroDevice() {
+/** Primary + secondary call to action, shared by the hero and the final band. */
+function Ctas({ note = false, dark = false }: { note?: boolean; dark?: boolean }) {
   const { t } = useI18n();
-  const reduce = useReducedMotion();
-  const [stage, setStage] = useState(3);
-  useEffect(() => {
-    if (reduce) { setStage(3); return; }
-    setStage(0);
-    let s = 0, hold = 0;
-    const id = setInterval(() => {
-      if (hold > 0) { hold--; if (hold === 0) { s = 0; setStage(0); } return; }
-      s = Math.min(s + 1, 3);
-      setStage(s);
-      if (s === 3) hold = 2;
-    }, 1500);
-    return () => clearInterval(id);
-  }, [reduce]);
-  const dim = (i: number) => "tile" + (i > stage ? " dim" : "");
+  const { tryDemo, busy } = useAuth();
+  const navigate = useNavigate();
+  const [err, setErr] = useState("");
+  const go = async () => {
+    setErr("");
+    try {
+      await tryDemo();
+      navigate("/i");
+    } catch (e) {
+      setErr(errText(e, t));
+    }
+  };
   return (
-    <div className="device" aria-label={`${t("hs.1")} → ${t("hs.2")} → ${t("hs.3")} → ${t("hs.4")}`} role="img">
-      <div className="bar"><i /><i /><i /><span>eth.blockid.au</span></div>
-      <div className="inner">
-        <div className="urlrow"><span className="muted">https://</span><span>harbourline.com.au</span><span className="caret" aria-hidden="true" /></div>
-        <div className="stages">
-          {(["hs.1", "hs.2", "hs.3", "hs.4"] as DictKey[]).map((k, i) => <span key={k} className={i <= stage ? "on" : ""}>{t(k)}</span>)}
-        </div>
-        <div className="heroviz">
-          <div className={dim(0)}>
-            <small>{t("ht.sources")}</small>
-            <div className="bigno">23</div>
-            <div className="srcs"><b>asic.gov.au</b><b>ibisworld.com</b><b>crunchbase</b><b>afr.com</b><b>+19</b></div>
-          </div>
-          <div className={dim(1)}>
-            <small>{t("ht.svi")}</small>
-            <div className="gradeline"><span className="gradebadge">B</span><span className="bigno">A$3.36M</span></div>
-            <span className="muted" style={{ fontSize: ".78rem" }}>{t("ht.range")}</span>
-          </div>
-          <div className={dim(2)}>
-            <small>{t("ht.token")}</small>
-            <span className="tick">HBL</span>
-            <span className="muted" style={{ fontSize: ".78rem" }}>{t("ht.holders")}</span>
-          </div>
-          <div className={dim(3)}>
-            <div style={{ width: 96 }}><Ring parts={HERO_PARTS} r={44} sw={18} size={120} label={t("s5.preview")} /></div>
-            <span className="anchorline">{t("ht.anchored")}</span>
-          </div>
-        </div>
+    <div className="hv-ctas">
+      <div className="ctas">
+        <button className="btn" type="button" onClick={() => void go()} disabled={busy} aria-busy={busy}>
+          {busy && <span className="spinner" aria-hidden="true" />}
+          {busy ? t("hv.trying") : t("hv.try")}
+        </button>
+        <Link className={"btn ghost" + (dark ? " hv-onDark" : "")} to="/start">{t("cta.primary")}</Link>
       </div>
+      {note && <p className="hv-note">{t("hv.tryNote")}</p>}
+      {err && <p className="err" role="alert">{err}</p>}
     </div>
   );
 }
 
-function HowDiagram() {
-  const { t } = useI18n();
+/** Investor-oriented hero visual: an example holding card. Pure CSS/SVG. */
+function HoldingCard() {
+  const { t, fmt, aud } = useI18n();
+  const bars = [38, 44, 41, 52, 58, 63];
   return (
-    <figure>
-      <div className="diagram">
-        <svg viewBox="0 0 1000 330" role="img" aria-label={`${t("d.lane1")}: ${t("d.n1")} → ${t("d.n2")} → ${t("d.n3")} → ${t("d.n4")} → ${t("d.n5")}. ${t("d.gate")}. ${t("d.lane2")}: ${t("d.b1")} → ${t("d.b2")} → ${t("d.b3")} → ${t("d.b4")}.`}>
-          <defs>
-            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" /></marker>
-            <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--gold-mark)" /></marker>
-          </defs>
-          <text x="14" y="26" fontSize="11" fontWeight="600" letterSpacing="1.2" fill="var(--muted)">{t("d.lane1")}</text>
-          <rect x="8" y="36" width="984" height="108" rx="14" fill="var(--sunken)" />
-          <text x="14" y="190" fontSize="11" fontWeight="600" letterSpacing="1.2" fill="var(--gold)">{t("d.lane2")}</text>
-          <rect x="8" y="200" width="984" height="108" rx="14" fill="none" stroke="var(--gold-mark)" strokeDasharray="6 5" strokeWidth="1.5" />
-          <g fontSize="13" textAnchor="middle">
-            <rect x="28" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="103" y="86" fontWeight="600" fill="currentColor">{t("d.n1")}</text><text x="103" y="104" fontSize="11" fill="var(--muted)">{t("d.n1s")}</text>
-            <rect x="222" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="297" y="86" fontWeight="600" fill="currentColor">{t("d.n2")}</text><text x="297" y="104" fontSize="11" fill="var(--muted)">{t("d.n2s")}</text>
-            <rect x="416" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="491" y="86" fontWeight="600" fill="currentColor">{t("d.n3")}</text><text x="491" y="104" fontSize="11" fill="var(--muted)">{t("d.n3s")}</text>
-            <rect x="610" y="62" width="150" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="685" y="86" fontWeight="600" fill="currentColor">{t("d.n4")}</text><text x="685" y="104" fontSize="11" fill="var(--muted)">{t("d.n4s")}</text>
-            <rect x="804" y="62" width="168" height="56" rx="10" fill="var(--accent)" /><text x="888" y="86" fontWeight="700" fill="var(--accent-ink)">{t("d.n5")}</text><text x="888" y="104" fontSize="11" fill="var(--accent-ink)">{t("d.n5s")}</text>
-          </g>
-          <g stroke="currentColor" strokeWidth="1.5" fill="none">
-            <line x1="178" y1="90" x2="218" y2="90" markerEnd="url(#ar)" /><line x1="372" y1="90" x2="412" y2="90" markerEnd="url(#ar)" />
-            <line x1="566" y1="90" x2="606" y2="90" markerEnd="url(#ar)" /><line x1="760" y1="90" x2="800" y2="90" markerEnd="url(#ar)" />
-          </g>
-          <g fontSize="10.5" fill="var(--muted)" textAnchor="middle">
-            <text x="198" y="80">{t("d.e1")}</text><text x="392" y="80">{t("d.e2")}</text><text x="586" y="80">{t("d.e3")}</text><text x="780" y="80">{t("d.e4")}</text>
-          </g>
-          <line x1="888" y1="118" x2="888" y2="222" stroke="var(--gold-mark)" strokeWidth="2" markerEnd="url(#arg)" />
-          <rect x="802" y="150" width="172" height="26" rx="13" fill="var(--gold-soft)" stroke="var(--gold-mark)" />
-          <text x="888" y="167" fontSize="11.5" fontWeight="700" textAnchor="middle" fill="var(--gold)">{t("d.gate")}</text>
-          <g fontSize="13" textAnchor="middle">
-            <rect x="804" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="888" y="250" fontWeight="600" fill="currentColor">{t("d.b1")}</text><text x="888" y="268" fontSize="11" fill="var(--muted)">{t("d.b1s")}</text>
-            <rect x="560" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--gold-mark)" /><text x="644" y="250" fontWeight="600" fill="currentColor">{t("d.b2")}</text><text x="644" y="268" fontSize="11" fill="var(--muted)">{t("d.b2s")}</text>
-            <rect x="316" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--gold-mark)" /><text x="400" y="250" fontWeight="600" fill="currentColor">{t("d.b3")}</text><text x="400" y="268" fontSize="11" fill="var(--muted)">{t("d.b3s")}</text>
-            <rect x="72" y="226" width="168" height="56" rx="10" fill="var(--surface)" stroke="var(--line)" /><text x="156" y="250" fontWeight="600" fill="currentColor">{t("d.b4")}</text><text x="156" y="268" fontSize="11" fill="var(--muted)">{t("d.b4s")}</text>
-          </g>
-          <g stroke="currentColor" strokeWidth="1.5" fill="none">
-            <line x1="804" y1="254" x2="732" y2="254" markerEnd="url(#ar)" /><line x1="560" y1="254" x2="488" y2="254" markerEnd="url(#ar)" /><line x1="316" y1="254" x2="244" y2="254" markerEnd="url(#ar)" />
-          </g>
-          <g fontSize="10.5" fill="var(--muted)" textAnchor="middle">
-            <text x="768" y="244">{t("d.f1")}</text><text x="524" y="244">{t("d.f2")}</text><text x="280" y="244">{t("d.f3")}</text>
-          </g>
+    <div className="hv-card" role="img" aria-label={t("hv.card.aria")}>
+      <div className="hv-card-top">
+        <span className="eyebrow">{t("hv.card.label")}</span>
+        <span className="hv-tag">{t("hv.card.example")}</span>
+      </div>
+      <div className="hv-co">
+        <span className="hv-logo" aria-hidden="true">H</span>
+        <div><b>Harbourline Logistics</b><span className="muted">HBL</span></div>
+      </div>
+      <div className="hv-grid">
+        <div><small>{t("hv.card.shares")}</small><b className="num">{fmt(25000)}</b></div>
+        <div><small>{t("hv.card.stake")}</small><b className="num">{fmt(0.74, 2)}%</b></div>
+      </div>
+      <div className="hv-value">
+        <div>
+          <small>{t("hv.card.value")}</small>
+          <b className="num">{aud(25800, 0)}</b>
+          <span className="hv-ok"><Check />{t("hv.card.checked")}</span>
+        </div>
+        <svg className="hv-bars" viewBox="0 0 96 64" aria-hidden="true">
+          {bars.map((h, i) => <rect key={i} x={i * 16 + 2} y={64 - h} width="11" height={h} rx="2" />)}
         </svg>
       </div>
-      <figcaption>{t("how.cap")}</figcaption>
-      <p className="demonote"><span className="demotag">{t("demo.tag")}</span> · <Link to="/admin">{t("demo.home")}</Link></p>
-    </figure>
+      <div className="hv-update">
+        <small>{t("hv.card.update")}</small>
+        <p>{t("hv.card.updateTxt")}</p>
+      </div>
+      <div className="hv-div">
+        <span>{t("hv.card.div")}</span>
+        <b className="num">+{aud(750, 0)}</b>
+      </div>
+      <span className="hv-proof">{t("hv.card.proof")}</span>
+    </div>
   );
 }
+
+const PAINS = [1, 2, 3, 4] as const;
+const PILLARS = [1, 2, 3, 4, 5] as const;
+const STEPS = [1, 2, 3, 4] as const;
+const AUDIENCE: { h: DictKey; items: DictKey[] }[] = [
+  { h: "hv.inv.all.h", items: ["hv.inv.all.1", "hv.inv.all.2", "hv.inv.all.3", "hv.inv.all.4"] },
+  { h: "hv.inv.small.h", items: ["hv.inv.small.1", "hv.inv.small.2", "hv.inv.small.3"] },
+  { h: "hv.inv.large.h", items: ["hv.inv.large.1", "hv.inv.large.2", "hv.inv.large.3"] },
+];
+const PILLAR_ICONS = [
+  <path key="1" d="M4 5h16v14H4zM8 9h8M8 13h5" />,
+  <path key="2" d="M4 18l5-6 4 3 7-9M15 6h5v5" />,
+  <path key="3" d="M12 3l8 4v5c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V7zM8.5 12l2.5 2.5 4.5-5" />,
+  <path key="4" d="M3 7h18v12H3zM3 11h18M16 15h2" />,
+  <path key="5" d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16 16l5 5" />,
+];
 
 function LiveStats() {
   const { t, fmt, money, chg } = useI18n();
@@ -137,9 +116,9 @@ function LiveStats() {
         </div>
         {stats.error && !k ? <p className="banner warn" role="status"><span>{t("home.st.err")}</span><button className="btn ghost sm" type="button" onClick={() => void stats.reload()}>{t("common.retry")}</button></p> : null}
         <div className="statsstrip" aria-busy={stats.loading && !k} aria-live="polite">
-          <div className="kpi"><small>{t("home.st.co")}</small><b className="num">{k ? fmt(k.companies) : dash}</b><span>{allAnchored ? t("home.st.cosub") : stats.data?.block ? t("home.st.asof", { b: fmt(stats.data.block) }) : "\u00a0"}</span></div>
+          <div className="kpi"><small>{t("home.st.co")}</small><b className="num">{k ? fmt(k.companies) : dash}</b><span>{allAnchored ? t("home.st.cosub") : stats.data?.block ? t("home.st.asof", { b: fmt(stats.data.block) }) : " "}</span></div>
           <div className="kpi"><small>{t("home.st.tok")}</small><b className="num">{k ? fmt(k.tokens) : dash}</b><span>{t("home.st.tokSub")}</span></div>
-          <div className="kpi"><small>{t("home.st.val")}</small><b className="num">{k ? money(k.total_valuation_aud) : dash}</b><span>{k ? `${t("ad.k.median")} ${money(k.median_valuation_aud)}` : "\u00a0"}</span></div>
+          <div className="kpi"><small>{t("home.st.val")}</small><b className="num">{k ? money(k.total_valuation_aud) : dash}</b><span>{k ? `${t("ad.k.median")} ${money(k.median_valuation_aud)}` : " "}</span></div>
           <div className="kpi"><small>{t("home.st.ver")}</small><b className="num">{k ? `${fmt(k.anchored)} / ${fmt(k.anchored_total)}` : dash}</b><span><Link to="/verify">{t("home.st.verSub")} →</Link></span></div>
         </div>
         <div className="between" style={{ marginTop: 28 }}>
@@ -169,6 +148,16 @@ function LiveStats() {
             })}
           </div>
         )}
+        <div className="hv-check">
+          <div>
+            <h3>{t("hv.check.h")}</h3>
+            <p className="muted">{t("hv.check.p")}</p>
+          </div>
+          <div className="row">
+            <Link className="btn ghost" to="/verify">{t("hv.check.link")} →</Link>
+            <Link className="hv-tech" to="/hsk">{t("hv.check.tech")}</Link>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -184,68 +173,99 @@ export function Home() {
           <div>
             <span className="eyebrow">{t("hero.eyebrow")}</span>
             <h1 style={{ marginTop: 16 }}>{t("hero.h1a")} <em>{t("hero.h1b")}</em></h1>
-            <p className="subhead">{t("hero.sub")}</p>
-            <p className="tagline">{t("hero.tag")}</p>
-            <p className="pitch">{t("hero.pitch")}</p>
-            <div className="ctas">
-              <Link className="btn" to="/start">{t("cta.primary")}</Link>
-              <Link className="btn ghost" to="/v/sample/report">{t("cta.secondary")}</Link>
-            </div>
+            <p className="pitch hv-pitch">{t("hero.pitch")}</p>
+            <Ctas note />
             <p className="legal">{t("hero.legal")}</p>
-            <div className="chips">
-              {(["chip.1", "chip.2", "chip.3", "chip.4"] as DictKey[]).map((k) => <span className="chip" key={k}><Check /><span>{t(k)}</span></span>)}
-            </div>
           </div>
-          <HeroDevice />
+          <HoldingCard />
+        </div>
+      </section>
+
+      <section className="block" id="problem" aria-labelledby="prob-h">
+        <div className="wrap">
+          <div className="head">
+            <span className="eyebrow">{t("hv.prob.eyebrow")}</span>
+            <h2 id="prob-h">{t("hv.prob.h2")}</h2>
+            <p>{t("hv.prob.p")}</p>
+          </div>
+          <ol className="hv-pains">
+            {PAINS.map((i) => (
+              <li key={i}>
+                <span className="hv-num" aria-hidden="true">{i}</span>
+                <h3>{t(`hv.prob.${i}h` as DictKey)}</h3>
+                <p>{t(`hv.prob.${i}p` as DictKey)}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="block" id="get" aria-labelledby="get-h">
+        <div className="wrap">
+          <div className="head">
+            <span className="eyebrow">{t("hv.get.eyebrow")}</span>
+            <h2 id="get-h">{t("hv.get.h2")}</h2>
+            <p>{t("hv.get.p")}</p>
+          </div>
+          <ul className="hv-pillars">
+            {PILLARS.map((i) => (
+              <li key={i}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{PILLAR_ICONS[i - 1]}</svg>
+                <h3>{t(`hv.get.${i}h` as DictKey)}</h3>
+                <p>{t(`hv.get.${i}p` as DictKey)}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="block" id="investors" aria-labelledby="inv-h">
+        <div className="wrap">
+          <div className="head">
+            <span className="eyebrow">{t("hv.inv.eyebrow")}</span>
+            <h2 id="inv-h">{t("hv.inv.h2")}</h2>
+          </div>
+          <div className="hv-aud">
+            {AUDIENCE.map((g) => (
+              <div key={g.h} className="hv-audcol">
+                <h3>{t(g.h)}</h3>
+                <ul>
+                  {g.items.map((k) => <li key={k}><Check /><span>{t(k)}</span></li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       <section className="block" id="how" aria-labelledby="how-h">
         <div className="wrap">
           <div className="head">
-            <span className="eyebrow">{t("how.eyebrow")}</span>
-            <h2 id="how-h">{t("how.h2")}</h2>
-            <p>{t("how.p")}</p>
+            <span className="eyebrow">{t("nav.how")}</span>
+            <h2 id="how-h">{t("hv.how.h2")}</h2>
+            <p>{t("hv.how.p")}</p>
           </div>
-          <HowDiagram />
-        </div>
-      </section>
-
-      <section className="block" id="walk" aria-labelledby="walk-h">
-        <div className="wrap">
-          <div className="head">
-            <span className="eyebrow">{t("walk.eyebrow")}</span>
-            <h2 id="walk-h">{t("walk.h2")}</h2>
-            <p>{t("new.p")}</p>
-          </div>
-          <ol className="teaser" style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {Array.from({ length: 8 }, (_, i) => i + 1).map((i) => (
-              <li key={i} style={{ display: "contents" }}>
-                <div className={GATES.includes(i) ? "gate" : ""} title={GATES.includes(i) ? t("gate.admin") : undefined}>
-                  <b>{String(i).padStart(2, "0")}</b><span>{t(("step." + i) as DictKey)}</span>
-                </div>
+          <ol className="hv-steps">
+            {STEPS.map((i) => (
+              <li key={i}>
+                <span className="hv-num" aria-hidden="true">{i}</span>
+                <h3>{t(`hv.how.${i}h` as DictKey)}</h3>
+                <p>{t(`hv.how.${i}p` as DictKey)}</p>
               </li>
             ))}
           </ol>
-          <div className="row" style={{ marginTop: 20 }}>
-            <Link className="btn" to="/start">{t("home.walk.cta")}</Link>
-            <Link className="btn ghost" to="/v/sample/report">{t("cta.secondary")}</Link>
-          </div>
         </div>
       </section>
 
       <LiveStats />
-
-      <section className="block" id="hsk" style={{ paddingTop: 0, borderTop: 0 }}>
-        <div className="wrap"><HskHomeCard /></div>
-      </section>
 
       <section className="block" style={{ borderTop: 0, paddingTop: 0 }}>
         <div className="wrap">
           <div className="final">
             <h2>{t("fin.h")}</h2>
             <p>{t("fin.p")}</p>
-            <Link className="btn" to="/start">{t("cta.primary")}</Link>
+            <Ctas dark />
+            <p className="hv-finlegal">{t("hero.legal")}</p>
           </div>
         </div>
       </section>

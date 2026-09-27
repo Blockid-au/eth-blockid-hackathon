@@ -66,3 +66,19 @@ Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid
 | Admin endpoints 403 "password change required" | `must_change` is true for the admin account |
 | Blockscout lags | `logs backend` in `deploy/blockscout`; it indexes from genesis and catches up in minutes |
 | Page 404 on reload | nginx must keep `try_files $uri /index.html` for `/` |
+
+## Sign-in without MetaMask and email (27 Sep 2026)
+
+- **Try it now (guest):** the browser creates a private key (`web/app/src/devicewallet.ts`, IndexedDB, AES-GCM with a
+  non-extractable key) and signs SIWE with `method: "guest"`. Guest sessions last 30 days and are never admin.
+  `OPEN_ISSUE=1` (default) lets any signed-in wallet submit its company; admin approval is still required.
+- **Google:** set `GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com` in `/opt/blockid/app.env` (OAuth client of type
+  *Web application*, authorised JavaScript origin `https://eth.blockid.au`, no redirect URI needed), then recreate
+  `agents-api`. The API verifies the ID token (`studio/accounts.py`) and links `google:<sub>` to the browser key's address.
+- **Email from info@blockid.au** (`studio/mailer.py`, Google Workspace): either
+  `SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=info@blockid.au SMTP_PASSWORD=<App Password>` or the Workspace SMTP
+  relay `SMTP_HOST=smtp-relay.gmail.com` with this VM's IP 34.151.85.207 allow-listed (no user/password).
+  `MAIL_FROM="BlockID Business Passport <info@blockid.au>"`; replies go to info@blockid.au. Test as admin:
+  `POST /api/v1/admin/mail/test {"to": "..."}`. A welcome email is sent on the first Google sign-in.
+- CSP allows `https://accounts.google.com/gsi/*` (copy of the live snippet: `deploy/nginx/blockid-security-headers.conf`).
+- First-visit check: `scripts/screenshots/try-demo.mjs` (home → Try it now → portfolio → account → /start).

@@ -158,6 +158,13 @@ class Settings:
     site_max_pages: int = field(default_factory=lambda: int(_env("SITE_MAX_PAGES", "6")))
     valuations_global_per_day: int = field(default_factory=lambda: int(_env("VALUATIONS_GLOBAL_PER_DAY", "60")))
     valuations_max_active: int = field(default_factory=lambda: int(_env("VALUATIONS_MAX_ACTIVE", "5")))
+    # Sign-in without MetaMask (accounts.py). GOOGLE_CLIENT_ID is the public OAuth web client id (not a secret).
+    google_client_id: str = field(default_factory=lambda: _env("GOOGLE_CLIENT_ID"))
+    # OPEN_ISSUE=1 (demo default): any signed-in wallet may submit its company for admin approval, without first
+    # being granted the issuer-wallet role. The admin approval gate is unchanged.
+    open_issue: bool = field(default_factory=lambda: _env("OPEN_ISSUE", "1").lower() in ("1", "true", "yes"))
+    # Wallet whose holdings /v1/demo/holdings shows ("" = the wallet holding shares in the most companies).
+    demo_holder: str = field(default_factory=lambda: _env("DEMO_HOLDER"))
     # STUDIO_DEV=1: accept localhost SIWE domains / Origins and expose /docs. Never set in production.
     studio_dev: bool = field(default_factory=lambda: _env("STUDIO_DEV", "0").lower() in ("1", "true", "yes"))
     allowed_origins: tuple[str, ...] = field(default_factory=lambda: tuple(

@@ -6,6 +6,7 @@ import { api, isMock } from "../api";
 import { useAsync } from "../lib/hooks";
 import { queueCounts } from "../lib/flow";
 import { shortAddr } from "../lib/addr";
+import { SignInCard } from "./SignIn";
 import { useMyCompanies, type MyCompany } from "../lib/companyAdmins";
 
 export function FlagEN() {
@@ -49,9 +50,11 @@ function MyCompaniesNav({ list }: { list: MyCompany[] }) {
 
 function Account({ mine }: { mine: MyCompany[] }) {
   const { t } = useI18n();
-  const { me, busy, connect, logout } = useAuth();
+  const { me, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState("");
+  const { pathname } = useLocation();
+  useEffect(() => setOpen(false), [pathname, me?.address]);
   const box = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -66,23 +69,28 @@ function Account({ mine }: { mine: MyCompany[] }) {
 
   if (!me) {
     return (
-      <span className="menuwrap">
-        <button className="btn ghost sm" type="button" disabled={busy} onClick={async () => { setErr(""); try { await connect(); } catch (e) { setErr(errText(e, t)); } }}>
-          {busy ? <span className="spinner" aria-hidden="true" /> : null}{busy ? t("nav.connecting") : t("nav.connect")}
+      <span className="menuwrap" ref={box}>
+        <button className="btn ghost sm" type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => { setErr(""); setOpen((o) => !o); }}>
+          {t("nav.signin")}
         </button>
+        {open && <span className="menu signin-menu"><SignInCard compact /></span>}
         {err && <span className="menu" role="alert" style={{ color: "var(--bad)", fontSize: ".82rem", padding: 12 }}>{err}</span>}
       </span>
     );
   }
   const label = me.address ? shortAddr(me.address) : me.username ?? "admin";
+  const roleLabel = me.role === "admin" ? t("nav.role.admin") : me.auth_method === "guest" ? t("nav.role.guest") : me.auth_method === "google" ? t("nav.role.google") : t("nav.role.user");
   return (
     <span className="menuwrap" ref={box}>
       <button type="button" className={"addrchip" + (me.role === "admin" ? " admin" : "")} aria-haspopup="menu" aria-expanded={open} aria-label={t("nav.account")} onClick={() => setOpen((o) => !o)}>
-        <i aria-hidden="true" />{label}<span className="muted" style={{ fontFamily: "var(--body)" }}>· {me.role === "admin" ? t("nav.role.admin") : t("nav.role.user")}</span>
+        <i aria-hidden="true" />{label}<span className="muted" style={{ fontFamily: "var(--body)" }}>· {roleLabel}</span>
       </button>
       {open && (
         <span className="menu" role="menu">
+          {me.account?.email && <span>{me.account.email}</span>}
           {me.address && <span className="mono">{me.address}</span>}
+          <Link role="menuitem" to="/i" onClick={() => setOpen(false)}>{t("nav.portfolio")}</Link>
+          <Link role="menuitem" to="/i/account" onClick={() => setOpen(false)}>{t("nav.accountlink")}</Link>
           {me.role === "admin" && <Link role="menuitem" to="/admin" onClick={() => setOpen(false)}>{t("nav.adminlink")}</Link>}
           {mine.length > 0 && <span className="mono">{t("nav.mycos")}</span>}
           {mine.map((c) => <Link key={c.id} role="menuitem" to={`/c/${c.ticker}`} onClick={() => setOpen(false)}><b className="mono">{c.ticker}</b> · {c.name}</Link>)}
@@ -118,10 +126,10 @@ export function Nav() {
         <Link className="brand" to="/"><span className="mark" aria-hidden="true" />BlockID</Link>
         <button className="menubtn" type="button" aria-expanded={open} aria-controls="primary-links" onClick={() => setOpen((o) => !o)}>{open ? "✕" : "☰"}<span className="sr-only">{t("nav.menu")}</span></button>
         <nav id="primary-links" className={"links" + (open ? " open" : "")} aria-label={t("nav.primary")}>
-          <Link to="/#how">{t("nav.how")}</Link>
+          <NavLink to="/i" end={false}>{t("nav.investors")}</NavLink>
           <NavLink to="/companies">{t("nav.companies")}</NavLink>
+          <Link to="/#how">{t("nav.how")}</Link>
           <NavLink to="/verify">{t("nav.verify")}</NavLink>
-          <NavLink to="/hsk">{t("nav.hsk")}</NavLink>
           <span className="navsep" aria-hidden="true" />
           <NavLink to="/start">{t("nav.studio")}</NavLink>
           <MyCompaniesNav list={mine} />
@@ -153,6 +161,7 @@ export function Footer() {
           <a href="/deck/BlockID-Startup-Passport-3min.pptx" download>PPTX</a>{" · "}
           <a href="/deck/BlockID-Startup-Passport-pitch.pdf" download>{t("foot.deckFull")}</a>
         </span>
+        <span><Link to="/hsk">{t("nav.hsk")}</Link></span>
         <span>{t("foot.legal")}</span>
       </div>
     </footer>

@@ -327,6 +327,7 @@ def studio_env(tmp_path):
     deps = studio_deps(tmp_path)
     s = replace(deps.settings, admin_wallets=(ADMIN.lower(),), admin_username="admin",
                 admin_password_hash=auth.hash_password("admin"), session_secret="test-secret", valuations_per_day=2,
+                open_issue=False,
                 api_key="k")
     deps.settings = s
     calls: list[tuple[str, dict]] = []

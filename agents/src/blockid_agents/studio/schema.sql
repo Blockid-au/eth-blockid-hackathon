@@ -50,3 +50,8 @@ INSERT INTO studio.company_admins (company_id, address, label, role, status, add
   WHERE created_by ~ '^0x[0-9a-fA-F]{40}$' ON CONFLICT (company_id, address) DO NOTHING;
 -- default BLKD gas allowance per wallet (studio/gas.py): at most one issuer /drip per wallet per 24 h, global daily cap
 CREATE TABLE IF NOT EXISTS studio.gas_drips (address text PRIMARY KEY, amount_wei numeric NOT NULL, tx_hash text, reason text, created_at timestamptz NOT NULL DEFAULT now());
+-- accounts for guest / Google sign-in (keys stay in the browser; accounts.py)
+CREATE TABLE IF NOT EXISTS studio.accounts (id serial PRIMARY KEY, provider text NOT NULL, subject text NOT NULL, email text, name text, picture text, created_at timestamptz NOT NULL DEFAULT now(), last_login_at timestamptz, UNIQUE (provider, subject));
+CREATE TABLE IF NOT EXISTS studio.account_wallets (account_id int NOT NULL REFERENCES studio.accounts(id) ON DELETE CASCADE, address text NOT NULL, kind text NOT NULL DEFAULT 'device', linked_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (account_id, address));
+ALTER TABLE studio.sessions ADD COLUMN IF NOT EXISTS account_id int;
+ALTER TABLE studio.sessions ADD COLUMN IF NOT EXISTS auth_method text;

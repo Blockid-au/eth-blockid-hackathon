@@ -8,6 +8,10 @@ interface AuthState {
   busy: boolean;
   refresh: () => Promise<Me | null>;
   connect: () => Promise<Me | null>;
+  /** Instant guest sign-in: a key is created in this browser and signs in silently (no wallet, no sign-up). */
+  tryDemo: () => Promise<Me | null>;
+  /** Google sign-in (Gmail): the Google ID token is bound to a key created in this browser. */
+  google: (credential: string) => Promise<Me | null>;
   login: (u: string, p: string) => Promise<Me>;
   logout: () => Promise<void>;
   setMe: (m: Me | null) => void;
@@ -50,6 +54,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh]);
 
+  const tryDemo = useCallback(async () => {
+    if (me?.address) return me;
+    setBusy(true);
+    try {
+      const { signInWithDeviceKey } = await import("./devicewallet");
+      await signInWithDeviceKey({ method: "guest" });
+      return await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }, [me, refresh]);
+
+  const google = useCallback(async (credential: string) => {
+    setBusy(true);
+    try {
+      const { signInWithDeviceKey } = await import("./devicewallet");
+      await signInWithDeviceKey({ method: "google", credential });
+      return await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }, [refresh]);
+
   const login = useCallback(async (u: string, p: string) => {
     const r = await api.login(u, p);
     const m: Me = (await refresh()) ?? { username: u, role: r.role, must_change: r.must_change };
@@ -67,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMe(null);
   }, []);
 
-  const value = useMemo(() => ({ me, loading, busy, refresh, connect, login, logout, setMe }), [me, loading, busy, refresh, connect, login, logout]);
+  const value = useMemo(() => ({ me, loading, busy, refresh, connect, tryDemo, google, login, logout, setMe }), [me, loading, busy, refresh, connect, tryDemo, google, login, logout]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

@@ -34,6 +34,8 @@ from . import metrics
 from .errors import company_error_info
 from .company_admins import CompanyAuthz, seed_owner
 from .gas import GasDripper
+from . import accounts as acct
+from .mailer import Mailer, welcome
 from .auth import (
     COOKIE,
     AuthError,
@@ -60,6 +62,18 @@ class Body(BaseModel):
 class SiweBody(Body):
     message: str = Field(max_length=4000)
     signature: str = Field(max_length=200)
+    method: str = Field(default="wallet", pattern="^(wallet|guest)$")  # guest = key created in the browser
+
+
+class GoogleBody(Body):
+    credential: str = Field(max_length=4096)  # Google ID token (JWT)
+    message: str = Field(max_length=4000)  # SIWE message signed by the browser key for this Google account
+    signature: str = Field(max_length=200)
+    lang: str = Field(default="en", pattern="^(en|vi)$")
+
+
+class MailTestBody(Body):
+    to: str = Field(max_length=200, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class LoginBody(Body):
@@ -197,6 +211,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
     admin_set = {a.lower() for a in s.admin_wallets}
     domains = allowed_domains(s.public_base_url)
     authz = CompanyAuthz(ctx)  # per-company admin wallets (company_admins.py)
+    mailer = Mailer()
     gas = GasDripper(ctx)  # default BLKD gas allowance for new wallets (gas.py), run as background tasks
 
     # -------------------------------------------------------------- session dependencies
@@ -227,7 +242,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         ctx.need_db().audit(sess.actor, action, None if target is None else str(target), **detail)
 
     def require_issuer_wallet(sess: Session) -> None:
-        if sess.is_admin:
+        if sess.is_admin or (s.open_issue and sess.address):  # OPEN_ISSUE: admin approval is still required
             return
         w = ctx.need_db().one("SELECT status FROM studio.issuer_wallets WHERE lower(address)=lower(%s)",
                               (sess.address or "",))
@@ -251,12 +266,53 @@ def build_router(ctx: StudioContext) -> APIRouter:
             raise HTTPException(e.status, e.detail) from None
         if not sessions.consume_nonce(msg.nonce):
             raise HTTPException(401, "nonce unknown, used or expired")
-        role = "admin" if msg.address.lower() in admin_set else "user"
-        set_cookie(response, sessions.create(role, address=msg.address))
+        # a key created in the browser ("guest") is never elevated, even if its address were listed
+        role = "admin" if body.method == "wallet" and msg.address.lower() in admin_set else "user"
+        set_cookie(response, sessions.create(role, address=msg.address, auth_method=body.method,
+                                             hours=24 * 30 if body.method == "guest" else None))
         if role == "admin":
             ctx.need_db().audit(msg.address, "login_siwe", msg.address, chain_id=msg.chain_id)
         background.add_task(gas.drip, msg.address, "login")
         return {"address": msg.address, "role": role}
+
+    @r.get("/v1/auth/config")
+    def auth_config():
+        return {"google_client_id": s.google_client_id or None, "open_issue": s.open_issue,
+                "mail": mailer.configured}
+
+    @r.post("/v1/auth/google")
+    def google_login(body: GoogleBody, response: Response, background: BackgroundTasks):
+        db, sessions = ctx.need_db(), ctx.sessions
+        try:
+            ident = acct.verify_google(body.credential, s.google_client_id)
+        except acct.GoogleError as e:
+            raise HTTPException(401, str(e)) from None
+        try:
+            msg = verify_siwe(body.message, body.signature, domains, dev=s.studio_dev)
+        except AuthError as e:
+            raise HTTPException(e.status, e.detail) from None
+        if not sessions.consume_nonce(msg.nonce):
+            raise HTTPException(401, "nonce unknown, used or expired")
+        account_id, first = acct.link_google(db, ident, msg.address)
+        set_cookie(response, sessions.create("user", address=msg.address, account_id=account_id,
+                                             auth_method="google", hours=24 * 7))
+        db.audit(msg.address, "login_google", msg.address, account_id=account_id, first=first)
+        background.add_task(gas.drip, msg.address, "login")
+        if first and ident.email:
+            subj, text, html = welcome(ident.name, msg.address, body.lang)
+            background.add_task(mailer.send, ident.email, subj, text, html)
+        return {"address": msg.address, "role": "user", "email": ident.email, "name": ident.name}
+
+    @r.post("/v1/admin/mail/test")
+    def mail_test(body: MailTestBody, sess: Session = Depends(require_admin)):
+        if not mailer.configured:
+            raise HTTPException(503, "email is not configured (SMTP_HOST is empty)")
+        ok = mailer.send(body.to, "BlockID test email", "This is a test email from info@blockid.au.\n\n"
+                         "If you can read this, sending works. Reply to check that receiving works too.")
+        audit(sess, "mail_test", body.to, ok=ok)
+        if not ok:
+            raise HTTPException(502, "sending failed; check SMTP settings and the API log")
+        return {"ok": True}
 
     @r.post("/v1/auth/login")
     def login(body: LoginBody, request: Request, response: Response):
@@ -304,7 +360,11 @@ def build_router(ctx: StudioContext) -> APIRouter:
 
     @r.get("/v1/auth/me")
     def me(sess: Session = Depends(require_user)):
-        out: dict[str, Any] = {"role": sess.role}
+        out: dict[str, Any] = {"role": sess.role, "auth_method": sess.auth_method or
+                               ("password" if sess.username else "wallet")}
+        account = acct.account_view(ctx.need_db(), sess.account_id)
+        if account:
+            out["account"] = account
         if sess.address:
             out["address"] = sess.address
         if sess.username:
@@ -313,7 +373,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         if sess.address:
             db = ctx.need_db()
             w = db.one("SELECT status FROM studio.issuer_wallets WHERE lower(address)=lower(%s)", (sess.address,))
-            out["issuer"] = sess.is_admin or bool(w and w["status"] == "active")
+            out["issuer"] = sess.is_admin or s.open_issue or bool(w and w["status"] == "active")
         else:
             out["issuer"] = sess.is_admin
         return out
@@ -679,6 +739,67 @@ def build_router(ctx: StudioContext) -> APIRouter:
                       (list(ONCHAIN_STATUSES),))
         marks, holders, now = load_marks([c["id"] for c in rows]), holder_counts(), _utcnow()
         return [metrics.company_summary(c, marks.get(c["id"], []), holders.get(c["id"], 0), now) for c in rows]
+
+    def holdings_for(wallets: list[str]) -> dict:
+        """Positions of these wallets in every on-chain company, read from the chain (DB fallback)."""
+        db = ctx.need_db()
+        low = [w.lower() for w in wallets if w]
+        if not low:
+            return {"wallets": [], "positions": [], "total_value_aud": 0, "dividends_total_maud": 0}
+        ids = [x["company_id"] for x in db.all(
+            "SELECT company_id FROM studio.holders WHERE lower(wallet) = ANY(%s) "
+            "UNION SELECT company_id FROM studio.mints WHERE status='minted' AND lower(to_wallet) = ANY(%s) "
+            "UNION SELECT company_id FROM studio.transfers WHERE status='done' AND lower(to_wallet) = ANY(%s)",
+            (low, low, low))]
+        rows = db.all("SELECT * FROM studio.companies WHERE id = ANY(%s) AND status = ANY(%s)",
+                      (ids, list(ONCHAIN_STATUSES))) if ids else []
+        marks, now = load_marks([c["id"] for c in rows]), _utcnow()
+        divs = db.all("SELECT company_id, at, tx_hash, data FROM studio.events WHERE kind='dividend_claimed' "
+                      "AND company_id = ANY(%s) AND lower(data->>'wallet') = ANY(%s) ORDER BY at DESC",
+                      (ids or [0], low))
+        out, total_value, total_div = [], 0.0, 0.0
+        for c in rows:
+            table, source, _ = cap_table(c)
+            mine = [x for x in table if x["wallet"].lower() in low]
+            shares = sum(x["shares"] for x in mine)
+            if shares <= 0:
+                continue
+            summ = metrics.company_summary(c, marks.get(c["id"], []), len(table), now)
+            supply = sum(x["shares"] for x in table) or int(c["total_shares"])
+            value = shares * summ["mark_aud"]
+            cdiv = [d for d in divs if d["company_id"] == c["id"]]
+            div_maud = sum(int((d["data"] or {}).get("amount") or 0) for d in cdiv) / 1e6
+            ms = marks.get(c["id"], [])
+            first_mark = metrics.f(ms[0]["mark_aud"]) if ms else summ["share_price_aud"]
+            out.append({
+                "ticker": c["ticker"], "name": c["name"], "website": c.get("website"), "grade": summ["grade"],
+                "shares": shares, "pct": round(shares * 100 / supply, 4) if supply else 0, "supply": supply,
+                "mark_aud": summ["mark_aud"], "value_aud": round(value, 2), "issue_price_aud": first_mark,
+                "change_30d": summ["change_30d"], "spark_30d": summ["spark_30d"], "holders": len(table),
+                "dividends_maud": round(div_maud, 2),
+                "dividends": [{"at": d["at"], "tx_hash": d["tx_hash"],
+                               "amount_maud": int((d["data"] or {}).get("amount") or 0) / 1e6} for d in cdiv[:20]],
+                "last_update_at": c.get("updated_at"), "source": source,
+                "names": sorted({x["name"] for x in mine if x.get("name")}),
+            })
+            total_value += value
+            total_div += div_maud
+        out.sort(key=lambda x: -x["value_aud"])
+        return jsonable({"wallets": wallets, "positions": out, "total_value_aud": round(total_value, 2),
+                         "dividends_total_maud": round(total_div, 2)})
+
+    @r.get("/v1/me/holdings")
+    def my_holdings(sess: Session = Depends(require_user)):
+        return holdings_for(acct.account_wallets(ctx.need_db(), sess.account_id, sess.address))
+
+    @r.get("/v1/demo/holdings")
+    def demo_holdings():
+        w = s.demo_holder
+        if not w:
+            row = ctx.need_db().one("SELECT wallet FROM studio.holders GROUP BY wallet "
+                                    "ORDER BY count(DISTINCT company_id) DESC, wallet LIMIT 1")
+            w = row["wallet"] if row else ""
+        return {**holdings_for([w] if w else []), "demo": True}
 
     def cap_table(c: dict) -> tuple[list[dict], str, int | None]:
         db = ctx.need_db()

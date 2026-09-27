@@ -1,16 +1,15 @@
-# BlockID Startup Passport
+# BlockID Business Passport
 
-![BlockID Startup Passport](docs/images/banner.png)
+![BlockID Business Passport](docs/images/banner.png)
 
-### Agents propose. Humans approve. Chains prove.
+## Know the business before you invest.
 
-## Know what your startup is worth, and who owns it.
+**Understand it. Follow it. Own it. Get paid. Check it.**
 
-**Give your startup a passport: valued by AI, approved by people, proven on-chain.**
-
-BlockID turns your company website into an evidence-cited valuation in minutes, then turns your shareholder list
-into a verified, KYC-gated cap table you can grow and pay dividends from — on-chain, with AI that never holds the
-keys.
+See how a private business is really doing, in plain words. BlockID gives investors of every size regular updates
+with a fair value checked by people, an online share register on blockchain as proof of the shares they own, and
+dividends paid straight to their wallet. Businesses list with us to offer shares with all the information investors
+need, and anyone can check every number.
 
 | | |
 |---|---|

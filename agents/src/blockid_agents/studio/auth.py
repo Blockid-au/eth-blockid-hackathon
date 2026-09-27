@@ -204,6 +204,8 @@ class Session:
     address: str | None = None
     username: str | None = None
     must_change: bool = False
+    account_id: int | None = None
+    auth_method: str | None = None  # wallet | guest | google | password
 
     @property
     def actor(self) -> str:
@@ -222,11 +224,14 @@ class Sessions:
     def __init__(self, db, secret: str, hours: int = 12):
         self.db, self.secret, self.hours = db, secret, hours
 
-    def create(self, role: str, *, address: str | None = None, username: str | None = None) -> str:
+    def create(self, role: str, *, address: str | None = None, username: str | None = None,
+               account_id: int | None = None, auth_method: str | None = None, hours: int | None = None) -> str:
         sid = secrets.token_urlsafe(32)
         self.db.exec(
-            "INSERT INTO studio.sessions(id,address,username,role,expires_at) VALUES (%s,%s,%s,%s,now() + %s)",
-            (session_key(self.secret, sid), address, username, role, timedelta(hours=self.hours)),
+            "INSERT INTO studio.sessions(id,address,username,role,expires_at,account_id,auth_method) "
+            "VALUES (%s,%s,%s,%s,now() + %s,%s,%s)",
+            (session_key(self.secret, sid), address, username, role, timedelta(hours=hours or self.hours),
+             account_id, auth_method),
         )
         if secrets.randbelow(20) == 0:
             self.db.exec("DELETE FROM studio.sessions WHERE expires_at < now()")
@@ -236,7 +241,7 @@ class Sessions:
         if not sid:
             return None
         row = self.db.one(
-            "SELECT s.address, s.username, s.role, a.must_change FROM studio.sessions s "
+            "SELECT s.address, s.username, s.role, s.account_id, s.auth_method, a.must_change FROM studio.sessions s "
             "LEFT JOIN studio.admin_users a ON a.username = s.username "
             "WHERE s.id=%s AND s.expires_at > now()",
             (session_key(self.secret, sid),),
@@ -244,6 +249,7 @@ class Sessions:
         if not row:
             return None
         return Session(role=row["role"], address=row["address"], username=row["username"],
+                       account_id=row.get("account_id"), auth_method=row.get("auth_method"),
                        must_change=bool(row["must_change"]) and not password_locked() if row["username"] else False)
 
     def delete(self, sid: str | None) -> None:

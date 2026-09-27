@@ -1,4 +1,4 @@
-# BlockID Startup Passport — canonical facts and messaging
+# BlockID Business Passport — canonical facts and messaging
 
 Single source of truth for names, messaging, numbers, chains and flows. README, docs, the web app copy (EN/VI),
 the pitch decks and the diagrams must match this file. Live numbers: `GET https://eth.blockid.au/api/v1/platform/stats`.
@@ -8,7 +8,7 @@ Last verified: 26 Sep 2026 (after the Canva end-to-end demo run).
 
 | Use | Value |
 |---|---|
-| Product | **BlockID Startup Passport** |
+| Product | **BlockID Business Passport** (formerly BlockID Startup Passport) |
 | Company | Auschain Pty Ltd (BlockID.au, StartupValueIndex.com) |
 | Platform codename (internal, code/docs only) | BlockID Issuance Studio |
 | Valuation framework | Startup Value Index (**SVI**) — 7 weighted dimensions, grades A–E |
@@ -17,19 +17,36 @@ Last verified: 26 Sep 2026 (after the Canva end-to-end demo run).
 
 ## Messaging
 
-- **Tagline:** Agents propose. Humans approve. Chains prove.
-- **Hero (H1):** Know what your startup is worth, and who owns it.
-- **Sub-headline:** Give your startup a passport: valued by AI, approved by people, proven on-chain.
-- **Elevator pitch (≤ 40 words):** BlockID turns your company website into an evidence-cited valuation in minutes, then
-  turns your shareholder list into a verified, KYC-gated cap table you can grow and pay dividends from — on-chain,
-  with AI that never holds the keys.
-- **Why:** startup equity lives in spreadsheets; early valuations are slow, costly and unsourced; shareholders
-  cannot verify ownership.
-- **Who buys:** founders & SMEs (Australia, Vietnam); accelerators & VCs; licensed crowd-sourced-funding
-  intermediaries and transfer agents; RWA ecosystems (HashKey Chain).
+Public copy (landing page, meta tags, decks for investors) follows these rules: simple everyday words, short
+sentences, one clear message per line, and buttons that say exactly what happens.
+
+- **Product:** BlockID Business Passport.
+- **Hero (H1):** Know the business before you invest. · VI: Hiểu rõ doanh nghiệp trước khi bạn đầu tư.
+- **Pitch:** See how a private business is really doing, in plain words. Get regular updates with a fair value
+  checked by people, proof of the shares you own, and dividends paid straight to your wallet.
+- **Audience:** investors of every size, big and small, who put money into private businesses.
+- **The problem (investor pains):** (1) they don't really understand the business; (2) they can't follow it after
+  they invest: growth, profit, how their stake grows or gets diluted; (3) they have no clear proof of what they own;
+  (4) dividends are slow or never arrive.
+- **Pillars (what you get):**
+  - **Understand it** — a plain-language profile of the business, every number linked to where it came from.
+  - **Follow it** — regular updates (weekly, monthly, quarterly or yearly) with a fair value checked and approved by people.
+  - **Own it** — shares recorded in an online share register on blockchain; that record is your proof of ownership.
+  - **Get paid** — dividends go straight into your wallet, automatically.
+  - **Check it** — anyone can check the numbers and the share register for themselves.
+- **For businesses:** list your business to offer shares with all the information investors need.
+- **How it works (public, 4 steps):** the business shares its numbers → independent analysis sets a fair value,
+  approved by a person → shares are recorded on blockchain and held in your wallet → regular updates and dividends
+  to your wallet.
+- **CTAs:** "Try it now — no sign-up" (instant demo, a private key is created in the browser) · "List your business" (`/start`).
+- **Who buys:** investors (retail and professional) in private businesses; founders & SMEs raising from them
+  (Australia, Vietnam); accelerators & VCs; licensed crowd-sourced-funding intermediaries and transfer agents;
+  RWA ecosystems (HashKey Chain).
 - **Revenue:** issuance fee · cap-table SaaS · transfer-agent fee per transfer · 0.5–1% of dividend rounds ·
   custody via licensed partner.
-- **Legal line (always shown):** Testnet demo. Not an offer of securities.
+- **Legal line (always shown):** Testnet demo. Not an offer of securities or financial advice.
+- **Internal / technical tagline (engineering docs and hackathon judging only, not public landing copy):**
+  Agents propose. Humans approve. Chains prove. The valuation framework is still called SVI internally.
 
 ## How it works (canonical flow)
 
@@ -112,5 +129,8 @@ When numbers change, update this table first, then README "Results", the decks a
 | "Sepolia" for our anchor | Ethereum **Hoodi** (current Ethereum testnet) |
 | "two approval gates" (issue, then anchor) | **one issuance approval**; `approve-anchor` = re-sync only |
 | `keccak(valuation id)` as the anchored hash | keccak256 of the **canonical report JSON** (`studio/report_hash.py`) |
-| "Issuance Studio" in user-facing copy | **BlockID Startup Passport** |
-| "investment", "returns", "offer" in marketing copy | valuation, cap table, share register; always the legal line |
+| "Issuance Studio" or "Startup Passport" in user-facing copy | **BlockID Business Passport** |
+| "returns", "yield", "guaranteed", "earn", any promise of gains | plain facts: fair value, updates, dividends paid; always the legal line. "invest" / "investor" are allowed |
+| "offer" of shares to the public (except "not an offer" in the legal line) | "list your business", "businesses can offer shares with all the information investors need" (demo context) |
+| "AI", "agent", "LLM", "model" in public marketing copy | independent analysis, checked, regular updates |
+| Jargon on public pages: SVI, Merkle, issuer, mirror, anchor, relayer, "agents propose", four-eyes, ERC-3643, Hoodi, HashKey, SIWE, mAUD, gate, provenance | plain words: fair value, share register, recorded on blockchain, approved by a person, check the records. Technical names stay in docs, `/verify` and `/hsk` |

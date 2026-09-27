@@ -13,6 +13,7 @@ const CompaniesPage = lazy(() => import("./pages/Companies"));
 const AdminPage = lazy(() => import("./pages/Admin"));
 const HskPage = lazy(() => import("./pages/Hsk"));
 const VerifyPage = lazy(() => import("./pages/Verify"));
+const InvestorPage = lazy(() => import("./pages/Investor"));
 
 export function App() {
   const { pathname } = useLocation();
@@ -25,6 +26,7 @@ export function App() {
         <Suspense fallback={<PageLoading />}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/i/:view?/:tk?" element={<InvestorPage />} />
             <Route path="/start" element={<NewWizard />} />
             <Route path="/new" element={<Navigate to="/start" replace />} />
             <Route path="/v/:id/:step?" element={<ValuationPage />} />
