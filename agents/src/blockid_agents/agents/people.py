@@ -39,6 +39,7 @@ import hashlib
 import re
 import time
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Callable, Literal
 from urllib.parse import urlparse
@@ -49,6 +50,7 @@ from ..deps import Deps
 from ..llm import last_provider, primary_provider, provider_label, reset_listener, set_listener
 from ..schemas import EvidenceItem
 from ..tools.brave import fetch_page, sanitize_query
+from .cv_review import CVReview
 
 AGENT = "people_analyst"
 VERSION = "hr-1"
@@ -70,7 +72,7 @@ FETCH_PER_QUERY = 2
 SNIPPETS_PER_QUERY = 3
 PAGE_EXCERPT = 3_500
 MAX_PAGES_IN_PROMPT = 10
-CV_CHARS = 8_000
+CV_CHARS = 12_000
 UNREADABLE_HOSTS = ("linkedin.com", "facebook.com", "instagram.com", "x.com", "twitter.com")
 
 # ------------------------------------------------------------------ privacy: redaction + sensitive categories
@@ -390,6 +392,7 @@ class Tracker:
     def person(self, pid: int, status: str, *, facts: list | None = None, score: float | None = None,
                fit: float | None = None) -> None: ...
     def llm_event(self, event: dict, person: str | None = None) -> None: ...
+    def cv(self, pid: int, part: str, data) -> None: ...
 
 
 NULL_TRACKER = Tracker()
@@ -649,7 +652,7 @@ LOCATION_RE = re.compile(r"^[^\W\d_][^\d,]{0,40}(,\s*[^\W\d_][^\d,]{0,40}){0,2}$
 
 
 def founder_text(p: dict) -> str:
-    return "\n".join(redact(x) for x in (p.get("headline"), p.get("bio"), (p.get("cv") or "")[:20_000]) if x)
+    return "\n".join(redact(x) for x in (p.get("headline"), p.get("bio"), (p.get("cv") or "")[:40_000]) if x)
 
 
 def build_profile(p: dict, draft: CVDraft, ids: dict[str, str], facts: list[dict],
@@ -982,6 +985,23 @@ def _analyse(team: dict, people: list[dict], deps: Deps, target: dict | None, pr
     tr.note(f"Starting the review of {_plural(len(people), 'person', 'people')}"
             + (f" — {_plural(fetches, 'link')} to read" if fetches else "")
             + (f", up to {_plural(planned, 'web search', 'web searches')}" if planned else ""))
+    # detailed CV review runs next to the web research; each part shows on the live screen as it lands
+    pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cv")
+    try:
+        return _run(team, people, deps, target, prog, tr, current, rs, company, per_person, per_team, mode, tid, s,
+                    pool)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+
+def _run(team, people, deps, target, prog, tr, current, rs, company, per_person, per_team, mode, tid, s, pool):
+    reviews: dict[int, CVReview] = {}
+    for p in people:
+        if len((p.get("cv") or "").strip()) >= 200:
+            current["person"] = p["full_name"]
+            tr.note(f"Reviewing the CV of {p['full_name']} while the web research runs", person=p["full_name"])
+            reviews[p["id"]] = CVReview(deps, AGENT, s.hr_tier, p, _target_block(target), tr, sensitive=is_sensitive,
+                                        redact=redact, pool=pool)
     notes_by: dict[int, list[str]] = {}
     for p in people:
         current["person"] = p["full_name"]
@@ -1018,9 +1038,12 @@ def _analyse(team: dict, people: list[dict], deps: Deps, target: dict | None, pr
         first = provider_label(primary_provider(deps.agent_llm.get(AGENT, deps.llm), s.hr_tier))
         tr.begin("person_model", p["full_name"], "Reading the sources", _plural(n_pages, "page"))
         tr.note(f"{first} is reading {_plural(n_pages, 'page')} about {p['full_name']}", person=p["full_name"])
+        rv = reviews.get(p["id"])
+        if rv is not None:
+            rv.result()
         t0 = time.monotonic()
-        a = deps.ask(AGENT, s.hr_tier, SYSTEM_PERSON, _person_prompt(p, target, evidence, notes_by[p["id"]]),
-                     PersonAnalysis)
+        a = deps.ask(AGENT, s.hr_tier, SYSTEM_PERSON, _person_prompt(p, target, evidence, notes_by[p["id"]])
+                     + (rv.prompt_block() if rv is not None else ""), PersonAnalysis)
         tr.end("person_model")
         counters["llm_calls"] += 1
         models[f"person:{p['id']}"] = last_provider() or "unknown"
@@ -1057,6 +1080,8 @@ def _analyse(team: dict, people: list[dict], deps: Deps, target: dict | None, pr
                 "questions": [x for x in a.questions[:8] if not is_sensitive(x)],
                 "functions": sorted(set(a.functions) & set(FUNCTIONS)), "model": models[f"person:{p['id']}"],
                 "notes": notes_by[p["id"]]}
+        if rv is not None:
+            card["cv_review"] = rv.finish(facts, names_org)
         cards.append(card)
         counters["facts_verified"] += len(facts)
         counters["facts_unconfirmed"] += len(unconfirmed)

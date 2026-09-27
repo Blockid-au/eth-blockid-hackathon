@@ -397,4 +397,24 @@ def fake_people_llm() -> FakeLLM:
             red_flags=[pa.RedFlagClaim(text="unverified rumour", fact_ids=["p999f1"]),
                        pa.RedFlagClaim(text="FarmLink was sold (verified fact)", fact_ids=ids[:1])])
 
-    return FakeLLM({pa.PersonAnalysis: person, pa.TeamAnalysis: team})
+    from .agents import cv_review as cvr
+
+    def cv_structure(_s, _u):
+        return cvr.CVStructure(headline="CEO", location="Melbourne, Australia", roles=[
+            cvr.CVRole(org="AgriTrace", title="CEO", start="2021-01", end="present", kind="founder",
+                       highlights=["Raised A$2M seed"]),
+            cvr.CVRole(org="FarmLink", title="Head of Sales", start="2016-03", end="2019-12", team_size=12),
+            cvr.CVRole(org="Coles", title="Buyer", start="2012", end="2015")],
+            education=[cvr.CVEducation(institution="University of Melbourne", degree="MBA")], languages=["English"])
+
+    def cv_insights(_s, _u):
+        return cvr.CVInsights(summary="Agri supply-chain operator turned founder.", seniority="executive",
+                              skills=[cvr.CVSkill(name="Enterprise sales", level="expert", years=8)],
+                              achievements=[cvr.CVAchievement(text="Grew FarmLink revenue", metric="3x", org="FarmLink")],
+                              concerns=["No detail on the 2020 break"],
+                              claims=[cvr.CVClaim(text="Head of Sales at FarmLink", org="FarmLink", kind="role"),
+                                      cvr.CVClaim(text="Buyer at Coles", org="Coles", kind="role"),
+                                      cvr.CVClaim(text="Call me on +61 481 993 178", org="x")])
+
+    return FakeLLM({pa.PersonAnalysis: person, pa.TeamAnalysis: team, cvr.CVStructure: cv_structure,
+                    cvr.CVInsights: cv_insights})

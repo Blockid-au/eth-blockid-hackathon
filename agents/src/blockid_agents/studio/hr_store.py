@@ -295,7 +295,7 @@ class HrProgress(analyst.Tracker):
             "counters": {"pages_read": 0, "searches": 0, "facts_verified": 0, "facts_unconfirmed": 0,
                          "people_done": 0, "people_total": len((prev.get("partial") or {}).get("people") or [])},
             "partial": {"people": [{**x, "status": "waiting", "facts": [], "score": None, "fit": None,
-                                    "grade": None} for x in (prev.get("partial") or {}).get("people") or []]}}
+                                    "grade": None, "cv": None} for x in (prev.get("partial") or {}).get("people") or []]}}
         self.planned = {k: 0 for k in DEFAULT_STEP_S}
         self.done = {k: 0 for k in DEFAULT_STEP_S}
         self.cur_kind: str | None = None
@@ -363,6 +363,14 @@ class HrProgress(analyst.Tracker):
                         x["fit"] = fit
                     if status in ("working", "done"):
                         self.p["current"]["person"] = x["name"]
+        self.save()
+
+    def cv(self, pid: int, part: str, data) -> None:
+        """One part of the CV review (read / timeline / insights / claims) as soon as it is ready."""
+        with self.lock:
+            for x in self.p["partial"]["people"]:
+                if x["id"] == pid:
+                    x["cv"] = {**(x.get("cv") or {}), part: data}
         self.save()
 
     def llm_event(self, event: dict, person: str | None = None) -> None:

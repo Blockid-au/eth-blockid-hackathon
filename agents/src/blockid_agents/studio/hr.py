@@ -47,7 +47,7 @@ PersonIn (create / replace people / valuation start / person report):
       "equity_pct": 40.0,                            # optional, 0..100
       "urls": ["https://linkedin.com/in/jane", ...], # optional, <= 6 public http(s) URLs (LinkedIn is not fetched)
       "bio": "Ex-Atlassian PM ...",                  # optional <= 1500, shown as self-reported
-      "cv": "pasted CV text ..."                     # optional <= 20000, self-reported (emails/phones redacted)
+      "cv": "pasted CV text ..."                     # optional <= 40000, self-reported (emails/phones redacted)
     }
 
 Target (person reports; team reports use their business automatically):
@@ -275,7 +275,7 @@ class PersonIn(Body):
     equity_pct: float | None = Field(default=None, ge=0, le=100)
     urls: list[str] = Field(default_factory=list, max_length=6)
     bio: str | None = Field(default=None, max_length=1500)
-    cv: str | None = Field(default=None, max_length=20000)
+    cv: str | None = Field(default=None, max_length=40000)
 
     @field_validator("full_name")
     @classmethod

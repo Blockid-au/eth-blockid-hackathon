@@ -13,9 +13,11 @@ import { ACTIVE_HR, hostOf, initials, partLabel, Ring, STATUS_TONE, useHrTitle }
 import { LiveRun } from "./live";
 import { EthCtas } from "./ethCta";
 import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, cleanWhy, EvLabel, evOfSource, fmtDate, halfWidth, Icon, SrcChips, srcIndex, type Conf, type SrcIndex } from "./evidence";
+import { CvAnalysis } from "./CvAnalysis";
+import type { CvReview } from "./cvTypes";
 import { ConsentFooter, MethodBox, Panel, PartsTable, ReportActions, ScoreInline, SourcesTable, TabNav } from "./reportParts";
 
-export const PERSON_TABS = ["overview", "score", "requirements", "cv", "assessment", "sources"] as const;
+export const PERSON_TABS = ["overview", "score", "requirements", "cv", "cvreview", "assessment", "sources"] as const;
 type PTab = (typeof PERSON_TABS)[number];
 
 /** Load a report (person or team) with polling while it runs; shared by the person and team pages. */
@@ -417,9 +419,10 @@ export function PersonReport({ team, card, base, tab }: { team: Team; card: Pers
   const parts = card.fit?.components ?? card.subscores;
   const conf: Conf = confidenceOf(parts).conf;
   const c = rep.counters ?? {};
+  const cvr = (card as PersonCard & { cv_review?: CvReview }).cv_review;
   const tabs: [PTab, DictKey, number?][] = [
     ["overview", "hr.tab.overview"], ["score", "hr.tab.score"], ["requirements", "hr.tab.requirements", card.fit?.requirements?.length],
-    ["cv", "hr.tab.cv"], ["assessment", "hr.tab.assessment"], ["sources", "hr.tab.sources", ix.byId.size],
+    ["cv", "hr.tab.cv"], ...(cvr ? [["cvreview", "hr3.tab"] as [PTab, DictKey]] : []), ["assessment", "hr.tab.assessment"], ["sources", "hr.tab.sources", ix.byId.size],
   ];
   const path = base.replace(/\/$/, "");
   const tgv = team.target;
@@ -446,6 +449,13 @@ export function PersonReport({ team, card, base, tab }: { team: Team; card: Pers
         <div className="hp-main">
           <Panel id="overview" cur={tab} title={t("hr.tab.overview")}>
             <Hero card={card} team={team} rep={rep} ix={ix} path={path} />
+            {cvr?.timeline && (
+              <Link className="hx-cvcallout hr-noprint" to={`${path}/cvreview${location.search}`}>
+                <span className="ic" aria-hidden="true">CV</span>
+                <span><b>{t("hr3.ov.h")}</b><small>{t("hr3.ov.p", { y: fmt(cvr.timeline.stats.years), r: fmt(cvr.timeline.stats.roles), g: fmt(cvr.timeline.stats.gaps.length), c: fmt(cvr.claims.filter((x) => x.status === "confirmed").length), m: fmt(cvr.claims.length) })}</small></span>
+                <span className="go">{t("hr3.ov.open")} →</span>
+              </Link>
+            )}
             {bizTarget && <EthCtas website={bizTarget.website ?? team.website} valuationId={bizTarget.valuation_id ?? team.valuation_id} name={bizTarget.company ?? (team.mode === "team" ? team.name : null)} />}
           </Panel>
           <Panel id="score" cur={tab} title={t("hr.tab.score")}>
@@ -465,6 +475,7 @@ export function PersonReport({ team, card, base, tab }: { team: Team; card: Pers
           </Panel>
           <Panel id="requirements" cur={tab} title={t("hr.tab.requirements")}><Requirements card={card} ix={ix} /></Panel>
           <Panel id="cv" cur={tab} title={t("hr.tab.cv")}><Cv card={card} ix={ix} /></Panel>
+          <Panel id="cvreview" cur={tab} title={t("hr3.tab")}><CvAnalysis rv={cvr} ix={ix} /></Panel>
           <Panel id="assessment" cur={tab} title={t("hr.tab.assessment")}><Assessment card={card} /></Panel>
           <Panel id="sources" cur={tab} title={t("hr.tab.sources")}>
             <div className="hp-card">

@@ -12,6 +12,8 @@ import { FieldError, ROLE_SUGGESTIONS } from "../../components/PeopleEditor";
 import { Icon } from "./evidence";
 import { hostOf, initials, useHrTitle } from "./common";
 import { bizInitials, handedPeople, hueOf, parsePaste, suggestRequirements, type PasteGuess } from "./parse";
+import { CvDrop, type CvMeta } from "./CvDrop";
+import { CV_MAX_CHARS, linksIn, type CvRead } from "./cvFile";
 
 const MAX_MUST = 5, MAX_NICE = 4, MAX_LINKS = 6;
 const DRAFT_KEY = "blockid-hr-person-draft-v2";
@@ -20,11 +22,11 @@ type Biz = { kind: "valuation" | "listed"; id: string; name: string; sub: string
 
 interface Draft {
   step: Step; name: string; role: string; kind: PersonKind; headline: string; ft: "" | "yes" | "no"; year: string; equity: string;
-  links: string[]; bio: string; cv: string; tt: "business" | "role"; biz: Biz | null; bizWeb: string; company: string; title: string; desc: string;
+  links: string[]; bio: string; cv: string; cvMeta: CvMeta | null; tt: "business" | "role"; biz: Biz | null; bizWeb: string; company: string; title: string; desc: string;
   must: string[]; nice: string[];
 }
 const EMPTY: Draft = {
-  step: 1, name: "", role: "", kind: "founder", headline: "", ft: "", year: "", equity: "", links: [""], bio: "", cv: "",
+  step: 1, name: "", role: "", kind: "founder", headline: "", ft: "", year: "", equity: "", links: [""], bio: "", cv: "", cvMeta: null,
   tt: "business", biz: null, bizWeb: "", company: "", title: "", desc: "", must: [], nice: [],
 };
 const STEP_KEYS: Record<Step, RegExp> = { 1: /^(name|role|headline|year|equity|link\d+|bio|cv)$/, 2: /^(biz|bizWeb|company|title|desc)$/, 3: /^(c1|c2)$/ };
@@ -107,6 +109,21 @@ export function HrNewPerson() {
     setPaste("");
   };
 
+  /* ---------- CV file: fill empty fields from it, offer its links ---------- */
+  const cvLinks = useMemo(() => (d.cvMeta ? linksIn(d.cv).filter((u) => normUrl(u) && !d.links.includes(normUrl(u)!)) : []), [d.cv, d.cvMeta, d.links]);
+  const onCv = (r: CvRead, meta: CvMeta) => {
+    const g = parsePaste(r.text);
+    const p: Partial<Draft> = { cv: r.text, cvMeta: meta };
+    if (!d.name.trim() && g.name) p.name = g.name.slice(0, 120);
+    const hl = (g.headline ?? "").replace(/\[(?:email|phone)\]/g, "").replace(/https?:\/\/\S+|\b(?:www\.|linkedin\.com|github\.com)\S*/gi, "").replace(/(?:\s*[·|•,;]\s*)+$/g, "").replace(/(?:\s*[·|•]\s*){2,}/g, " · ").trim();
+    if (!d.headline.trim() && hl) p.headline = hl.slice(0, 200);
+    const r0 = hl.split(/\s*[·|•,–—]\s*/)[0]?.trim() ?? "";
+    if (!d.role.trim() && (r0 && r0.length <= 60 ? r0 : g.role)) p.role = (r0 && r0.length <= 60 ? r0 : g.role!).slice(0, 80);
+    const found = r.links.map((u) => normUrl(u)).filter((u): u is string => !!u && /linkedin\.com\/in|github\.com|scholar\.google/i.test(u));
+    if (found.length) { const l = addUrls(found); p.links = l.length ? l : [""]; }
+    set(p);
+  };
+
   /* ---------- businesses: my valuations + BlockID businesses ---------- */
   const vals = useAsync(() => (me ? api.myValuations() : Promise.resolve([])), [me?.address, me?.username]);
   const cos = useAsync(() => api.companies(), []);
@@ -180,7 +197,7 @@ export function HrNewPerson() {
     if (d.equity.trim()) { const p = Number(d.equity.replace(",", ".")); if (!Number.isFinite(p) || p < 0 || p > 100) e.equity = { k: "hr.e.equity" }; }
     d.links.forEach((l, i) => { if (l.trim() && !normUrl(l)) e["link" + i] = { k: "hr.e.url", v: { u: l.trim().slice(0, 48) } }; });
     if (d.bio.length > 1500) e.bio = { k: "hr.e.bio" };
-    if (d.cv.length > 20000) e.cv = { k: "hr.np.e.cv" };
+    if (d.cv.length > CV_MAX_CHARS) e.cv = { k: "hr.np.e.cv" };
     if (d.tt === "business") {
       if (d.bizWeb.trim() && !normUrl(d.bizWeb)) e.bizWeb = { k: "hr.e.website" };
       else if (!d.biz && !d.bizWeb.trim()) e.biz = { k: "hr.np.e.biz" };
@@ -260,6 +277,12 @@ export function HrNewPerson() {
   /* ---------- step bodies ---------- */
   const s1 = (
     <>
+      <CvDrop meta={d.cvMeta} links={cvLinks} onRead={onCv} onClear={() => set({ cv: "", cvMeta: null })} />
+      {cvLinks.length > 0 && (
+        <div className="hx-gchips hx-cvlinks"><span className="lb">{t("hr3.cv.addlinks")}</span>
+          {cvLinks.slice(0, 4).map((u) => <button key={u} type="button" onClick={() => { const l = addUrls([normUrl(u)!]); set({ links: l.length ? l : [""] }); }}><small>{t("hr2.np.g.link")}</small>{u.replace(/^https?:\/\/(www\.)?/, "")}</button>)}
+        </div>
+      )}
       <div className="hx-quick">
         <label htmlFor="np-paste"><b>{t("hr2.np.quick")}</b><span>{t("hr2.np.quick.p")}</span></label>
         <textarea id="np-paste" rows={2} value={paste} placeholder={t("hr2.np.quick.ph")} onChange={(e) => setPaste(e.target.value)} spellCheck={false} />
@@ -321,7 +344,7 @@ export function HrNewPerson() {
             {fld("equity", "hr.np.equity", <input type="text" inputMode="decimal" maxLength={6} placeholder="0–100" value={d.equity} onChange={(e) => set({ equity: e.target.value })} {...aria("equity", d.equity)} />, undefined, d.equity)}
           </div>
           {fld("bio", "hr.p.bio", <textarea rows={3} value={d.bio} placeholder={t("hr.p.bio.ph")} onChange={(e) => set({ bio: e.target.value })} {...aria("bio", d.bio)} />, t("hr.np.bio.hint", { n: fmt(d.bio.length) }), d.bio)}
-          {fld("cv", "hr.np.cv", <textarea rows={4} value={d.cv} placeholder={t("hr.np.cv.ph")} onChange={(e) => set({ cv: e.target.value })} {...aria("cv", d.cv)} />, t("hr.np.cv.hint", { n: fmt(d.cv.length) }), d.cv)}
+          {fld("cv", "hr.np.cv", <textarea rows={4} value={d.cv} placeholder={t("hr.np.cv.ph")} onChange={(e) => set({ cv: e.target.value, ...(e.target.value.trim() ? {} : { cvMeta: null }) })} {...aria("cv", d.cv)} />, t("hr.np.cv.hint", { n: fmt(d.cv.length) }), d.cv)}
         </div>
       </details>
     </>

@@ -11,6 +11,8 @@ import { useNow } from "../../lib/hooks";
 import { hostOf, initials } from "./common";
 import { Icon } from "./evidence";
 import { EthCtas } from "./ethCta";
+import { CvLivePanel } from "./CvAnalysis";
+import type { CvLive } from "./cvTypes";
 
 const STEP_PHASE: Record<string, HrPhase> = {
   queued: "queued", start: "queued", fetch: "reading", read: "reading", search: "searching", extract: "extracting",
@@ -95,6 +97,7 @@ function PersonLive({ p, role }: { p: HrPartialPerson; role?: string }) {
           {p.score != null && <span><small>{t("hr2.run.quality")}</small><b className="num">{fmt(Math.round(p.score))}</b></span>}
         </div>
       )}
+      <CvLivePanel cv={(p as HrPartialPerson & { cv?: CvLive | null }).cv} status={p.status} />
       {facts.length > 0 ? (
         <ul className="hx-pl-facts">
           {facts.slice(0, 3).map((f) => (
