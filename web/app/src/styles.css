@@ -714,3 +714,20 @@ a.ri:hover { background: var(--sunken); }
 .signin.compact .signin-opts { grid-template-columns: 1fr; gap: 14px; }
 .menu.signin-menu { width: min(320px, calc(100vw - 32px)); padding: 14px; display: block; }
 @media (max-width: 760px) { .signin-opts { grid-template-columns: 1fr; } }
+
+/* ---------- business updates (pages/Updates.tsx) ---------- */
+.upd-list { display: grid; gap: 12px; }
+.upd-card { color: inherit; text-decoration: none; gap: 8px; }
+a.upd-card:hover { border-color: var(--accent); }
+.upd-sum { margin: 0; font-size: .92rem; line-height: 1.5; }
+.upd-lead { margin: 0; font-size: 1.05rem; line-height: 1.55; }
+.upd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.upd-chip { display: inline-flex; gap: 6px; align-items: baseline; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: .8rem; background: var(--bg); }
+.upd-chip small { color: var(--muted); }
+.upd-ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: .92rem; }
+.upd-ul.warn li::marker { color: var(--warn); }
+.upd-item { gap: 10px; }
+.upd-rec { border-color: var(--gold-mark); }
+.upd-check { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .9rem; }
+.upd-check .ok { color: var(--up); } .upd-check .bad { color: var(--down); }
+@media (max-width: 640px) { .upd-chip { font-size: .76rem; } }

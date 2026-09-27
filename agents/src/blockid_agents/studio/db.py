@@ -9,7 +9,7 @@ import json
 import logging
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -43,7 +43,7 @@ def _default(o: Any):
 
     if isinstance(o, Decimal):
         return int(o) if o == o.to_integral_value() else float(o)
-    if isinstance(o, datetime):
+    if isinstance(o, (datetime, date)):
         return o.isoformat()
     raise TypeError(f"not JSON serialisable: {type(o).__name__}")
 

@@ -277,7 +277,44 @@ export interface Approvals {
   companies: ApprovalCompany[];
   mints: MintReq[];
   dividends: DividendReq[];
+  /** business updates waiting for a platform admin (empty for company admins) */
+  updates?: BizUpdate[];
 }
+
+/* ---------- business updates (studio/updates.py) ---------- */
+export type Cadence = "weekly" | "monthly" | "quarterly" | "annual";
+export type UpdateStatus = "draft" | "pending_approval" | "publishing" | "published" | "rejected" | "failed";
+export const METRICS = ["revenue", "gross_profit", "net_profit", "cash", "customers", "headcount"] as const;
+export type Metric = (typeof METRICS)[number];
+export interface UpdateKpi { metric: Metric | string; value: number; prev: number | null; change_pct: number | null; unit: "AUD" | "count" | string }
+export interface UpdateBody { summary: string; highlights: string[]; risks: string[]; kpis: UpdateKpi[]; note: string }
+export interface BizUpdate {
+  id: string;
+  ticker: string;
+  company: string;
+  company_id: number;
+  cadence: Cadence;
+  period_start: string;
+  period_end: string;
+  period_label: string;
+  status: UpdateStatus;
+  title: string;
+  body: UpdateBody;
+  content_hash?: string | null;
+  anchor?: { chain: string; chain_id: number; tx_hash: string; block?: number | null; to?: string; content_hash?: string } | null;
+  published_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+  approved_by?: string | null;
+  error?: string | null;
+  reason?: string | null;
+  /** GET /v1/updates/{id} only: the exact canonical JSON text whose sha256 is content_hash */
+  canonical?: string;
+  recorded?: { chain_id: number; tag: string; calldata: string | null };
+}
+export interface CompanyUpdates { ticker: string; name: string; can_manage: boolean; updates: BizUpdate[] }
+export interface KpiPeriods { ticker: string; metrics: { metric: Metric; unit: string }[]; periods: { period_end: string; values: Partial<Record<Metric, number>> }[] }
 export interface IssuerWallet {
   address: string;
   label: string;
@@ -420,4 +457,19 @@ export const api = {
   revokeIssuerWallet: (address: string) => request<unknown>("POST", `/v1/admin/issuer-wallets/${enc(address)}/revoke`),
   audit: () => request<AuditRow[]>("GET", "/v1/admin/audit"),
   adminWallets: () => request<AdminWallets>("GET", "/v1/admin/wallets"),
+  // business updates
+  companyUpdates: (ticker: string) => request<CompanyUpdates>("GET", `/v1/companies/${enc(ticker)}/updates`),
+  update: (id: string) => request<BizUpdate>("GET", `/v1/updates/${enc(id)}`),
+  myUpdates: () => request<{ updates: BizUpdate[] }>("GET", "/v1/me/updates"),
+  demoUpdates: () => request<{ updates: BizUpdate[] }>("GET", "/v1/demo/updates"),
+  kpis: (ticker: string) => request<KpiPeriods>("GET", `/v1/companies/${enc(ticker)}/kpis`),
+  putKpis: (ticker: string, period_end: string, values: Partial<Record<Metric, number | null>>) =>
+    request<KpiPeriods>("PUT", `/v1/companies/${enc(ticker)}/kpis`, { period_end, values }),
+  prepareUpdate: (ticker: string, body: { cadence: Cadence; period_end: string; kpis?: Partial<Record<Metric, number | null>>; note?: string }) =>
+    request<BizUpdate>("POST", `/v1/companies/${enc(ticker)}/updates`, body),
+  editUpdate: (id: string, body: { title?: string; summary?: string; note?: string; highlights?: string[]; risks?: string[] }) =>
+    request<BizUpdate>("PATCH", `/v1/updates/${enc(id)}`, body),
+  submitUpdate: (id: string) => request<BizUpdate>("POST", `/v1/updates/${enc(id)}/submit`),
+  approveUpdate: (id: string) => request<{ id: string; status: string; content_hash: string }>("POST", `/v1/admin/updates/${enc(id)}/approve`),
+  rejectUpdate: (id: string, reason: string) => request<BizUpdate>("POST", `/v1/admin/updates/${enc(id)}/reject`, { reason }),
 };

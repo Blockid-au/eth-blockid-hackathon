@@ -55,3 +55,22 @@ CREATE TABLE IF NOT EXISTS studio.accounts (id serial PRIMARY KEY, provider text
 CREATE TABLE IF NOT EXISTS studio.account_wallets (account_id int NOT NULL REFERENCES studio.accounts(id) ON DELETE CASCADE, address text NOT NULL, kind text NOT NULL DEFAULT 'device', linked_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (account_id, address));
 ALTER TABLE studio.sessions ADD COLUMN IF NOT EXISTS account_id int;
 ALTER TABLE studio.sessions ADD COLUMN IF NOT EXISTS auth_method text;
+-- business updates (studio/updates.py, studio/update_draft.py): KPI values per period, drafted updates,
+-- approved by a person, then the issuer records the content hash on BlockID Chain (issuer/service.py disclose)
+CREATE TABLE IF NOT EXISTS studio.kpi_values (
+  id bigserial PRIMARY KEY, company_id int NOT NULL REFERENCES studio.companies(id) ON DELETE CASCADE,
+  period_end date NOT NULL, metric text NOT NULL, value numeric NOT NULL, unit text NOT NULL DEFAULT 'AUD',
+  source text NOT NULL DEFAULT 'manual', entered_by text, created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (company_id, metric, period_end));
+CREATE TABLE IF NOT EXISTS studio.updates (
+  id text PRIMARY KEY, company_id int NOT NULL REFERENCES studio.companies(id) ON DELETE CASCADE,
+  cadence text NOT NULL CHECK (cadence IN ('weekly','monthly','quarterly','annual')),
+  period_start date NOT NULL, period_end date NOT NULL,
+  status text NOT NULL DEFAULT 'draft'
+    CHECK (status IN ('draft','pending_approval','publishing','published','rejected','failed')),
+  title text NOT NULL DEFAULT '', body jsonb NOT NULL DEFAULT '{}',   -- {summary, highlights[], risks[], kpis[], note}
+  content_hash text, anchor jsonb,                                     -- {chain, chain_id, tx_hash, block, to}
+  created_by text, approved_by text, published_at timestamptz, error text, reason text,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (company_id, cadence, period_end));
+CREATE INDEX IF NOT EXISTS updates_status_idx ON studio.updates (status, company_id);

@@ -20,6 +20,7 @@ import { useMyCompanies } from "../lib/companyAdmins";
 import { Crumbs, FlowRail, Pager, RailGroup, RailItem, SideLayout, StepHead } from "../components/Shell";
 import { CO_SEG, CO_STEP, coGate, coReach, coStep, LIVE, valPath, WS, type WsSection } from "../lib/flow";
 import { ErrorFix } from "../components/ErrorFix";
+import { CompanyUpdates } from "./Updates";
 
 const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring", "partially_anchored"];
 const RUNNING: CoStatus[] = ["issuing", "anchoring"];
@@ -394,7 +395,7 @@ export default function CompanyPage() {
   const why = (s: Sec): string | null => {
     if (s === "issue") return null;
     if (s === "sync" || s === "wallet") return CO_STEP[s] <= reach ? null : t("flow.locked");
-    if (s === "overview" || s === "cap-table" || s === "activity") return null;
+    if (s === "overview" || s === "cap-table" || s === "activity" || s === "updates") return null;
     if (!live) return t("ws.needlive");
     if (s === "transfers") return localToken ? (me ? null : t("ws.needsign")) : t("ws.needlive");
     if (s === "mint" || s === "dividends") return canRequest ? null : t("ws.needauth");
@@ -500,6 +501,7 @@ export default function CompanyPage() {
           ) : null}
         </>
       )}
+      {sec === "updates" && <CompanyUpdates c={c} canManage={canManage} live={live} />}
       {sec === "cap-table" && <CapTable rows={holders} ticker={c.ticker} source={c.cap_table_source} block={c.cap_table_block} />}
       {sec === "transfers" && <TransferPanel c={c} onDone={() => void q.reload()} />}
       {sec === "mint" && <MintForm c={c} onSent={() => void q.reload()} />}

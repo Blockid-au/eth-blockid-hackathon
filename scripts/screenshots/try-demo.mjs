@@ -1,4 +1,4 @@
-// First-visit demo check: home -> "Try it now" (no wallet) -> portfolio -> account -> list a business.
+// First-visit check: the demo account opens with no login -> portfolio -> account -> list a business.
 import { chromium } from "playwright";
 const APP = process.env.APP_URL || "https://eth.blockid.au";
 const OUT = process.env.OUT_DIR || "/tmp/try-demo";
@@ -29,9 +29,7 @@ async function run(label, viewport, scheme) {
   await p.goto(APP + "/i/demo/ARW", { waitUntil: "networkidle" });
   await shot("demo-position");
   await p.goto(APP + "/i/account", { waitUntil: "networkidle" });
-  await p.getByRole("button", { name: /Show my private key/i }).click();
-  const key = await p.locator(".inv-key").innerText();
-  console.log(label, "key shown:", /^0x[0-9a-f]{64}$/.test(key.trim()));
+  console.log(label, "demo account:", me.auth_method === "demo");
   await shot("account");
   await p.goto(APP + "/start", { waitUntil: "networkidle" });
   await shot("start");

@@ -34,6 +34,7 @@ from . import metrics
 from .errors import company_error_info
 from .company_admins import CompanyAuthz, seed_owner
 from .gas import GasDripper
+from .updates import pending_updates
 from . import accounts as acct
 from .mailer import Mailer, welcome
 from .auth import (
@@ -610,6 +611,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
                       " WHERE d.status='pending'" + only + " ORDER BY d.created_at", p)
         return {"scope": "platform" if ids is None else "company", "company_ids": ids,
                 "valuations": vals, "companies": comps, "mints": jsonable(mints),
+                "updates": pending_updates(db, ids),
                 "dividends": [{**jsonable(d), "total_maud": int(d["total_units"]) / 1e6} for d in divs]}
 
     @r.get("/v1/admin/companies")

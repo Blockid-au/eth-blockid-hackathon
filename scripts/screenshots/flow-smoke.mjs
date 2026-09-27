@@ -38,6 +38,7 @@ const pub = [
   ["home", "/"], ["start", "/start"], ["new-redirect", "/new"], ["sample", "/v/sample"],
   ["val-auto", `/v/${VAL_ID}`], ["val-research", `/v/${VAL_ID}/research`], ["val-ticker", `/v/${VAL_ID}/ticker`],
   ["co-auto", `/c/${TK}`], ["co-issue", `/c/${TK}/issue`], ["co-sync", `/c/${TK}/sync`], ["co-wallet", `/c/${TK}/wallet`],
+  ["co-updates", "/c/CNV/updates"], ["inv-demo", "/i/demo"], ["inv-demo-pos", "/i/demo/CNV"],
   ["co-cap", `/c/${TK}/cap-table`], ["co-activity", `/c/${TK}/activity`], ["co-mint-locked", `/c/${TK}/mint`], ["companies", "/companies"],
 ];
 const desk = await browser.newContext({ viewport: { width: 1360, height: 900 } });
@@ -55,7 +56,7 @@ await p.waitForTimeout(2500);
 await p.close();
 await tour(adm, [
   ["ad-inbox", "/admin"], ["ad-dash", "/admin/dashboard"], ["ad-val", "/admin/valuations"], ["ad-iss", "/admin/issuance"],
-  ["ad-sync", "/admin/sync"], ["ad-mints", "/admin/mints"], ["ad-tr", "/admin/transfers"], ["ad-cos", `/admin/companies/${TK}`],
+  ["ad-sync", "/admin/sync"], ["ad-mints", "/admin/mints"], ["ad-updates", "/admin/updates"], ["ad-co-updates", "/c/CNV/updates"], ["ad-tr", "/admin/transfers"], ["ad-cos", `/admin/companies/${TK}`],
   ["ad-wallets", "/admin/wallets"], ["ad-audit", "/admin/audit"], ["ad-bogus", "/admin/nope"], ["ad-co-team", `/c/${TK}/team`],
   ["ad-ret", `/admin/valuations/xyz?return=%2Fv%2F${VAL_ID}%2Fticker`],
 ], "a");

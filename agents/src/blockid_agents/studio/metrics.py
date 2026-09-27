@@ -113,6 +113,7 @@ EVENT_TEXT = {
     "dividend_claimed": "dividend claimed",
     "mint_requested": "mint requested",
     "rejected": "rejected",
+    "update_published": "business update published",
 }
 
 
@@ -131,6 +132,8 @@ def event_text(e: dict) -> str:
         return f"{d['contract']} deployed on {syncstate.LABELS.get(str(e.get('chain')), e.get('chain') or '')}"
     if e["kind"] in ("sync_failed", "sync_skipped") and d.get("error"):
         return f"{syncstate.LABELS.get(str(e.get('chain')), e.get('chain'))}: {d['error']}"[:300]
+    if e["kind"] == "update_published" and d.get("title"):
+        return f"business update published: {d['title']}"[:300]
     if e["kind"] == "dividend_created" and d.get("total_units"):
         return f"dividend round {int(d['total_units']) / 1e6:,.2f} mAUD"
     return base

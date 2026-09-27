@@ -10,17 +10,20 @@ import { SignInCard } from "../components/SignIn";
 import { useAsync, useTitle } from "../lib/hooks";
 import { GRADE_C } from "../lib/math";
 import { shortAddr } from "../lib/addr";
+import { CompanyUpdateList, UpdateFeed, UpdatePage } from "./Updates";
 
 /**
  * Investor portal: what you own, what it is worth at the latest approved price, and the dividends you received.
  *   /i            your holdings (or the sample portfolio + sign-in when signed out)
  *   /i/demo       sample portfolio (a real holder on the testnet), no sign-in needed
  *   /i/h/:tk      one of your holdings;  /i/demo/:tk  one holding of the sample portfolio
+ *   /i/u/:id      one published business update (with "Check this update")
  *   /i/account    how you signed in, your wallet, key backup / restore
  */
 export default function InvestorPage() {
   const { view, tk } = useParams();
   if (view === "account") return <Account />;
+  if (view === "u" && tk) return <UpdatePage id={tk} />;
   if (view === "demo") return <Portfolio demo tk={tk} />;
   if (view === "h" && tk) return <Portfolio tk={tk} />;
   if (!view || view === "holdings") return <Portfolio />;
@@ -54,6 +57,7 @@ function Portfolio({ demo = false, tk }: { demo?: boolean; tk?: string }) {
       {!mine && <div className="banner gold" role="note">{t("in.demo.banner")}</div>}
       {mine && me?.auth_method === "demo" && <div className="banner gold" role="note">{t("in.demo.acct")} <Link to="/i/account">{t("nav.signin")}</Link></div>}
       {empty ? <Empty /> : <Summary h={h} base={base} />}
+      {!empty && h.positions.length > 0 && <UpdateFeed demo={!mine} />}
       {empty && <SampleBelow />}
       <p className="muted-sm">{t("in.legal")}</p>
     </div>
@@ -132,6 +136,7 @@ function PositionView({ p, demo, back }: { p: Position; demo: boolean; back: str
           <span className="muted-sm">{t("in.pos.divSub")}</span>
         </section>
       </div>
+      <CompanyUpdateList ticker={p.ticker} />
       <section className="card">
         <h4>{t("in.pos.next")}</h4>
         <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>

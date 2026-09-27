@@ -4,7 +4,7 @@ import { safeNext } from "../components/DemoGuide";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import {
-  api, ApiError, type AdminCompany, type ApprovalCompany, type Approvals, type AdminWallets, type AuditRow, type CompanySummary, type DividendReq, type IssuerWallet, type MintReq, type Stats, type Valuation,
+  api, ApiError, type AdminCompany, type ApprovalCompany, type Approvals, type AdminWallets, type AuditRow, type BizUpdate, type CompanySummary, type DividendReq, type IssuerWallet, type MintReq, type Stats, type Valuation,
 } from "../api";
 import { GradeChart, KTile, Ranges, StepArea } from "../components/charts";
 import { MarkPanel } from "../components/MarkPanel";
@@ -23,6 +23,7 @@ import { Crumbs, RailGroup, RailItem, SideLayout, StepHead } from "../components
 import { QUEUES, queueCounts, queueItems, type QueueKey } from "../lib/flow";
 import { CompanyAdminsPanel } from "../components/CompanyAdmins";
 import { ErrorFix } from "../components/ErrorFix";
+import { StatusPill, UpdateView } from "./Updates";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
@@ -352,11 +353,34 @@ function DividendItem({ d, busy, act }: { d: DividendReq; busy: boolean; act: Ac
   );
 }
 
-type AnyItem = Valuation | ApprovalCompany | MintReq | DividendReq;
+function UpdateItem({ u, busy, act }: { u: BizUpdate; busy: boolean; act: Act }) {
+  const { t, date } = useI18n();
+  const [reason, setReason] = useState("");
+  return (
+    <div className="pane">
+      <div className="between">
+        <span><b className="mono">{u.ticker}</b> · {u.company} · <b>{u.title}</b> <span className="muted-sm">· {t("upd.period", { c: t(("upd.cad." + u.cadence) as DictKey), p: u.period_label })}{u.created_by ? " · " + t("ap.req", { w: shortAddr(u.created_by) || u.created_by }) : ""}{u.updated_at ? " · " + date(u.updated_at, true) : ""}</span></span>
+        <span className="row" style={{ gap: 8 }}><StatusPill s={u.status} /><Link className="btn ghost sm" to={`/c/${u.ticker}/updates`}>{t("ad.co.open")}</Link></span>
+      </div>
+      {u.status === "failed" && u.error && <p className="banner warn">{t("upd.failed", { e: u.error })}</p>}
+      <p className="note">{t("upd.ad.p")}</p>
+      <UpdateView u={u} />
+      <label className="lf"><span>{t("upd.ad.reason")}</span><input value={reason} maxLength={1000} onChange={(e) => setReason(e.target.value)} /></label>
+      <div className="row">
+        <span className="grow" />
+        <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.rejectUpdate(u.id, reason.trim() || "rejected by admin"), t("upd.ad.rejected"))}>{t("upd.ad.reject")}</button>
+        <button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.approveUpdate(u.id), t("upd.ad.published"))}>{t("upd.ad.approve")}</button>
+      </div>
+    </div>
+  );
+}
+
+type AnyItem = Valuation | ApprovalCompany | MintReq | DividendReq | BizUpdate;
 const keyOf = (q: QueueKey, x: AnyItem): string =>
-  q === "valuations" ? (x as Valuation).id : q === "issuance" || q === "sync" ? (x as ApprovalCompany).ticker : String((x as MintReq).id);
+  q === "valuations" || q === "updates" ? (x as Valuation | BizUpdate).id : q === "issuance" || q === "sync" ? (x as ApprovalCompany).ticker : String((x as MintReq).id);
 function itemLabel(q: QueueKey, x: AnyItem): string {
   if (q === "valuations") return (x as Valuation).url.replace(/^https?:\/\//, "");
+  if (q === "updates") return `${(x as BizUpdate).ticker} · ${(x as BizUpdate).title}`;
   if (q === "issuance" || q === "sync") return `${(x as ApprovalCompany).ticker} · ${(x as ApprovalCompany).name}`;
   return `${(x as MintReq).ticker ?? ""} #${(x as MintReq).id}`;
 }
@@ -432,6 +456,7 @@ function QueueView({ q, ap, wallets, onChanged }: { q: QueueKey; ap: Async<Appro
           {q === "sync" && <SyncItem key={keyOf(q, cur)} c={cur as ApprovalCompany} busy={busy} act={act} />}
           {q === "mints" && <MintItem key={keyOf(q, cur)} m={cur as MintReq} busy={busy} act={act} />}
           {q === "dividends" && <DividendItem key={keyOf(q, cur)} d={cur as DividendReq} busy={busy} act={act} />}
+          {q === "updates" && <UpdateItem key={keyOf(q, cur)} u={cur as BizUpdate} busy={busy} act={act} />}
           {items.length > 1 && (
             <div className="pane">
               <h4>{t(("ad.q." + q) as DictKey)} · {items.length}</h4>
@@ -479,7 +504,7 @@ function Inbox({ ap, nTr }: { ap: Async<Approvals>; nTr: number | null }) {
               );
             })}
             <tr>
-              <td><span className="mono muted">6</span> <Link to="/admin/transfers">{t("ad.q.transfers")}</Link></td>
+              <td><span className="mono muted">{QUEUES.length + 1}</span> <Link to="/admin/transfers">{t("ad.q.transfers")}</Link></td>
               <td className="r"><b>{nTr ?? "–"}</b></td><td className="muted-sm">–</td>
               <td className="r">{nTr ? <Link className="btn ghost sm" to="/admin/transfers">{t("ad.review")}</Link> : <span className="pill ok">✓</span>}</td>
             </tr>
@@ -729,7 +754,7 @@ function AuditTab() {
 }
 
 /* ================= console ================= */
-const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "transfers", "companies", "wallets", "audit"] as const;
+const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "updates", "transfers", "companies", "wallets", "audit"] as const;
 type Section = (typeof SECTIONS)[number];
 
 function Console({ onPwRequired }: { onPwRequired: () => void }) {
@@ -755,7 +780,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const refreshAll = () => { void stats.reload(); void cos.reload(); void ap.reload(); void tr.reload(); };
   const title: Record<Section, string> = {
     inbox: t("ad.nav.inbox"), dashboard: t("ad.t.ov"), valuations: t("ad.q.valuations"), issuance: t("ad.q.issuance"), sync: t("ad.q.sync"),
-    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"),
+    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), updates: t("ad.q.updates"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"),
   };
   const isQueue = (QUEUES.map((x) => x.key) as string[]).includes(section);
   const rail = (
@@ -766,7 +791,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
       </RailGroup>
       <RailGroup title={t("ad.nav.queues")}>
         {QUEUES.map((x, i) => <RailItem key={x.key} to={`/admin/${x.key}`} current={section === x.key} mark={i + 1} gate={x.gate} count={counts[x.key]}>{t(("ad.q." + x.key) as DictKey)}</RailItem>)}
-        <RailItem to="/admin/transfers" current={section === "transfers"} mark={6} count={nTr}>{t("ad.q.transfers")}</RailItem>
+        <RailItem to="/admin/transfers" current={section === "transfers"} mark={QUEUES.length + 1} count={nTr}>{t("ad.q.transfers")}</RailItem>
       </RailGroup>
       <RailGroup title={t("ad.nav.registry")}>
         <RailItem to="/admin/companies" current={section === "companies"}>{t("ad.t.cos")}</RailItem>

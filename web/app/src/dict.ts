@@ -1,5 +1,6 @@
 import { protoEn, protoVi } from "./dict.proto";
 import { invEn, invVi } from "./dict.investor";
+import { updEn, updVi } from "./dict.updates";
 
 /** App strings added on top of the prototype copy. VI must cover every EN key (checked by the type). */
 const appEn = {
@@ -630,7 +631,7 @@ const appEn = {
   "ad.q.mints": "Mints",
   "ad.q.dividends": "Dividends",
   "ad.q.transfers": "Transfers & KYC",
-  "ad.q.eyebrow": "Queue {i} of 6",
+  "ad.q.eyebrow": "Queue {i} of 7",
   "ad.nav.inbox": "Inbox",
   "ad.nav.queues": "Queues · flow order",
   "ad.nav.registry": "Registry",
@@ -1288,7 +1289,7 @@ const appVi: Record<AppKey, string> = {
   "ad.q.mints": "Phát hành thêm",
   "ad.q.dividends": "Cổ tức",
   "ad.q.transfers": "Chuyển nhượng & KYC",
-  "ad.q.eyebrow": "Hàng đợi {i}/6",
+  "ad.q.eyebrow": "Hàng đợi {i}/7",
   "ad.nav.inbox": "Hộp việc",
   "ad.nav.queues": "Hàng đợi · theo luồng",
   "ad.nav.registry": "Quản lý",
@@ -1316,6 +1317,6 @@ const appVi: Record<AppKey, string> = {
   "ad.d.audit": "Mọi thao tác admin: ai làm và khi nào.",
 };
 
-export const en = { ...protoEn, ...appEn, ...invEn };
+export const en = { ...protoEn, ...appEn, ...invEn, ...updEn };
 export type DictKey = keyof typeof en;
-export const vi: Record<DictKey, string> = { ...protoVi, ...appVi, ...invVi };
+export const vi: Record<DictKey, string> = { ...protoVi, ...appVi, ...invVi, ...updVi };

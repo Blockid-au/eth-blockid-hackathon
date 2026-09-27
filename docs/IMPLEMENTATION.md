@@ -177,3 +177,21 @@ Design tokens, copy, flows and charts: copy the prototype.
 - backend: all other `agents/**` (incl. `pyproject.toml`, `studio/**`, `api.py`, `graph.py`, agents, tools, tests)
 - frontend: `web/app/**`
 - infra (lead): `deploy/**`, nginx, `/opt/blockid/app.env`, Blockscout, evmd config, `docs/**`
+
+## Investor features (27 Sep 2026)
+
+| Endpoint | Who | Notes |
+|---|---|---|
+| POST `/v1/auth/demo` | anyone | session for the shared demo investor `DEMO_WALLET` (role user, 30 days); the SPA opens it on first visit |
+| POST `/v1/auth/siwe` `{method:"guest"}` | anyone | key created in the browser (`devicewallet.ts`); never admin |
+| POST `/v1/auth/google` `{credential, message, signature}` | anyone | Google ID token + SIWE by the browser key; links `studio.accounts` ↔ wallet |
+| GET `/v1/auth/config` | public | `google_client_id`, `open_issue`, `mail`, `demo` |
+| GET `/v1/me/holdings`, `/v1/demo/holdings` | user / public | positions read from BlockID Chain, value at the approved mark, dividends received |
+| GET/PUT `/v1/companies/{tk}/kpis` | company admin | monthly figures (revenue, profit, cash, customers, headcount) |
+| POST `/v1/companies/{tk}/updates`, PATCH `/v1/updates/{id}`, POST `/v1/updates/{id}/submit` | company admin | draft built by code from the figures, then sent for approval |
+| POST `/v1/admin/updates/{id}/approve\|reject` | platform admin | approve → content hash → issuer `POST /disclose` → 0-value tx issuer→issuer on BlockID Chain with calldata `0x424944550000` + sha256 |
+| GET `/v1/companies/{tk}/updates`, `/v1/updates/{id}`, `/v1/me/updates`, `/v1/demo/updates` | public / user | published updates; `canonical` JSON lets the browser recompute the hash |
+| POST `/v1/admin/mail/test` | platform admin | email from info@blockid.au (SMTP settings in RUNBOOK-STUDIO.md) |
+
+Admin queues are now: Valuations ◆, Issuance ◆, Chain sync, Mints ◆, Dividends ◆, Updates ◆, Transfers & KYC.
+Seed scripts: `scripts/seed-demo-account.py` (demo wallet holdings + dividend), `scripts/seed-updates.py CNV EBA` (3 monthly updates).

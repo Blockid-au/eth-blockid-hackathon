@@ -45,6 +45,10 @@ class DripReq(BaseModel):
     amount_wei: int | None = Field(default=None, ge=0, le=5 * 10**18)  # gas allowance (top-up target), <= 5 BLKD
 
 
+class UpdateReq(BaseModel):
+    update_id: str = Field(min_length=1, max_length=64)
+
+
 class CompanyRoleReq(BaseModel):
     company_id: int
     address: str
@@ -180,6 +184,14 @@ def create_app(service=None, cfg: IssuerConfig | None = None) -> FastAPI:
 
         s = svc()
         return submit("transfer-mode", lambda: transfers.transfer_mode(s, r.company_id), company_id=r.company_id)
+
+    # ---------------------------------------------------------------- business updates (issuer/disclose.py)
+    @app.post("/disclose", status_code=202, dependencies=[Depends(auth)])
+    def disclose(r: UpdateReq) -> dict:
+        from . import disclose as disc
+
+        s = svc()
+        return submit("disclose", lambda: disc.disclose(s, r.update_id), update_id=r.update_id)
 
     app.state.issuer = state
     app.state.pool = pool

@@ -96,6 +96,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     from .studio.company_admins import build_company_admins_router
     from .studio.routes import build_router
     from .studio.transfers import build_transfer_router
+    from .studio.updates import build_updates_router
     from .studio.verify import build_verify_router
 
     s = settings or get_settings()
@@ -133,6 +134,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     app.include_router(build_verify_router(ctx))
     app.include_router(build_transfer_router(ctx))
     app.include_router(build_company_admins_router(ctx))
+    app.include_router(build_updates_router(ctx))
 
     def auth(x_api_key: str = Header(default="")) -> None:
         if not s.api_key or not hmac.compare_digest(x_api_key, s.api_key):
