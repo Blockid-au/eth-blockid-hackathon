@@ -16,6 +16,7 @@ import { HrReport } from "./HrReport";
 import { HrPersonPage } from "./HrPerson";
 import { HrMine } from "./HrMine";
 import { HrMethod } from "./HrMethod";
+import { ActiveJobs } from "../../components/ActiveJobs";
 import "../../components/hr.css";
 
 // The HR palette ("talent & innovation") is scoped to this class; eth.blockid.au never loads this module.
@@ -128,6 +129,7 @@ function HrNav() {
           <a href={ethUrl("/")}>{t("hr.nav.eth")} ↗</a>
         </nav>
         <span className="grow" />
+        <ActiveJobs />
         {isMock && <span className="simbadge" title="?mock=0 to leave">{t("mock.badge")}</span>}
         <span className="langs" role="group" aria-label={t("nav.lang")}>
           <button type="button" aria-pressed={lang === "en"} onClick={() => setLang("en")} lang="en"><FlagEN />EN</button>

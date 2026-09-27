@@ -11,6 +11,24 @@ import { checkUrlClient } from "../lib/urlcheck";
 import { ConsentBox, PeopleEditor } from "../components/PeopleEditor";
 import "../components/teamlink.css";
 import { emptyRow, MAX_PEOPLE, rowUsed, toPersonIn, validateRows, type PersonRow } from "../lib/people";
+import { ContinueCard, watchJob } from "../components/ActiveJobs";
+
+/** Unfinished /start form, kept in this browser (website, founder figures, team rows; never the consent tick). */
+const START_DRAFT = "blockid-start-draft-v1";
+interface StartDraft { url: string; raw: Partial<Record<keyof SelfReported, string>>; team: PersonRow[] }
+function loadStartDraft(): StartDraft | null {
+  try {
+    const d = JSON.parse(localStorage.getItem(START_DRAFT) || "null") as Partial<StartDraft> | null;
+    if (!d || typeof d !== "object") return null;
+    const out: StartDraft = { url: typeof d.url === "string" ? d.url.slice(0, 2048) : "", raw: d.raw && typeof d.raw === "object" ? d.raw : {},
+      team: Array.isArray(d.team) ? d.team.slice(0, MAX_PEOPLE).map((r) => ({ ...emptyRow(r?.kind ?? "founder"), ...r })) : [] };
+    return startDraftUsed(out) ? out : null;
+  } catch { return null; }
+}
+const startDraftUsed = (d: StartDraft) => !!d.url.trim() || Object.values(d.raw).some((v) => !!v) || d.team.some(rowUsed);
+function saveStartDraft(d: StartDraft | null) {
+  try { if (d && startDraftUsed(d)) localStorage.setItem(START_DRAFT, JSON.stringify(d)); else localStorage.removeItem(START_DRAFT); } catch { /* private mode */ }
+}
 
 /** Optional founding team (hr.blockid.au review): sent with the valuation as `team`. After the website is checked,
  * people named on it are offered as one-click chips (GET /v1/hr/suggest-people?website=). */
@@ -173,13 +191,17 @@ export default function NewWizard() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const listing = params.get("goal") === "list";
-  const [url, setUrl] = useState(() => (params.get("url") ?? "").slice(0, 2048));
+  const [draft0] = useState(() => (params.get("url") ? null : loadStartDraft()));
+  const [restored, setRestored] = useState(!!draft0);
+  const [url, setUrl] = useState(() => (params.get("url") ?? draft0?.url ?? "").slice(0, 2048));
   const [err, setErr] = useState("");
   const [bad, setBad0] = useState<UrlProblem | null>(null);
   const [busy, setBusy] = useState<"" | "check" | "start">("");
-  const [raw, setRaw] = useState<SrRaw>({});
+  const [raw, setRaw] = useState<SrRaw>(() => draft0?.raw ?? {});
   const [badSr, setBad] = useState<Set<string>>(new Set());
-  const [team, setTeam] = useState<PersonRow[]>(() => [emptyRow("founder")]);
+  const [team, setTeam] = useState<PersonRow[]>(() => (draft0?.team.length ? draft0.team : [emptyRow("founder")]));
+  useEffect(() => { saveStartDraft({ url, raw, team }); }, [url, raw, team]);
+  const discardDraft = () => { saveStartDraft(null); setUrl(""); setRaw({}); setTeam([emptyRow("founder")]); setTeamOk(false); setSite(null); setBad0(null); setErr(""); setRestored(false); };
   const [teamOk, setTeamOk] = useState(false);
   const [teamTried, setTeamTried] = useState(false);
   const [site, setSite] = useState<string | null>(null);  // website checked (client rules) → people suggestions
@@ -224,7 +246,11 @@ export default function NewWizard() {
     setBusy("start");
     try {
       if (!me) await connect();
-      const { id } = await api.createValuation(target, sr.metrics, teamRows.length ? { people: teamRows.map(toPersonIn), consent: true } : undefined);
+      const { id, team_id } = await api.createValuation(target, sr.metrics, teamRows.length ? { people: teamRows.map(toPersonIn), consent: true } : undefined);
+      const hostName = target.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
+      watchJob({ kind: "valuation", id, title: hostName });
+      if (team_id) watchJob({ kind: "hr_team", id: team_id, title: hostName });
+      saveStartDraft(null);
       nav(`/v/${encodeURIComponent(id)}`);
     } catch (x) {
       setErr(x instanceof ApiError && x.status === 429 ? t("new.limit") : errText(x, t));
@@ -238,6 +264,11 @@ export default function NewWizard() {
   return (
     <SideLayout label={t("flow.nav")} rail={<FlowRail cur={1} reach={1} gates={["none", "none"]} href={(n) => (n === 1 ? "/start" : null)} />}>
       <Crumbs items={[{ to: "/start", label: t("nav.studio") }, { label: "01 " + t("step.1") }]} />
+      <ContinueCard draft={restored && startDraftUsed({ url, raw, team }) ? {
+        label: url.trim() ? t("jobs.cont.draft.start", { w: url.trim().replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "") }) : t("jobs.cont.draft.start.none"),
+        sub: [team.filter(rowUsed).length ? t("jobs.cont.draft.people", { n: team.filter(rowUsed).length }) : "", t("jobs.cont.draft.restored")].filter(Boolean).join(" · "),
+        onDiscard: discardDraft,
+      } : null} />
       <StepHead eyebrow={t("flow.stepof", { n: 1, p: t("flow.ph.a") })} title={t(listing ? "new.h2.list" : "new.h2")} desc={t(listing ? "new.p.list" : "new.p")} />
       <form className="panel" onSubmit={start} noValidate>
         <div className="ptitle"><div><h3>{t("s1.h")}</h3><p>{t("s1.p")}</p></div></div>

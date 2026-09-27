@@ -10,7 +10,7 @@ Providers are tried in the order given by SEARCH_PROVIDERS (default "brave,claud
 Results are normal web results (title, url, description, query) and are stored as evidence exactly like Brave's.
 A provider that refuses service (429 / 5xx / timeout / network / bad token) is skipped for UNAVAILABLE_S.
 
-Budget: every valuation runs at most SEARCH_MAX_QUERIES queries in total (default 8, hard cap 8), each planned by
+Budget: every valuation runs at most SEARCH_MAX_QUERIES queries in total (default 8, hard cap 16; production sets 12), each planned by
 purpose (QUERY_PLAN, in priority order, so a smaller budget keeps the most useful ones):
 
   1 competitors   "<name> competitors alternatives <country>"              (competitor step)

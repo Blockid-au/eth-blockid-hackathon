@@ -235,8 +235,8 @@ class Settings:
     # Research budget per valuation (valuation v3): at most 8 searches, each planned by purpose (tools/search.py
     # QUERY_PLAN: competitors, market size, company revenue, company valuation/round, market cap if listed,
     # comparable multiples), at most 3 result pages fetched per search. Every attempt is logged in `searches`.
-    search_max_queries: int = field(default_factory=lambda: min(int(_env("SEARCH_MAX_QUERIES", "8")), 8))
-    search_fetch_per_query: int = field(default_factory=lambda: min(int(_env("SEARCH_FETCH_PER_QUERY", "3")), 3))
+    search_max_queries: int = field(default_factory=lambda: min(int(_env("SEARCH_MAX_QUERIES", "8")), 16))
+    search_fetch_per_query: int = field(default_factory=lambda: min(int(_env("SEARCH_FETCH_PER_QUERY", "3")), 4))
     competitor_homepages_max: int = field(default_factory=lambda: int(_env("COMPETITOR_HOMEPAGES_MAX", "5")))
 
     # --- People Analyst (founding-team review, agents/people.py; docs/LLM-ROUTING.md "People Analyst") ----------

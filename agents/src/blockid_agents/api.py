@@ -180,6 +180,9 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     app.include_router(build_dividend_policy_router(ctx, ctx.automation))
     app.include_router(build_offerings_router(ctx, ctx.offerings))
     app.include_router(build_hr_router(ctx))  # founding-team / person reviews (hr.blockid.au)
+    from .studio.active_jobs import build_active_jobs_router
+
+    app.include_router(build_active_jobs_router(ctx))  # "Running" tray: GET /v1/me/active-jobs (both hosts)
     from .studio.ai_admin import build_ai_admin_router
 
     app.include_router(build_ai_admin_router(ctx))  # admin AI health: /v1/admin/ai/* (ai_gateway.py)

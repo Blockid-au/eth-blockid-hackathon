@@ -8,6 +8,7 @@ import { queueCounts } from "../lib/flow";
 import { shortAddr } from "../lib/addr";
 import { SignInCard } from "./SignIn";
 import { useMyCompanies, type MyCompany } from "../lib/companyAdmins";
+import { ActiveJobs } from "./ActiveJobs";
 
 export function FlagEN() {
   return (
@@ -159,6 +160,7 @@ export function Nav() {
           <AdminNavLink />
         </nav>
         <span className="grow" />
+        <ActiveJobs />
         {isMock && <span className="simbadge" title="?mock=0 to leave">{t("mock.badge")}</span>}
         <span className="netchip"><i />{t("nav.net")}</span>
         <span className="langs" role="group" aria-label={t("nav.lang")}>
