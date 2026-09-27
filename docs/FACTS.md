@@ -10,6 +10,8 @@ Last verified: 26 Sep 2026 (after the Canva end-to-end demo run).
 |---|---|
 | Product | **BlockID Business Passport** (formerly BlockID Startup Passport) |
 | Company | Auschain Pty Ltd — ABN 79 659 615 111, ACN 659 615 111, GST-registered (BlockID.au, StartupValueIndex.com); BlockID™ is its unregistered trade mark (use ™, never ®, until registered). Details: [COMPANY.md](COMPANY.md) |
+| Team | Do Van Long (co-founder & CEO, 80 %) · Truong Quoc Tuan (co-founder, 20 %) — shares of **BlockID Pty Ltd (to be registered)**; Auschain licenses BlockID™ + IP. Details: [TEAM.md](TEAM.md) |
+| First real case | BlockID values itself (`origin = self`, badge "Real — self-assessment"); all other listings are `origin = sample`. See [SELF-VALUATION.md](SELF-VALUATION.md) |
 | Platform codename (internal, code/docs only) | BlockID Issuance Studio |
 | Valuation framework | Startup Value Index (**SVI**) — 7 weighted dimensions, grades A–E |
 | Live app · explorer | https://eth.blockid.au · https://scan.blockid.au |

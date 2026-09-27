@@ -13,6 +13,35 @@ last, only through a licensed partner after the Digital Assets Framework starts 
 
 ---
 
+## 0. Update 28 Sep 2026 — owner decisions (supersede anything below that conflicts)
+
+- **Price book v1 accepted** as the launch price list. It lives in code: `agents/src/blockid_agents/billing/pricebook/v1.yaml`, synced to Stripe (`STRIPE-SETUP.md`).
+- **Launch date rule:**
+  - Charging starts only after the EAG Global Buildathon **results are announced** and recorded (G0 in `GATES.md`), plus 7 days.
+  - The target is 01 Nov 2026 if results are out by 25 Oct.
+  - Judge, demo, sample and self-valuation paths stay free. Wherever this plan says "week 5 / early Nov", read "G0 + 7 days".
+- **Trials:**
+  - Every plan has a 7-day free trial. A card is required, and the card is charged automatically on day 8 unless the customer cancels.
+  - The trial includes 1 free report. Invited founders get 14 days.
+  - Cancelling is one click in the account page or the Stripe portal. This meets the "cancel as easy as sign-up" rule (AU ban on subscription traps from 1 Jul 2027).
+  - One-off reports are paid upfront.
+- **B2B + B2C, led by investors:**
+  - Investors are free (B2C). An angel group or fund buys the group plan (B2B, A$199/mo, 3 sponsored founder seats, 10 checks a month).
+  - Investors invite their portfolio startups. Each startup needs a passport, valuation, share register and investor updates, and pays for its own plan or uses a sponsored seat.
+  - Founders then invite their shareholders, which brings in more investors. This is the loop.
+  - Every invite is tracked, so the admin analytics can attribute revenue to the investor who brought it in.
+- **Channels:**
+  - There are no existing VBC or Auschain clients to sell to. The first customers come from:
+    - communities, meetups and events: Fintech Australia, Blockchain Australia, Sydney Ethereum / EthGlobal, Stone & Chalk
+    - pitch competitions and hackathons
+    - accelerators: Startmate, Antler, Blackbird Giants
+    - angel groups: Sydney Angels, Scale Investors
+  - Target: 4 events a month and 20 conversations per event, all logged in the CRM.
+- **Proof case:**
+  - BlockID values itself first (`SELF-VALUATION.md`). The team is Do Van Long (80 %) and Truong Quoc Tuan (20 %), with details in `TEAM.md`.
+  - The report is published as computed and shown in the demo.
+- **Long-term model:** reports + subscriptions + register administration now. Transaction fees and white label come later, through a licensed partner. Equity only through the opt-in Venture Track. Details in `PLAN-REVENUE-MODEL.md`.
+
 ## 1. What the research says (Sep 2026)
 
 | Finding | Evidence | What it means for BlockID |

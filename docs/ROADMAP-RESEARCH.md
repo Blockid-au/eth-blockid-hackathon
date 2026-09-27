@@ -52,7 +52,7 @@ Key research facts that shape the plan:
 ## 2b. Business track (added 2026-09-27, plan only)
 
 The technical items above run next to a business track with scored stage gates. Full plan:
-[PLAN-BUSINESS.md](PLAN-BUSINESS.md), go-to-market + 26-week revenue plan [PLAN-GTM.md](PLAN-GTM.md) (targets A$1k Nov 26 → A$10k/mo Mar 27 → A$50k/mo Dec 27) (VI summary: [PLAN-BUSINESS.vi.md](PLAN-BUSINESS.vi.md)); gate results go in `docs/GATES.md`.
+[PLAN-BUSINESS.md](PLAN-BUSINESS.md), go-to-market + 26-week revenue plan [PLAN-GTM.md](PLAN-GTM.md) (targets A$1k Nov 26 → A$10k/mo Mar 27 → A$50k/mo Dec 27) (VI summary: [PLAN-BUSINESS.vi.md](PLAN-BUSINESS.vi.md)); gate results go in [GATES.md](GATES.md). Billing: [PLAN-BILLING.md](PLAN-BILLING.md) + [STRIPE-SETUP.md](STRIPE-SETUP.md) (live at G0 + 7 days, 7-day card trials); revenue model and mainnet move: [PLAN-REVENUE-MODEL.md](PLAN-REVENUE-MODEL.md); first real case: [SELF-VALUATION.md](SELF-VALUATION.md).
 
 | Stage | Main work | Gate to leave it |
 |---|---|---|

@@ -20,6 +20,20 @@ Source: https://abr.business.gov.au/ABN/View?id=79659615111
 | DGR | not entitled |
 | ABR record last updated | 26 Mar 2025 |
 
+## 1b. BlockID Pty Ltd (to be registered — owner decision 28 Sep 2026)
+
+- Purpose: the operating company for BlockID Business Passport, which gives it a clean cap table for valuation and fundraising.
+- Shareholders: **Do Van Long 80 %**, **Truong Quoc Tuan 20 %** (co-founders). Proposed initial issue is 800,000 / 200,000 ordinary shares.
+- Auschain Pty Ltd grants BlockID Pty Ltd a licence to the BlockID™ mark and the platform IP. The licence covers exclusivity, royalty or fee, and assignment on a future raise; the lawyer drafts it.
+- Registration steps (ASIC Form 201 or an online provider):
+  - registration fee: about A$611 [verify the current ASIC fee]
+  - registered office and principal place of business
+  - directors (with director IDs)
+  - constitution or replaceable rules
+  - share structure
+  - then: ABN, GST registration, bank account, and a new Stripe account (`STRIPE-SETUP.md` §1)
+- Until registration, Auschain Pty Ltd sells as "Auschain Pty Ltd trading as BlockID", and the self-valuation page says "to be incorporated".
+
 ## 2. Company profile (from https://australiablockchain.au, read 28 Sep 2026)
 
 - Blockchain system development, integration and consulting; Web3 services for enterprises.
