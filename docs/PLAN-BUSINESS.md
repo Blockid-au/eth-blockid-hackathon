@@ -111,7 +111,7 @@ Checklist (all required):
 | 9 | HR CV retention purge (e.g. 90 days) + delete-my-data endpoint | ✔ |
 | 10 | Usage ledger + shadow pricing recording (§4) | ✔ |
 | 11 | Legal memo on what may be charged before an AFSL partner (§5.4) | — |
-| 12 | Company legal line in footer + legal pages (`COMPANY.md` §4); BlockID TM number confirmed; items marked G1 in `COMPANY.md` §6 done | ✔ |
+| 12 | Company legal line in footer + legal pages (`COMPANY.md` §4); BlockID trade mark application filed (™ until registered, never ®); items marked G1 in `COMPANY.md` §6 done | ✔ |
 
 ### G2 — Ready to charge (S2 → S3), scored against pilot data
 | Metric (real users only) | Target to pass |
@@ -343,7 +343,7 @@ securities-backed tokens are excluded under Resolution 05/2025 — sell software
 
 ### 5.5 Operating entity
 All selling is done by **Auschain Pty Ltd** (ABN 79 659 615 111, ACN 659 615 111, GST from 26 Mar 2025, NSW), the
-owner of the BlockID trade mark, trading as BlockID. Facts, footer text, invoice rules and the list of missing
+user of the unregistered BlockID™ mark (application to be filed; name clash with 1Kosmos "BlockID" to be cleared), trading as BlockID. Facts, footer text, invoice rules and the list of missing
 company information (TM number, ASIC extract, business name, bank, insurance, lawyer, IP agreement with Vietnam
 Blockchain Corporation, R&D Tax Incentive by 30 Apr 2027) are in [COMPANY.md](COMPANY.md).
 

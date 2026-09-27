@@ -37,23 +37,45 @@ are written, confirm the **registered office** (from the ASIC extract) and the *
 
 ## 3. Brand and intellectual property
 
+**BlockID is NOT a registered trade mark yet** (owner, 28 Sep 2026). Auschain Pty Ltd uses it as an
+**unregistered mark: write "BlockID™", never "®"** (using ® on an unregistered mark is an offence under
+s151 Trade Marks Act 1995). ™ is allowed now and is what the hackathon / competition stage uses.
+
 | Item | Status | Notes |
 |---|---|---|
-| **BlockID trade mark, owned by Auschain Pty Ltd** | **owner** | TO ADD: TM number, classes, status, priority date (IP Australia Trade Mark Search). Check that the classes cover class 9 (software), 35 (business information / reports), 36 (share registry, valuation, financial information) and 42 (SaaS). If class 36 or 42 is missing, file a new application before launch. Consider a Madrid filing designating Vietnam before selling there. |
-| ™ / ® use | rule | Use **®** only once the registration number is confirmed as *Registered*. Until then use "BlockID™" or "BlockID is a trade mark of Auschain Pty Ltd". |
-| Business name "BLOCKID" | TO ADD before G1 | A trade mark is not a business name. Invoices, receipts and the site should present the seller as "Auschain Pty Ltd trading as BlockID". To do that, register BLOCKID as a business name on ASIC Business Names, linked to ABN 79 659 615 111. |
+| ™ use | now | "BlockID™ is a trade mark of Auschain Pty Ltd". It gives no registered rights. Before registration, protection relies only on passing off / ACL (misleading conduct), which is weak. |
+| Trade mark application | TO FILE (before G1) | Checklist in §3.1 below. |
+| **Name clash risk** | **check first** | **1Kosmos Inc. (USA) sells "BlockID"** identity verification and passwordless login (1kosmos.com, blockid.1kosmos.net). That is close to our KYC / wallet / identity features (classes 9 and 42). Their registrations in AU, US and WIPO were not checked (the registers need a browser session). If they hold "BLOCKID" in AU for class 9/42, an application for plain "BLOCKID" there may be refused or opposed. Safer options: file a composite mark ("BlockID Business Passport" + logo), or lead with class 35/36, where the services differ. Get an IP lawyer's clearance search. |
+| Business name "BLOCKID" | TO ADD before G1 | A trade mark is not a business name. To trade as "Auschain Pty Ltd trading as BlockID", register BLOCKID on ASIC Business Names, linked to ABN 79 659 615 111. A business name gives no trade mark rights. |
 | Domains blockid.au, eth./hr./scan.blockid.au, startupvalueindex.com | TO ADD | Record the registrant. A .au name must be held by the Australian entity (Auschain). Record the renewal dates and who controls the DNS/Cloudflare account. |
-| Code licence | decision | The hackathon repo `Blockid-au/eth-blockid-hackathon` is public under **MIT**, so anyone may reuse that code; the brand stays protected by the trade mark. Recommendation: freeze the hackathon repo at the judging commit and build commercial features (billing, analytics, tenants) in the private repo `Blockid-au/eth-blockid`. |
-| IP with Vietnam Blockchain Corporation | TO ADD before G2 | Written agreement stating that Auschain owns BlockID IP (code, brand, data). Contractor / developer IP assignment. If the Vietnam team can access production data, the privacy policy must disclose offshore access (APP 8). |
+| Code licence | decision | The hackathon repo `Blockid-au/eth-blockid-hackathon` is public under **MIT**, so anyone may reuse that code. Once registered, the brand is protected by the trade mark. Recommendation: freeze the hackathon repo at the judging commit and build commercial features (billing, analytics, tenants) in the private repo `Blockid-au/eth-blockid`. |
+| IP with Vietnam Blockchain Corporation | TO ADD before G2 | A written agreement stating that Auschain owns the BlockID IP (code, brand, data). Contractor / developer IP assignment. If the Vietnam team can access production data, the privacy policy must disclose offshore access (APP 8). |
 
-## 4. Standard legal line (proposed; use after the TM number is confirmed)
+### 3.1 Trade mark application — what is needed (IP Australia)
+
+| # | Item | Detail | Who |
+|---|---|---|---|
+| 1 | Applicant | AUSCHAIN PTY LTD, ACN 659 615 111, address for service (confirm registered office, §2) | owner |
+| 2 | Clearance search | IP Australia Trade Mark Search + TM Checker (free) for "BLOCKID", "BLOCK ID" and "BLOCK-ID" in classes 9, 35, 36, 42. WIPO Global Brand Database and USPTO for the 1Kosmos marks. VN (IP Viet Nam) if Vietnam sales are planned. A lawyer's written clearance opinion is recommended. | owner / lawyer |
+| 3 | The mark | Decide: word mark "BLOCKID" (broadest, highest clash risk), or composite word + logo. Logo file (JPG / PNG, black-and-white or with a colour claim). | owner |
+| 4 | Classes and specification (IP Australia picklist) | **9** downloadable software, digital wallet software; **35** business information and business valuation reports, business analysis, HR / recruitment checks (background research); **36** share registry services, financial information, valuation of businesses, dividend administration (check wording with the AFSL memo); **42** SaaS / platform as a service, software development, blockchain record hosting. Start with 35 + 42 if budget is tight. | owner / lawyer |
+| 5 | Evidence of use (optional, useful for a later dispute) | First-use date of BlockID (earliest blockid.au page, Auschain website mention, hackathon submission 26 Sep 2026), screenshots, invoices | owner |
+| 6 | Fees | Standard application A$250 per class via picklist; TM Headstart pre-check from A$330 per class. Four classes ≈ A$1,000–1,320 in government fees. Lawyer's fees are extra. | owner |
+| 7 | Timeline | Examination, then acceptance, then 2-month opposition period. Earliest registration is 7.5 months after filing; the filing date is the priority date. **File early**: the priority date protects from the day of filing. | — |
+| 8 | Vietnam / overseas | Madrid Protocol application through IP Australia based on the AU application, designating Vietnam (and US if selling there), within 6 months to keep the AU priority date. | later (S4) |
+| 9 | After filing | Status "Filed" means still use ™. Switch to ® only once the status is "Registered". Record the TM number here, in `FACTS.md` and in the footer. | — |
+
+Sources: [IP Australia timeframes and fees](https://www.ipaustralia.gov.au/trade-marks/timeframes-and-fees),
+[Trade Mark Search](https://search.ipaustralia.gov.au/trademarks), [1Kosmos BlockID](https://www.1kosmos.com/).
+
+## 4. Standard legal line (use now: ™, unregistered)
 
 Footer (EN):
-> BlockID is a trade mark of Auschain Pty Ltd · ABN 79 659 615 111 · ACN 659 615 111 · © 2026 Auschain Pty Ltd.
+> BlockID™ is a trade mark of Auschain Pty Ltd · ABN 79 659 615 111 · ACN 659 615 111 · © 2026 Auschain Pty Ltd.
 > Testnet demo. Not an offer of securities or financial advice.
 
 Footer (VI):
-> BlockID là nhãn hiệu của Auschain Pty Ltd · ABN 79 659 615 111 · ACN 659 615 111 · © 2026 Auschain Pty Ltd.
+> BlockID™ là nhãn hiệu của Auschain Pty Ltd · ABN 79 659 615 111 · ACN 659 615 111 · © 2026 Auschain Pty Ltd.
 > Bản demo trên testnet. Không phải chào bán chứng khoán hay tư vấn tài chính.
 
 When S3 starts, drop the "Testnet demo" words only for modules that run on production. Keep "Not financial
@@ -77,7 +99,7 @@ advice" on every valuation report.
 
 | # | Item | Needed for | Gate |
 |---|---|---|---|
-| 1 | BlockID trade mark number, classes, status (certificate PDF) | footer ®, white-label contracts, investor deck | G1 |
+| 1 | Trade mark: clearance search vs 1Kosmos "BlockID", then file the application (§3.1); record the application number | brand protection, white-label contracts, investor deck | file before G1; registered ~G3 |
 | 2 | ASIC company extract: directors, secretary, registered office, shareholders | Stripe business verification, contracts, AFSL partner due diligence, investor deck | G1 |
 | 3 | Register business name BLOCKID (or decide to trade only as Auschain Pty Ltd) | invoices, legal pages | G1 |
 | 4 | Domain registrant and renewal dates; who holds the Cloudflare / DNS login | continuity, security | G1 |

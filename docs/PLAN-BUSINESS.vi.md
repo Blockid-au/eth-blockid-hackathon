@@ -128,7 +128,7 @@ Doanh thu mục tiêu sau G2 (sẽ thay bằng số liệu pilot):
 
 ## 5b. Pháp nhân vận hành
 
-Pháp nhân vận hành là **Auschain Pty Ltd**: ABN 79 659 615 111, ACN 659 615 111, đăng ký GST từ 26/03/2025, trụ sở NSW. Công ty là chủ nhãn hiệu BlockID. Hồ sơ đầy đủ nằm ở `docs/COMPANY.md`, gồm:
+Pháp nhân vận hành là **Auschain Pty Ltd**: ABN 79 659 615 111, ACN 659 615 111, đăng ký GST từ 26/03/2025, trụ sở NSW. Công ty đang dùng BlockID™ như nhãn hiệu **chưa đăng ký**: chỉ dùng ™, không dùng ® cho tới khi đăng ký xong. Hồ sơ đầy đủ nằm ở `docs/COMPANY.md`, gồm:
 - Thông tin đã xác minh trên ABR
 - Chân trang pháp lý EN/VI
 - Quy tắc hoá đơn GST
