@@ -77,6 +77,8 @@ Mỗi dòng chấm 0/1/2 điểm, đạt khi tổng ≥ 80%.
 
 ## 4. Cơ chế thu phí (giả thuyết, AUD, chưa gồm GST)
 
+> **Đã thay bằng bảng giá v1 ngày 28/09/2026. Xem `PLAN-GTM.vi.md`.** Bảng giá mới đã dựa trên nghiên cứu thị trường, và báo cáo lẻ được thu tiền thật từ đầu tháng 11/2026.
+
 Cách làm: **đo trước, tính giá ảo, rồi mới thu.** Bảng giá có phiên bản và áp lên sổ usage để ra hoá đơn ảo trong pilot. Khi qua G2 thì bật chính bảng giá đó trên Stripe.
 
 - **Nhà đầu tư:** miễn phí, vì họ là mạng lưới. Gói Pro khoảng A$15/tháng sẽ tính sau.

@@ -253,6 +253,10 @@ activity never appears under "real"; online-now matches a manual two-browser tes
 
 ### 4.3 Hybrid model (hypotheses, AUD, ex GST)
 
+> **Superseded 2026-09-28 by price book v1 in [PLAN-GTM.md](PLAN-GTM.md) §4** (market-researched: people report A$49,
+> passport check A$59, valuation A$299 / A$890, Founder A$49/mo, Growth A$149/mo, group / recruiter plans, white label).
+> PLAN-GTM §6 also moves one-off paid reports into S2 ("paid pilot", from early Nov 2026). The table below is kept for history.
+
 **Investors: free.** They are the network that makes companies want the passport. Later "Investor Pro" (alerts,
 portfolio export, deeper reports) ~A$15/month — test only after G2.
 
