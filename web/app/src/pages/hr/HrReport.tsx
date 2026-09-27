@@ -7,7 +7,7 @@ import { TEAM_COMPONENTS, type PersonCard, type Team, type TeamFunction } from "
 import { StatusBar } from "../../components/StatusBar";
 import { EthCtas } from "./ethCta";
 import { initials, partLabel, useHrTitle } from "./common";
-import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, EvLabel, fmtDate, halfWidth, Icon, srcIndex, type Conf } from "./evidence";
+import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, cleanWhy, EvLabel, fmtDate, halfWidth, Icon, srcIndex, type Conf } from "./evidence";
 import { ConsentFooter, MethodBox, Panel, ReportActions, ScoreInline, SourcesTable, TabNav } from "./reportParts";
 import { ReportState, useHrReport } from "./HrPerson";
 
@@ -119,7 +119,7 @@ function TeamReportView({ team, tab }: { team: Team; tab: TTab }) {
             <div className="hr-bars">
               {TEAM_COMPONENTS.filter((k) => tb.components?.[k] != null).map((k) => {
                 const v = Math.max(0, Math.min(100, Number(tb.components[k]) || 0));
-                const why = tb.component_detail?.[k]?.rationale;
+                const why = cleanWhy(tb.component_detail?.[k]?.rationale);
                 return (
                   <div className="hr-bar" key={k} title={why || undefined}>
                     <span>{partLabel(t, "hr.comp.", k)}{why && <small>{why}</small>}</span>

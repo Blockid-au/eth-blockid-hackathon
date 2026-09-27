@@ -5,7 +5,7 @@ import { useI18n } from "../../i18n";
 import type { DictKey } from "../../dict";
 import { api, type PersonSubScore, type Team, type TeamReport } from "../../api";
 import { errText } from "../../auth";
-import { EvLabel, evOfPart, Icon, SrcChips, bandOf, bandWord, fmtDate, type Conf, type SrcIndex } from "./evidence";
+import { EvLabel, cleanWhy, evOfPart, Icon, SrcChips, bandOf, bandWord, fmtDate, type Conf, type SrcIndex } from "./evidence";
 import { partLabel } from "./common";
 
 /** Bold segmented tab bar, sticky under the top nav. Each tab is a URL (links keep ?share=); arrow keys move between tabs. */
@@ -90,6 +90,7 @@ export function PartsTable({ parts, prefix, ix, cap = 50, kind, conf }: { parts:
   const total = rows.reduce((a, [, s]) => a + (Number(s.score) || 0) * w(s), 0);
   return (
     <>
+      <div className="hp-tbl">
       <table className="hp-comp">
         <caption className="sr-only">{t("hr.pr.parts.cap")}</caption>
         <thead><tr><th scope="col">{t("hr.pr.col.part")}</th><th scope="col" className="wt">{t("hr.pr.col.weight")}</th><th scope="col">0 — 100</th><th scope="col" className="r">{t("hr.pr.col.score")}</th><th scope="col" className="r">{t("hr.pr.col.points")}</th><th scope="col">{t("hr.pr.col.evidence")}</th></tr></thead>
@@ -98,7 +99,7 @@ export function PartsTable({ parts, prefix, ix, cap = 50, kind, conf }: { parts:
             const v = Math.max(0, Math.min(100, Number(s.score) || 0));
             return (
               <tr key={k}>
-                <td className="lbl"><b>{partLabel(t, prefix, k)}{s.capped && <span className="hp-capchip">{t("hr.pr.capped", { c: cap })}</span>}</b>{s.rationale && <span className="why">{s.rationale} <SrcChips ix={ix} factIds={s.fact_ids} /></span>}</td>
+                <td className="lbl"><b>{partLabel(t, prefix, k)}{s.capped && <span className="hp-capchip">{t("hr.pr.capped", { c: cap })}</span>}</b>{s.rationale && <span className="why">{cleanWhy(s.rationale)} <SrcChips ix={ix} factIds={s.fact_ids} /></span>}</td>
                 <td className="wt mono muted">{fmt(w(s) * 100)}%</td>
                 <td className="bc"><div className="hp-bar" role="img" aria-label={`${partLabel(t, prefix, k)} ${fmt(v)}/100`}><i className={v < 65 ? "mid" : ""} style={{ width: v + "%" }} /></div></td>
                 <td className="r"><b>{fmt(v)}</b></td>
@@ -110,6 +111,7 @@ export function PartsTable({ parts, prefix, ix, cap = 50, kind, conf }: { parts:
         </tbody>
         <tfoot><tr><td>{t("hr.pr.total")}</td><td className="wt mono muted">100%</td><td className="bc" /><td className="r" /><td className="r num">{fmt(total, 1)} → {fmt(Math.round(total))}</td><td className="evc"><span className="muted" style={{ fontWeight: 500, fontSize: ".8rem" }}>{bandWord(t, total, conf, kind)} · {t(("hr.conf." + conf) as DictKey)}</span></td></tr></tfoot>
       </table>
+      </div>
       <p className="hp-capnote"><i />{t("hr.pr.capnote", { c: cap })}</p>
     </>
   );

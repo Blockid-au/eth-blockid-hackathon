@@ -65,6 +65,9 @@ export function srcIndex(rep: TeamReport | null | undefined, person?: PersonCard
   return { byId, factSrc };
 }
 /** Source chips "S3" for fact ids and/or source ids; links jump to the sources table. */
+/** Model rationales cite internal fact ids ("(f2, f4)"); readers get source chips instead, so drop the raw ids. */
+export const cleanWhy = (s?: string | null) => (s ?? "").replace(/\s*[(\[]\s*(?:facts?\s*)?f\d+(?:\s*[,;/&]\s*(?:and\s+)?f\d+)*\s*[)\]]/gi, "").replace(/\s+([,.;:])/g, "$1").trim();
+
 export function SrcChips({ ix, factIds, sourceIds, urls }: { ix: SrcIndex; factIds?: string[] | null; sourceIds?: string[] | null; urls?: string[] | null }) {
   const ids = new Set<string>();
   (factIds ?? []).forEach((f) => { const s = ix.factSrc.get(f); if (s) ids.add(s); });

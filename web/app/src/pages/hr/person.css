@@ -103,6 +103,10 @@
 .hp-comp { width: 100%; border-collapse: collapse; font-size: .88rem; }
 .hp-comp th { font: 600 .7rem/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 0 8px 8px; border-bottom: 1px solid var(--line); }
 .hp-comp td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+/* the global `td { white-space: nowrap }` made the long "why" line set the table width (score tab ran off-screen) */
+.hp-comp td.lbl { white-space: normal; overflow-wrap: anywhere; width: 100%; min-width: 140px; }
+.hp-comp td.bc { width: 110px; }
+.hp-comp .hp-bar { min-width: 80px; }
 .hp-comp td.r, .hp-comp th.r { text-align: right; font-variant-numeric: tabular-nums; }
 .hp-comp .lbl b { display: block; font-weight: 600; }
 .hp-comp .why { font-size: .78rem; color: var(--muted); display: block; margin-top: 3px; line-height: 1.4; }
@@ -122,11 +126,12 @@
 table.hp-req { width: 100%; border-collapse: collapse; font-size: .88rem; }
 table.hp-req th { font: 600 .7rem/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.hp-req td { padding: 11px 8px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+table.hp-req td.rq { white-space: normal; min-width: 220px; }
 table.hp-req tr.grp td { background: var(--sunken); font: 600 .74rem/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 8px; }
 table.hp-req .note { display: block; font-size: .78rem; color: var(--muted); margin-top: 3px; line-height: 1.4; }
 .hp-res { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; }
 .hp-res svg { width: 16px; height: 16px; }
-.hp-res.met { color: var(--ok); } .hp-res.part { color: var(--warn); } .hp-res.nf { color: var(--bad); } .hp-res.unv { color: var(--muted); }
+.hp-res.met { color: var(--ok); } .hp-res.part { color: var(--warn); } .hp-res.miss { color: var(--bad); } .hp-res.unv { color: var(--muted); }
 
 /* CV */
 .hp-tl { list-style: none; margin: 4px 0 0; padding: 0; position: relative; }
@@ -144,7 +149,7 @@ table.hp-req .note { display: block; font-size: .78rem; color: var(--muted); mar
 .hp-tl ul li { font-size: .88rem; line-height: 1.45; padding-left: 14px; position: relative; }
 .hp-tl ul li::before { content: "•"; position: absolute; left: 2px; color: var(--faint); }
 .hp-tlev { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
-.hp-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.hp-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .hp-edu { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .hp-edu li { display: grid; gap: 3px; font-size: .9rem; }
 .hp-edu .row { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -331,6 +336,8 @@ table.hp-srct tr:target td { background: var(--accent-soft); }
   .hp-comp thead { display: none; }
   .hp-comp tr { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
   .hp-comp td { padding: 0; border: 0; }
+  .hp-comp td.lbl { min-width: 0; width: auto; }
+  .hp-comp td.bc { width: auto; }
   .hp-comp td.bc { grid-column: 1 / -1; order: 3; }
   .hp-comp td.wt { display: none; }
   .hp-comp td.evc { grid-column: 1 / -1; order: 4; }
@@ -341,7 +348,7 @@ table.hp-srct tr:target td { background: var(--accent-soft); }
   table.hp-req tr.grp { margin: 14px 0 8px; }
   table.hp-req tr.grp td { background: none; padding: 0; }
   table.hp-req td { border: 0; padding: 0; }
-  table.hp-req td.rq { grid-column: 1 / -1; font-weight: 500; }
+  table.hp-req td.rq { grid-column: 1 / -1; font-weight: 500; min-width: 0; }
   table.hp-req td.srccell { grid-column: 1 / -1; }
   table.hp-srct thead { display: none; }
   table.hp-srct tr { display: grid; grid-template-columns: 40px 1fr; gap: 2px 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }

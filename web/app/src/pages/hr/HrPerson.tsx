@@ -12,7 +12,7 @@ import { useAsync } from "../../lib/hooks";
 import { ACTIVE_HR, hostOf, initials, partLabel, Ring, STATUS_TONE, useHrTitle } from "./common";
 import { LiveRun } from "./live";
 import { EthCtas } from "./ethCta";
-import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, EvLabel, evOfSource, fmtDate, halfWidth, Icon, SrcChips, srcIndex, type Conf, type SrcIndex } from "./evidence";
+import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, cleanWhy, EvLabel, evOfSource, fmtDate, halfWidth, Icon, SrcChips, srcIndex, type Conf, type SrcIndex } from "./evidence";
 import { ConsentFooter, MethodBox, Panel, PartsTable, ReportActions, ScoreInline, SourcesTable, TabNav } from "./reportParts";
 
 export const PERSON_TABS = ["overview", "score", "requirements", "cv", "assessment", "sources"] as const;
@@ -201,11 +201,11 @@ function Hero({ card, team, rep, ix, path }: { card: PersonCard; team: Team; rep
         <div className="hp-drivers">
           <div className="up">
             <h3>{Icon.up}{t("hr.pr.up")}</h3>
-            <ul>{d.up.length ? d.up.map(({ k, s }) => <li key={k}><b>{partLabel(t, prefix, k)} {fmt(s.score)}.</b> {s.rationale} <SrcChips ix={ix} factIds={s.fact_ids} /></li>) : <li className="muted">{t("common.none")}</li>}</ul>
+            <ul>{d.up.length ? d.up.map(({ k, s }) => <li key={k}><b>{partLabel(t, prefix, k)} {fmt(s.score)}.</b> {cleanWhy(s.rationale)} <SrcChips ix={ix} factIds={s.fact_ids} /></li>) : <li className="muted">{t("hr.pr.up.none")}</li>}</ul>
           </div>
           <div className="dn">
             <h3>{Icon.down}{t("hr.pr.down")}</h3>
-            <ul>{d.dn.length ? d.dn.map(({ k, s }) => <li key={k}><b>{partLabel(t, prefix, k)} {fmt(s.score)}.</b> {s.rationale} <SrcChips ix={ix} factIds={s.fact_ids} /></li>) : <li className="muted">{t("common.none")}</li>}</ul>
+            <ul>{d.dn.length ? d.dn.map(({ k, s }) => <li key={k}><b>{partLabel(t, prefix, k)} {fmt(s.score)}.</b> {cleanWhy(s.rationale)} <SrcChips ix={ix} factIds={s.fact_ids} /></li>) : <li className="muted">{t("common.none")}</li>}</ul>
           </div>
         </div>
       )}
@@ -232,7 +232,7 @@ function Requirements({ card, ix }: { card: PersonCard; ix: SrcIndex }) {
   const reqs = card.fit?.requirements ?? [];
   if (!reqs.length) return <div className="hp-card"><p className="hp-lead">{t(card.fit ? "hr.pr.req.none" : "hr.pr.req.notarget")}</p></div>;
   const RES: Record<string, [string, ReactNode, DictKey]> = {
-    matched: ["met", Icon.met, "hr.pr.res.met"], partial: ["part", Icon.part, "hr.pr.res.part"], missing: ["nf", Icon.x, "hr.pr.res.nf"], unverified: ["unv", Icon.unc, "hr.pr.res.unv"],
+    matched: ["met", Icon.met, "hr.pr.res.met"], partial: ["part", Icon.part, "hr.pr.res.part"], missing: ["miss", Icon.x, "hr.pr.res.nf"], unverified: ["unv", Icon.unc, "hr.pr.res.unv"],
   };
   const hasPrio = reqs.some((r) => r.must_have === false) && reqs.some((r) => r.must_have);
   const groups: [DictKey, typeof reqs][] = hasPrio ? [["hr.pr.req.must", reqs.filter((r) => r.must_have)], ["hr.pr.req.nice", reqs.filter((r) => !r.must_have)]] : [["hr.pr.reqs", reqs]];
