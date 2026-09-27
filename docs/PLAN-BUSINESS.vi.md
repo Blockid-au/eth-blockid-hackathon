@@ -126,6 +126,14 @@ Doanh thu mục tiêu sau G2 (sẽ thay bằng số liệu pilot):
 | Tháng 6 | ~A$11k (có 1 white label) |
 | Tháng 12 | ~A$35k |
 
+## 5b. Pháp nhân vận hành
+
+Pháp nhân vận hành là **Auschain Pty Ltd**: ABN 79 659 615 111, ACN 659 615 111, đăng ký GST từ 26/03/2025, trụ sở NSW. Công ty là chủ nhãn hiệu BlockID. Hồ sơ đầy đủ nằm ở `docs/COMPANY.md`, gồm:
+- Thông tin đã xác minh trên ABR
+- Chân trang pháp lý EN/VI
+- Quy tắc hoá đơn GST
+- Danh sách 15 thông tin còn thiếu (số TM, trích lục ASIC, business name, ngân hàng, bảo hiểm, luật sư, thoả thuận IP với Vietnam Blockchain Corporation, R&D Tax Incentive hạn 30/04/2027...)
+
 ## 6. Lộ trình
 
 | Khi nào | Việc |
@@ -142,6 +150,6 @@ Doanh thu mục tiêu sau G2 (sẽ thay bằng số liệu pilot):
 1. Tracking tự lưu trong Postgres (đề xuất) hay dùng PostHog/Plausible?
 2. Sản phẩm thu tiền đầu tiên là HR + gói founder (đề xuất) hay chờ phí giao dịch?
 3. Có chấp nhận bảng giá giả thuyết ở mục 4 để thử trong pilot không?
-4. Tài khoản Stripe đứng tên Auschain Pty Ltd; công ty đã đăng ký GST chưa?
+4. Đã rõ về GST: Auschain Pty Ltd đăng ký GST từ 26/03/2025. Còn cần quyết định: mở Stripe đứng tên Auschain, đăng ký business name BLOCKID, và bổ sung các mục còn thiếu ở `docs/COMPANY.md` §6.
 5. Demo có chuyển sang demo.blockid.au không (đề xuất là chuyển)?
 6. Ai chấm các cổng, và kết quả công bố ở đâu?

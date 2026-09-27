@@ -111,6 +111,7 @@ Checklist (all required):
 | 9 | HR CV retention purge (e.g. 90 days) + delete-my-data endpoint | ✔ |
 | 10 | Usage ledger + shadow pricing recording (§4) | ✔ |
 | 11 | Legal memo on what may be charged before an AFSL partner (§5.4) | — |
+| 12 | Company legal line in footer + legal pages (`COMPANY.md` §4); BlockID TM number confirmed; items marked G1 in `COMPANY.md` §6 done | ✔ |
 
 ### G2 — Ready to charge (S2 → S3), scored against pilot data
 | Metric (real users only) | Target to pass |
@@ -340,6 +341,12 @@ securities-backed tokens are excluded under Resolution 05/2025 — sell software
 
 ---
 
+### 5.5 Operating entity
+All selling is done by **Auschain Pty Ltd** (ABN 79 659 615 111, ACN 659 615 111, GST from 26 Mar 2025, NSW), the
+owner of the BlockID trade mark, trading as BlockID. Facts, footer text, invoice rules and the list of missing
+company information (TM number, ASIC extract, business name, bank, insurance, lawyer, IP agreement with Vietnam
+Blockchain Corporation, R&D Tax Incentive by 30 Apr 2027) are in [COMPANY.md](COMPANY.md).
+
 ## 6. Roadmap (added to `docs/ROADMAP-RESEARCH.md`)
 
 | When | Stage | Deliverables |
@@ -355,6 +362,7 @@ securities-backed tokens are excluded under Resolution 05/2025 — sell software
 1. First-party analytics in our Postgres (recommended) vs a hosted tool (PostHog / Plausible).
 2. First paid product: HR reports + founder plans (recommended) vs waiting for transaction fees.
 3. Price hypotheses in §4.3 as the S2 test book — accept or change.
-4. Stripe account under Auschain Pty Ltd; GST registration status.
+4. ~~GST status~~ answered: Auschain Pty Ltd (ABN 79 659 615 111) is GST-registered from 26 Mar 2025 (`COMPANY.md`).
+   Still open: Stripe account under Auschain, business name BLOCKID, and the missing items in `COMPANY.md` §6.
 5. Demo stays on eth.blockid.au as a clearly marked demo workspace, or moves to demo.blockid.au (recommended).
 6. Who scores the gates (owner alone, or owner + an advisor) and where results are published.

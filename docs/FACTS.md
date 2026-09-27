@@ -9,7 +9,7 @@ Last verified: 26 Sep 2026 (after the Canva end-to-end demo run).
 | Use | Value |
 |---|---|
 | Product | **BlockID Business Passport** (formerly BlockID Startup Passport) |
-| Company | Auschain Pty Ltd (BlockID.au, StartupValueIndex.com) |
+| Company | Auschain Pty Ltd — ABN 79 659 615 111, ACN 659 615 111, GST-registered (BlockID.au, StartupValueIndex.com); owner of the BlockID trade mark. Details: [COMPANY.md](COMPANY.md) |
 | Platform codename (internal, code/docs only) | BlockID Issuance Studio |
 | Valuation framework | Startup Value Index (**SVI**) — 7 weighted dimensions, grades A–E |
 | Live app · explorer | https://eth.blockid.au · https://scan.blockid.au |
