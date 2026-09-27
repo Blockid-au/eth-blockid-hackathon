@@ -26,7 +26,7 @@ paid straight to their wallet.
 | BlockID EVM explorer (Blockscout) | https://scan.blockid.au |
 | HashKey Chain page | https://eth.blockid.au/hsk |
 | Pitch deck (3 min) | [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx) |
-| Demo video (59 s) | [docs/video/blockid-startup-passport-demo.mp4](docs/video/blockid-startup-passport-demo.mp4) · 3-min pitch: https://eth.blockid.au/deck/blockid-startup-passport-pitch-3min-captions.mp4 |
+| Demo video (59 s) | [docs/video/blockid-startup-passport-demo.mp4](docs/video/blockid-startup-passport-demo.mp4) · 3-min video: https://eth.blockid.au/deck/blockid-business-passport-3min-captions.mp4 |
 | Hackathon write-up · demo script | [docs/HACKATHON.md](docs/HACKATHON.md) · [docs/DEMO.md](docs/DEMO.md) |
 
 > **Testnet demo. Not an offer of securities.**
