@@ -59,13 +59,13 @@ Track: Sydney Hackathon (bắt buộc) · Real-World Ethereum Applications (Trac
 
 ## 4. Checklist nộp bài
 
-- [ ] Contract trên HSK Testnet (133) + địa chỉ trong README
-- [ ] Ít nhất 1 công ty phát hành qua luồng mới và đồng bộ đủ BlockID + Hoodi + HSK
-- [ ] https://eth.blockid.au chạy, MetaMask kết nối được, `/verify` hoạt động
-- [ ] Repo public, README đủ: features, install, run, integration, deployed addresses
-- [ ] `docs/HACKATHON.md` (TECHNICAL) cập nhật
-- [ ] Video 2–3 phút
-- [ ] Devfolio: tick Sydney Hackathon, Track 6, HSK Chain
+- [x] Contract trên HSK Testnet (133) + địa chỉ trong README
+- [x] Ít nhất 1 công ty phát hành qua luồng mới và đồng bộ đủ BlockID + Hoodi + HSK
+- [x] https://eth.blockid.au chạy, MetaMask kết nối được, `/verify` hoạt động
+- [x] Repo public, README đủ: features, install, run, integration, deployed addresses
+- [x] `docs/HACKATHON.md` (TECHNICAL) cập nhật
+- [x] Video 2–3 phút
+- [ ] Devfolio: tick Sydney Hackathon, Track 6, HSK Chain (chủ dự án tự xác nhận trên Devfolio)
 - [x] Không có private key / secret trong repo — đã quét cả lịch sử git lúc 11:45 (chỉ có tham chiếu biến, `.env` bị ignore)
 
 ## 5. Rủi ro
