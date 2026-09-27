@@ -376,9 +376,10 @@ export default function CompanyPage() {
     lastStep.current = step;
     if (prev != null && step > prev && section === CO_SEG[prev]) nav(`/c/${c.ticker}/${CO_SEG[step]}`, { replace: true });
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
-  // /c/:tk without a section: the current flow step, or the workspace once everything is live
+  // /c/:tk without a section (or with an unknown one, e.g. /c/EBA/verify): the current flow step, or the workspace
+  // once everything is live
   useEffect(() => {
-    if (c && !section) nav(`/c/${c.ticker}/${c.status === "anchored" || step === 8 ? "overview" : CO_SEG[step]}`, { replace: true, state: loc.state });
+    if (c && (!section || !(ORDER as string[]).includes(section))) nav(`/c/${c.ticker}/${c.status === "anchored" || step === 8 ? "overview" : CO_SEG[step]}`, { replace: true, state: loc.state });
   }, [c != null, section]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (q.loading && !c) return <Loading />;

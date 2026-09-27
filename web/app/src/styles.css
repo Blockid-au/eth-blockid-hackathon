@@ -463,7 +463,7 @@ td .xbtn:hover { color: var(--bad); background: var(--sunken); }
   .bigno { font-size: 1.45rem; }
   .heroviz { gap: 8px; }
   .tile { padding: 10px; }
-  .kpi b, .ktile b { font-size: 1.2rem; overflow-wrap: anywhere; }
+  .kpi b, .ktile b { font-size: min(1.2rem, 4.2vw); white-space: nowrap; }  /* never split a number mid-digit */
   .detail-head .px { font-size: 1.6rem; }
 }
 .detail-head .chg { white-space: normal; }
@@ -605,7 +605,8 @@ a.ri:hover { background: var(--sunken); }
 .gdiamond { color: var(--gold-mark); font-size: .75rem; }
 .row .grow { flex: 1; }
 @media (max-width: 900px) {
-  .shell { grid-template-columns: 1fr; gap: 16px; }
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 16px; }  /* minmax: the rail scrolls, the page does not */
+  .rail { min-width: 0; }
   .rail { position: static; max-height: none; display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
   .rgroup { flex: none; }
   .rgroup ul { display: flex; gap: 4px; }

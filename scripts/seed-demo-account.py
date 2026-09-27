@@ -8,6 +8,8 @@ Runs against the live API with the admin/admin demo login, through the normal ad
      each mint costs one Hoodi + one HashKey sync, so keep the list short while HSK gas is low);
   3. requests and approves a dividend on EBA, so the demo portfolio shows dividends received.
 
+Re-running skips companies the demo wallet already holds.
+
 Usage: agents/.venv/bin/python scripts/seed-demo-account.py [--no-dividend]
 """
 import sys
@@ -30,7 +32,11 @@ def main() -> None:
         r = c.post(f"/v1/companies/{tk}/admins",
                    json={"address": DEMO, "label": "Demo investor (shared demo account)", "role": "manager"})
         print("manager", tk, r.status_code, r.text[:160])
+    held = {p["ticker"] for p in c.get("/v1/demo/holdings").json().get("positions", [])}
     for tk, n in MINTS:
+        if tk in held:  # re-running is safe: no second allocation
+            print("mint", tk, "skipped: the demo wallet already holds", tk)
+            continue
         r = c.post(f"/v1/companies/{tk}/mints", json={"to_wallet": DEMO, "holder_name": "Demo investor", "shares": n,
                                                       "reason": "Demo investor allocation (testnet)"})
         print("mint", tk, n, r.status_code, r.text[:160])
