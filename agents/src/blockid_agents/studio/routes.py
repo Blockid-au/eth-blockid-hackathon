@@ -1063,7 +1063,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
 
     @r.post("/v1/admin/mints/{mid}/approve", status_code=202)
     def approve_mint(mid: int, sess: Session = Depends(require_user)):
-        _, role = authz.check_item(sess, "mints", mid)  # platform admin or an admin of the mint's company
+        _, role = authz.check_approver(sess, "mints", mid)  # platform admin, or another admin of the company
         return approve_item("mints", mid, "/mint", "mint_id", sess, "mint_approved", role)
 
     @r.post("/v1/admin/mints/{mid}/reject")
@@ -1105,7 +1105,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
 
     @r.post("/v1/admin/dividends/{did}/approve", status_code=202)
     def approve_dividend(did: int, sess: Session = Depends(require_user)):
-        _, role = authz.check_item(sess, "dividends", did)
+        _, role = authz.check_approver(sess, "dividends", did)
         return approve_item("dividends", did, "/dividend", "dividend_id", sess, "dividend_approved", role)
 
     @r.post("/v1/admin/dividends/{did}/reject")

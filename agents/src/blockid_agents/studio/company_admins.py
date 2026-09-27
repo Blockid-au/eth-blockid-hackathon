@@ -133,6 +133,20 @@ class CompanyAuthz:
             raise HTTPException(403, "platform admin or an admin of this company only")
         return row["company_id"], self.check(sess, row["company_id"])
 
+    def check_approver(self, sess: Session, table: str, item_id: int) -> tuple[int, str]:
+        """check_item for an APPROVAL: a company owner / manager may not approve a request they made themselves
+        (four eyes), and the shared demo account (any visitor) never approves anything. Platform admins are
+        unchanged: their approval is the platform's own gate."""
+        cid, role = self.check_item(sess, table, item_id)
+        if role == PLATFORM:
+            return cid, role
+        if sess.auth_method == "demo":
+            raise HTTPException(403, "the shared demo account cannot approve; a company admin or BlockID approves")
+        row = self._db().one(f"SELECT requested_by FROM studio.{table} WHERE id=%s", (item_id,))
+        if row and (row["requested_by"] or "").lower() == sess.actor.lower():
+            raise HTTPException(403, "a different person must approve a request you made")
+        return cid, role
+
 
 def build_company_admins_router(ctx) -> APIRouter:
     r = APIRouter()

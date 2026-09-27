@@ -171,6 +171,12 @@ def test_scoped_approvals(ca):
     assert calls[-1] == ("/transfer", {"transfer_id": pa["transfer"]})
     roles = {x["action"]: x["detail"].get("role") for x in db.all("SELECT action, detail FROM studio.audit")}
     assert roles["mint_approved"] == roles["dividend_rejected"] == roles["transfer_approved"] == "company_manager"
+    # four eyes: a manager cannot approve a mint they requested themselves; the platform admin still can
+    own = db.one("INSERT INTO studio.mints(company_id,to_wallet,holder_name,shares,status,requested_by) "
+                 "VALUES (%s,%s,'x',5,'pending',%s) RETURNING id", (ca["a"], OUTSIDER, MGR))["id"]
+    r = mgr.post(f"/v1/admin/mints/{own}/approve")
+    assert r.status_code == 403 and "different person" in r.json()["detail"]
+    assert admin.post(f"/v1/admin/mints/{own}/approve").status_code == 202
 
     # revaluation scoped; issuance / re-sync / reject / transfer mode stay platform-admin only
     r = mgr.post(f"/v1/admin/companies/{ca['a']}/revalue", json={"valuation_aud": 2000, "note": "q"})

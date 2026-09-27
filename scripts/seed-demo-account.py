@@ -2,8 +2,8 @@
 """Give the shared demo investor account (DEMO_WALLET) something to show.
 
 Runs against the live API with the admin/admin demo login, through the normal admin-approved flows:
-  1. makes the demo wallet a manager (off-chain role) of CNV and EBA, so the demo user can prepare updates,
-     mints and dividends for those companies (a platform admin still approves them);
+  1. (no company role: the demo account is shared with every visitor, so it never becomes a company owner /
+     manager — it would be able to approve requests; see CompanyAuthz.check_approver);
   2. requests and approves share mints to the demo wallet (the issuer registers KYC and re-syncs the mirrors:
      each mint costs one Hoodi + one HashKey sync, so keep the list short while HSK gas is low);
   3. requests and approves a dividend on EBA, so the demo portfolio shows dividends received.
@@ -19,7 +19,6 @@ import httpx
 
 API = "https://eth.blockid.au/api"
 DEMO = "0xFCC187E60719aE3E810Ca40A5F1Cf5309cC3cc0D"
-MANAGER_OF = ["CNV", "EBA"]
 MINTS = [("EBA", 100_000), ("CNV", 50_000), ("GAA", 20_000)]
 DIVIDEND = ("EBA", 20_000)  # mAUD, pro-rata to every EBA holder
 
@@ -28,10 +27,6 @@ def main() -> None:
     c = httpx.Client(base_url=API, headers={"Origin": "https://eth.blockid.au"}, timeout=60)
     r = c.post("/v1/auth/login", json={"username": "admin", "password": "admin"})
     r.raise_for_status()
-    for tk in MANAGER_OF:
-        r = c.post(f"/v1/companies/{tk}/admins",
-                   json={"address": DEMO, "label": "Demo investor (shared demo account)", "role": "manager"})
-        print("manager", tk, r.status_code, r.text[:160])
     held = {p["ticker"] for p in c.get("/v1/demo/holdings").json().get("positions", [])}
     for tk, n in MINTS:
         if tk in held:  # re-running is safe: no second allocation

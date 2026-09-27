@@ -348,7 +348,7 @@ def build_transfer_router(ctx) -> APIRouter:
                            "ORDER BY (k.status='pending') DESC, k.id DESC LIMIT 200")
 
     def approve(table: str, item_id: int, path: str, key: str, sess: Session, action: str) -> dict:
-        _, role = authz.check_item(sess, table, item_id)  # platform admin or an admin of the item's company
+        _, role = authz.check_approver(sess, table, item_id)  # platform admin, or another admin of the company
         db = ctx.need_db()
         row = db.one(f"UPDATE studio.{table} SET status='approved', decided_by=%s, decided_at=now() "
                      "WHERE id=%s AND status IN ('pending','failed') RETURNING id, company_id",
@@ -375,7 +375,7 @@ def build_transfer_router(ctx) -> APIRouter:
 
     @r.post("/v1/admin/transfers/{tid}/approve", status_code=202)
     def approve_transfer(tid: int, sess: Session = Depends(require_user)):
-        authz.check_item(sess, "transfers", tid)
+        authz.check_approver(sess, "transfers", tid)
         t = ctx.need_db().one("SELECT * FROM studio.transfers WHERE id=%s", (tid,))
         if t and t["mode"] == "approval" and t["status"] in ("pending", "failed"):
             try:
