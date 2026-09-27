@@ -147,8 +147,9 @@ export function Nav() {
         </Link>
         <button className="menubtn" type="button" aria-expanded={open} aria-controls="primary-links" onClick={() => setOpen((o) => !o)}>{open ? "✕" : "☰"}<span className="sr-only">{t("nav.menu")}</span></button>
         <nav id="primary-links" className={"links" + (open ? " open" : "")} aria-label={t("nav.primary")}>
-          <NavLink to="/i" end={false}>{t("nav.investors")}</NavLink>
+          <NavLink to="/i" end={false} className={({ isActive }) => (isActive && !pathname.startsWith("/i/offerings") ? "active" : undefined)}>{t("nav.investors")}</NavLink>
           <NavLink to="/companies">{t("nav.companies")}</NavLink>
+          <NavLink to="/i/offerings">{t("nav.offerings")}</NavLink>
           <Link to="/#how">{t("nav.how")}</Link>
           <NavLink to="/verify">{t("nav.verify")}</NavLink>
           <span className="navsep" aria-hidden="true" />
@@ -181,6 +182,11 @@ export function Footer() {
           <a href="/deck/BlockID-Startup-Passport-3min.pdf" download>PDF</a>{" · "}
           <a href="/deck/BlockID-Startup-Passport-3min.pptx" download>PPTX</a>{" · "}
           <a href="/deck/BlockID-Startup-Passport-pitch.pdf" download>{t("foot.deckFull")}</a>
+        </span>
+        <span className="foot-contact">
+          {t("foot.contact")}:{" "}
+          <a href="mailto:info@blockid.au">info@blockid.au</a>{" · "}
+          <a href="https://www.linkedin.com/in/dovanlong" target="_blank" rel="noopener noreferrer">LinkedIn · Long Do</a>
         </span>
         <span><Link to="/hsk">{t("nav.hsk")}</Link></span>
         <span>{t("foot.legal")}</span>

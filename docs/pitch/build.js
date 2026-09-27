@@ -69,7 +69,7 @@ async function full(file) {
     hero: await crop("01-home-hero.png", { height: 1800 }),
     radar: await full("09-valuation-radar-contribution.png"),
     agents: await crop("08-valuation-agent-log.png", { height: 1552 }),
-    tracker: await crop("15-company-arw-awaiting-approval.png", { height: 1730 }),
+    tracker: await crop("15-company-arw-tracker-kpis.png", { height: 1730 }),
     cards: await full("19-company-eba-contracts-qr.png"),
     ok: await crop("22-verify-eba-verified.png", { height: 1560 }),
     bad: await crop("24-verify-eba-tamper-mismatch.png", { height: 1560 }),
@@ -285,8 +285,8 @@ async function full(file) {
   s.addImage({ data: "image/png;base64," + qr.toString("base64"), x: 8.5, y: 3.5, w: 1.75, h: 1.75 });
   txt(s, "WE'RE LOOKING FOR", { x: 10.45, y: 3.5, w: 2.1, h: 0.3, fontSize: 10.5, bold: true, color: C.gold, charSpacing: 2 });
   txt(s, "Pilot startups, accelerators, licensed CSF partners, HashKey ecosystem support", { x: 10.45, y: 3.85, w: 2.1, h: 1.45, fontSize: 12.5, color: C.text });
-  txt(s, [{ text: "eth.blockid.au", options: { breakLine: true, bold: true } }, { text: "scan.blockid.au", options: { breakLine: true } }, { text: "github.com/Blockid-au/eth-blockid-hackathon", options: { breakLine: true } }, { text: "long@blockid.au" }],
-    { x: 8.5, y: 5.45, w: 4.1, h: 1.15, fontSize: 12.5, color: C.text });
+  txt(s, [{ text: "eth.blockid.au", options: { breakLine: true, bold: true } }, { text: "scan.blockid.au", options: { breakLine: true } }, { text: "github.com/Blockid-au/eth-blockid-hackathon", options: { breakLine: true } }, { text: "long@blockid.au", options: { breakLine: true } }, { text: "linkedin.com/in/dovanlong", options: { hyperlink: { url: "https://www.linkedin.com/in/dovanlong", tooltip: "Long Do on LinkedIn" }, color: C.teal, bold: true } }],
+    { x: 8.5, y: 5.35, w: 4.1, h: 1.3, fontSize: 12, color: C.text });
   foot(s, 12);
   s.addNotes("2:55–3:00. Try it now at eth.blockid.au — the QR code takes you there. We're looking for pilot startups, accelerators and licensed partners. Thank you.");
 

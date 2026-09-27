@@ -1,6 +1,7 @@
 /** Investor portal + sign-in copy. Plain words; no internal terms (see docs/FACTS.md "Terms to avoid"). */
 export const invEn = {
   "nav.investors": "My portfolio",
+  "foot.contact": "Contact",
   "nav.signin": "Sign in",
   "nav.role.guest": "guest",
   "nav.role.google": "Google",
@@ -82,6 +83,7 @@ export const invEn = {
 
 export const invVi: Record<keyof typeof invEn, string> = {
   "nav.investors": "Danh mục của tôi",
+  "foot.contact": "Liên hệ",
   "nav.signin": "Đăng nhập",
   "nav.role.guest": "dùng thử",
   "nav.role.google": "Google",

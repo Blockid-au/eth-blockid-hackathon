@@ -197,7 +197,9 @@ async function img(file, { top = 0, height } = {}) {
   T(s, "Try it now", { x: 9.5, y: 4.1, w: 3.15, h: 0.45, fontFace: H, fontSize: 20, bold: true, align: "center" });
   T(s, "eth.blockid.au", { x: 9.5, y: 4.55, w: 3.15, h: 0.35, fontSize: 14, color: C.teal, align: "center", bold: true });
   T(s, "Looking for: pilot startups, accelerators, licensed partners", { x: 9.55, y: 5.05, w: 3.05, h: 0.8, fontSize: 12.5, color: C.text, align: "center" });
-  T(s, "Long Do · long@blockid.au", { x: 9.5, y: 6.05, w: 3.15, h: 0.35, fontSize: 12, color: C.muted, align: "center" });
+  T(s, "Long Do · long@blockid.au", { x: 9.5, y: 5.95, w: 3.15, h: 0.32, fontSize: 12, color: C.muted, align: "center" });
+  T(s, [{ text: "linkedin.com/in/dovanlong", options: { hyperlink: { url: "https://www.linkedin.com/in/dovanlong", tooltip: "Long Do on LinkedIn" } } }],
+    { x: 9.5, y: 6.27, w: 3.15, h: 0.32, fontSize: 12, color: C.teal, align: "center", bold: true });
   foot(s);
   s.addNotes("[2:25–3:00] This is live today: twelve real companies, thirty-six token contracts on three chains, A$87 billion of valuation on-chain, every hash verified. Our full demo run took Canva from its website to a share register on three chains, a new round, a dividend and a shareholder transfer in eleven minutes. Our customers are founders, accelerators and licensed intermediaries who issue and administer startup equity. Scan the code and try it at eth.blockid.au — we're looking for pilot startups and licensed partners. Thank you.");
 
