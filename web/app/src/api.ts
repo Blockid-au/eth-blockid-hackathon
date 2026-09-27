@@ -31,6 +31,8 @@ export interface Position {
   holders: number;
   dividends_maud: number;
   dividends: { at: string; tx_hash?: string | null; amount_maud: number }[];
+  /** dividends announced under the company's dividend policy, not paid yet (this wallet's share) */
+  upcoming?: UpcomingDividend[];
   last_update_at?: string | null;
   names: string[];
 }
@@ -279,7 +281,67 @@ export interface Approvals {
   dividends: DividendReq[];
   /** business updates waiting for a platform admin (empty for company admins) */
   updates?: BizUpdate[];
+  /** dividend policies waiting for a platform admin (empty for company admins) */
+  policies?: DividendPolicy[];
 }
+
+/* ---------- automatic dividends (studio/dividend_policy.py) ---------- */
+export interface UpcomingDividend { dividend_id: number; amount_maud: number; total_maud: number; pay_after: string; declared_at?: string; period_label?: string | null; ticker?: string; company?: string }
+export type PolicyStatus = "draft" | "pending_approval" | "active" | "paused" | "rejected";
+export type PolicyKind = "payout_ratio" | "fixed";
+export type PolicyFrequency = "monthly" | "quarterly";
+export interface DividendPolicy {
+  id: number;
+  company_id: number;
+  kind: PolicyKind;
+  ratio_pct?: number | null;
+  fixed_maud?: number | null;
+  max_maud_per_round: number;
+  frequency: PolicyFrequency;
+  veto_hours: number;
+  status: PolicyStatus;
+  reason?: string | null;
+  active_since?: string | null;
+  created_by?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  ticker?: string;
+  company_name?: string;
+}
+export interface PolicyIn { kind: PolicyKind; ratio_pct?: number | null; fixed_maud?: number | null; max_maud_per_round: number; frequency: PolicyFrequency; veto_hours: number }
+export type CoDividendStatus = "pending" | "scheduled" | "approved" | "paying" | "paid" | "failed" | "rejected" | "vetoed" | "skipped";
+export interface CoDividend {
+  id: number;
+  company_id: number;
+  total_units: number;
+  total_maud: number;
+  status: CoDividendStatus | string;
+  source: "manual" | "policy";
+  policy_id?: number | null;
+  update_id?: string | null;
+  pay_after?: string | null;
+  approved_by?: string | null;
+  requested_by?: string | null;
+  note?: string | null;
+  tx_hash?: string | null;
+  round_id?: number | null;
+  created_at: string;
+  holders: number;
+  period_label?: string | null;
+}
+export interface DividendPolicyView {
+  ticker: string;
+  company_id: number;
+  you: string;
+  live: boolean;
+  policy: DividendPolicy | null;
+  next: { period_end: string; period_label: string; cadence: PolicyFrequency; veto_hours: number; max_maud: number } | null;
+  dividends: CoDividend[];
+}
+export interface PaidDividend { at: string; ticker: string; company: string; tx_hash?: string | null; wallet?: string | null; dividend_id?: number | null; amount_maud: number }
+export interface DividendLedger { wallets: string[]; paid: PaidDividend[]; upcoming: UpcomingDividend[]; total_maud: number; demo?: boolean }
 
 /* ---------- business updates (studio/updates.py) ---------- */
 export type Cadence = "weekly" | "monthly" | "quarterly" | "annual";
@@ -472,4 +534,13 @@ export const api = {
   submitUpdate: (id: string) => request<BizUpdate>("POST", `/v1/updates/${enc(id)}/submit`),
   approveUpdate: (id: string) => request<{ id: string; status: string; content_hash: string }>("POST", `/v1/admin/updates/${enc(id)}/approve`),
   rejectUpdate: (id: string, reason: string) => request<BizUpdate>("POST", `/v1/admin/updates/${enc(id)}/reject`, { reason }),
+  // automatic dividends
+  dividendPolicy: (ticker: string) => request<DividendPolicyView>("GET", `/v1/companies/${enc(ticker)}/dividend-policy`),
+  saveDividendPolicy: (ticker: string, body: PolicyIn) => request<DividendPolicyView>("PUT", `/v1/companies/${enc(ticker)}/dividend-policy`, body),
+  policyAction: (ticker: string, action: "submit" | "pause" | "resume") => request<DividendPolicyView>("POST", `/v1/companies/${enc(ticker)}/dividend-policy/${action}`),
+  vetoDividend: (ticker: string, id: number, reason = "") => request<DividendPolicyView>("POST", `/v1/companies/${enc(ticker)}/dividends/${id}/veto`, { reason }),
+  approvePolicy: (id: number) => request<DividendPolicy>("POST", `/v1/admin/dividend-policies/${id}/approve`),
+  rejectPolicy: (id: number, reason: string) => request<DividendPolicy>("POST", `/v1/admin/dividend-policies/${id}/reject`, { reason }),
+  myDividends: () => request<DividendLedger>("GET", "/v1/me/dividends"),
+  demoDividends: () => request<DividendLedger>("GET", "/v1/demo/dividends"),
 };

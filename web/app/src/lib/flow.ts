@@ -68,13 +68,14 @@ export type WsSection = (typeof WS)[number];
 export const coPath = (tk: string, seg: string) => `/c/${tk}/${seg}`;
 
 /* ---------- admin queues, in the order a company moves through the flow ---------- */
-export type QueueKey = "valuations" | "issuance" | "sync" | "mints" | "dividends" | "updates";
+export type QueueKey = "valuations" | "issuance" | "sync" | "mints" | "dividends" | "policies" | "updates";
 export const QUEUES: { key: QueueKey; gate: boolean }[] = [
   { key: "valuations", gate: true },
   { key: "issuance", gate: true },
   { key: "sync", gate: false },
   { key: "mints", gate: true },
   { key: "dividends", gate: true },
+  { key: "policies", gate: true },
   { key: "updates", gate: true },
 ];
 export function queueItems(a: Approvals | undefined) {
@@ -85,13 +86,14 @@ export function queueItems(a: Approvals | undefined) {
     sync: cos.filter((c) => c.status === "issued" || c.status === "pending_anchor" || c.status === "partially_anchored"),
     mints: a?.mints ?? [],
     dividends: a?.dividends ?? [],
+    policies: a?.policies ?? [],
     updates: a?.updates ?? [],
   };
 }
 export function queueCounts(a: Approvals | undefined): Record<QueueKey, number> & { total: number } {
   const q = queueItems(a);
-  const r = { valuations: q.valuations.length, issuance: q.issuance.length, sync: q.sync.length, mints: q.mints.length, dividends: q.dividends.length, updates: q.updates.length };
-  return { ...r, total: r.valuations + r.issuance + r.sync + r.mints + r.dividends + r.updates };
+  const r = { valuations: q.valuations.length, issuance: q.issuance.length, sync: q.sync.length, mints: q.mints.length, dividends: q.dividends.length, policies: q.policies.length, updates: q.updates.length };
+  return { ...r, total: r.valuations + r.issuance + r.sync + r.mints + r.dividends + r.policies + r.updates };
 }
 
 /** Admin deep link for a gate, with the founder page to return to after the decision. */

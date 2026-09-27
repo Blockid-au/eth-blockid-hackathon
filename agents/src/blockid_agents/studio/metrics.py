@@ -111,6 +111,8 @@ EVENT_TEXT = {
     "refreshed": "cap table refreshed from BlockID Chain",
     "dividend_created": "dividend round created",
     "dividend_claimed": "dividend claimed",
+    "dividend_declared": "dividend announced",
+    "dividend_vetoed": "announced dividend cancelled by the company",
     "mint_requested": "mint requested",
     "rejected": "rejected",
     "update_published": "business update published",
@@ -134,6 +136,12 @@ def event_text(e: dict) -> str:
         return f"{syncstate.LABELS.get(str(e.get('chain')), e.get('chain'))}: {d['error']}"[:300]
     if e["kind"] == "update_published" and d.get("title"):
         return f"business update published: {d['title']}"[:300]
+    if e["kind"] == "dividend_declared" and d.get("total_units"):
+        when = str(d.get("pay_after") or "")[:10]
+        return (f"dividend of {int(d['total_units']) / 1e6:,.2f} mAUD announced"
+                + (f" for {d['period']}" if d.get("period") else "") + (f", paid from {when}" if when else ""))
+    if e["kind"] == "dividend_vetoed" and d.get("total_units"):
+        return f"announced dividend of {int(d['total_units']) / 1e6:,.2f} mAUD cancelled by the company"
     if e["kind"] == "dividend_created" and d.get("total_units"):
         return f"dividend round {int(d['total_units']) / 1e6:,.2f} mAUD"
     return base

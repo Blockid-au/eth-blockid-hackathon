@@ -11,6 +11,7 @@ import { useAsync, useTitle } from "../lib/hooks";
 import { GRADE_C } from "../lib/math";
 import { shortAddr } from "../lib/addr";
 import { CompanyUpdateList, UpdateFeed, UpdatePage } from "./Updates";
+import { DividendLedgerCard, UpcomingDividends } from "./Dividends";
 
 /**
  * Investor portal: what you own, what it is worth at the latest approved price, and the dividends you received.
@@ -57,6 +58,7 @@ function Portfolio({ demo = false, tk }: { demo?: boolean; tk?: string }) {
       {!mine && <div className="banner gold" role="note">{t("in.demo.banner")}</div>}
       {mine && me?.auth_method === "demo" && <div className="banner gold" role="note">{t("in.demo.acct")} <Link to="/i/account">{t("nav.signin")}</Link></div>}
       {empty ? <Empty /> : <Summary h={h} base={base} />}
+      {!empty && h.positions.length > 0 && <DividendLedgerCard demo={!mine} />}
       {!empty && h.positions.length > 0 && <UpdateFeed demo={!mine} />}
       {empty && <SampleBelow />}
       <p className="muted-sm">{t("in.legal")}</p>
@@ -120,6 +122,7 @@ function PositionView({ p, demo, back }: { p: Position; demo: boolean; back: str
         <div className="kpi"><small>{t("in.pos.since")}</small><b className={"chg " + arrow(since)} style={{ fontSize: "1.55rem" }}>{chg(since)}</b><span>{t("in.pos.sinceSub", { p: aud(p.issue_price_aud, 2) })}</span></div>
         <div className="kpi"><small>{t("in.k.div")}</small><b>{fmt(p.dividends_maud, 2)}</b><span>{t("in.k.divSub")}</span></div>
       </div>
+      <UpcomingDividends list={p.upcoming ?? []} />
       <div className="cols">
         <section className="card solid">
           <h4>{t("in.pos.trend")}</h4>
@@ -130,7 +133,7 @@ function PositionView({ p, demo, back }: { p: Position; demo: boolean; back: str
           <h4>{t("in.pos.divs")}</h4>
           {p.dividends.length === 0 ? <span className="muted">{t("in.c.nodiv")}</span> : (
             <ul className="inv-divs">
-              {p.dividends.map((d, i) => <li key={i}><span>{date(d.at)}</span><b>{fmt(d.amount_maud, 2)} mAUD</b></li>)}
+              {p.dividends.map((d, i) => <li key={i}><span>{date(d.at)}</span><b>{d.tx_hash ? <a href={`https://scan.blockid.au/tx/${d.tx_hash}`} target="_blank" rel="noopener noreferrer">{fmt(d.amount_maud, 2)} mAUD</a> : `${fmt(d.amount_maud, 2)} mAUD`}</b></li>)}
             </ul>
           )}
           <span className="muted-sm">{t("in.pos.divSub")}</span>

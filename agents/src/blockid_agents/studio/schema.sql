@@ -74,3 +74,24 @@ CREATE TABLE IF NOT EXISTS studio.updates (
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (company_id, cadence, period_end));
 CREATE INDEX IF NOT EXISTS updates_status_idx ON studio.updates (status, company_id);
+-- automatic dividends (studio/dividend_policy.py): one standing policy per company, approved once by a platform admin.
+-- When a matching business update with a net profit is published, the API declares a dividend (source 'policy',
+-- status 'scheduled', approved_by 'policy:<id>'); after pay_after (the veto window) it is handed to the issuer.
+CREATE TABLE IF NOT EXISTS studio.dividend_policies (
+  id serial PRIMARY KEY, company_id int NOT NULL UNIQUE REFERENCES studio.companies(id) ON DELETE CASCADE,
+  kind text NOT NULL CHECK (kind IN ('payout_ratio','fixed')),
+  ratio_pct numeric, fixed_maud numeric, max_maud_per_round numeric NOT NULL,
+  frequency text NOT NULL CHECK (frequency IN ('monthly','quarterly')),
+  veto_hours int NOT NULL DEFAULT 24 CHECK (veto_hours BETWEEN 1 AND 168),
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','pending_approval','active','paused','rejected')),
+  reason text, active_since timestamptz,
+  created_by text, approved_by text, approved_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE studio.dividends ADD COLUMN IF NOT EXISTS policy_id int;
+ALTER TABLE studio.dividends ADD COLUMN IF NOT EXISTS update_id text;
+ALTER TABLE studio.dividends ADD COLUMN IF NOT EXISTS pay_after timestamptz;
+ALTER TABLE studio.dividends ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'manual';
+ALTER TABLE studio.dividends ADD COLUMN IF NOT EXISTS approved_by text;
+ALTER TABLE studio.dividends ADD COLUMN IF NOT EXISTS note text;
+CREATE UNIQUE INDEX IF NOT EXISTS dividends_update_uidx ON studio.dividends (update_id) WHERE update_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS dividends_status_idx ON studio.dividends (status, pay_after);

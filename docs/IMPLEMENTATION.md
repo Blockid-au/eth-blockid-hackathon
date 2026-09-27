@@ -192,6 +192,17 @@ Design tokens, copy, flows and charts: copy the prototype.
 | POST `/v1/admin/updates/{id}/approve\|reject` | platform admin | approve → content hash → issuer `POST /disclose` → 0-value tx issuer→issuer on BlockID Chain with calldata `0x424944550000` + sha256 |
 | GET `/v1/companies/{tk}/updates`, `/v1/updates/{id}`, `/v1/me/updates`, `/v1/demo/updates` | public / user | published updates; `canonical` JSON lets the browser recompute the hash |
 | POST `/v1/admin/mail/test` | platform admin | email from info@blockid.au (SMTP settings in RUNBOOK-STUDIO.md) |
+| GET/PUT `/v1/companies/{tk}/dividend-policy`, POST `.../dividend-policy/submit\|pause\|resume` | company admin | automatic dividends rule: % of net profit or fixed amount, cap per payment, monthly/quarterly, waiting time (veto hours) |
+| POST `/v1/admin/dividend-policies/{id}/approve\|reject` | platform admin | the one standing approval (queue "Dividend rules") |
+| POST `/v1/companies/{tk}/dividends/{id}/veto` | company admin | cancel an announced (`scheduled`) payment before `pay_after` |
+| GET `/v1/me/dividends`, `/v1/demo/dividends` | user / public | paid ledger + upcoming across holdings (CSV built in the browser) |
+| POST `/v1/admin/dividends/run-automation` | platform admin | one automation pass now |
 
-Admin queues are now: Valuations ◆, Issuance ◆, Chain sync, Mints ◆, Dividends ◆, Updates ◆, Transfers & KYC.
+Automatic dividends (studio/dividend_policy.py): a background thread in the API (every `DIVIDEND_AUTOMATION_SECONDS`,
+default 60, 0 = off; the worker cannot reach the issuer) declares one `studio.dividends` row per published update whose
+cadence matches an active policy (`source='policy'`, `status='scheduled'`, `approved_by='policy:<id>'`, claims planned on
+the cap table at declaration, `pay_after = now + veto_hours`; no profit -> `skipped`), then flips due rows to `approved`
+and calls the issuer's existing `POST /dividend`. Events `dividend_declared`, `dividend_vetoed`. BlockID Chain only.
+
+Admin queues are now: Valuations ◆, Issuance ◆, Chain sync, Mints ◆, Dividends ◆, Dividend rules ◆, Updates ◆, Transfers & KYC.
 Seed scripts: `scripts/seed-demo-account.py` (demo wallet holdings + dividend), `scripts/seed-updates.py CNV EBA` (3 monthly updates).

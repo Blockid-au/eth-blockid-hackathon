@@ -39,7 +39,7 @@ const pub = [
   ["val-auto", `/v/${VAL_ID}`], ["val-research", `/v/${VAL_ID}/research`], ["val-ticker", `/v/${VAL_ID}/ticker`],
   ["co-auto", `/c/${TK}`], ["co-issue", `/c/${TK}/issue`], ["co-sync", `/c/${TK}/sync`], ["co-wallet", `/c/${TK}/wallet`],
   ["co-updates", "/c/CNV/updates"], ["inv-demo", "/i/demo"], ["inv-demo-pos", "/i/demo/CNV"],
-  ["co-cap", `/c/${TK}/cap-table`], ["co-activity", `/c/${TK}/activity`], ["co-mint-locked", `/c/${TK}/mint`], ["companies", "/companies"],
+  ["co-cap", `/c/${TK}/cap-table`], ["co-activity", `/c/${TK}/activity`], ["co-mint-locked", `/c/${TK}/mint`], ["co-div-locked", `/c/${TK}/dividends`], ["companies", "/companies"],
 ];
 const desk = await browser.newContext({ viewport: { width: 1360, height: 900 } });
 await tour(desk, pub, "d");
@@ -56,13 +56,13 @@ await p.waitForTimeout(2500);
 await p.close();
 await tour(adm, [
   ["ad-inbox", "/admin"], ["ad-dash", "/admin/dashboard"], ["ad-val", "/admin/valuations"], ["ad-iss", "/admin/issuance"],
-  ["ad-sync", "/admin/sync"], ["ad-mints", "/admin/mints"], ["ad-updates", "/admin/updates"], ["ad-co-updates", "/c/CNV/updates"], ["ad-tr", "/admin/transfers"], ["ad-cos", `/admin/companies/${TK}`],
+  ["ad-sync", "/admin/sync"], ["ad-mints", "/admin/mints"], ["ad-divs", "/admin/dividends"], ["ad-policies", "/admin/policies"], ["ad-co-divs", "/c/CNV/dividends"], ["ad-updates", "/admin/updates"], ["ad-co-updates", "/c/CNV/updates"], ["ad-tr", "/admin/transfers"], ["ad-cos", `/admin/companies/${TK}`],
   ["ad-wallets", "/admin/wallets"], ["ad-audit", "/admin/audit"], ["ad-bogus", "/admin/nope"], ["ad-co-team", `/c/${TK}/team`],
   ["ad-ret", `/admin/valuations/xyz?return=%2Fv%2F${VAL_ID}%2Fticker`],
 ], "a");
 
 const mob = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
-await tour(mob, [["m-start", "/start"], ["m-co", `/c/${TK}/overview`], ["m-val", `/v/${VAL_ID}/report`], ["m-home", "/"]], "m");
+await tour(mob, [["m-inv-demo", "/i/demo"], ["m-inv-pos", "/i/demo/CNV"], ["m-start", "/start"], ["m-co", `/c/${TK}/overview`], ["m-val", `/v/${VAL_ID}/report`], ["m-home", "/"]], "m");
 
 await browser.close();
 console.log(problems.length ? "\nPROBLEMS:\n" + problems.join("\n") : "\nno problems");

@@ -11,6 +11,7 @@ from __future__ import annotations
 import hmac
 import logging
 import re
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -94,6 +95,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     """`studio` (db.Studio), `chain` (ChainReader), `issuer` (IssuerClient) and `runner_factory`
     are injectable for tests; by default they are built from settings."""
     from .studio.company_admins import build_company_admins_router
+    from .studio.dividend_policy import build_dividend_policy_router, interval_from_env
     from .studio.routes import build_router
     from .studio.transfers import build_transfer_router
     from .studio.updates import build_updates_router
@@ -102,8 +104,20 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     s = settings or get_settings()
     q = queue or JobQueue(Path(s.data_dir) / "jobs.sqlite")
     dev = s.studio_dev
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Automatic dividends: declare for newly published updates, pay once the veto window has passed
+        (studio/dividend_policy.py). Runs in the API because only the API can reach the issuer.
+        DIVIDEND_AUTOMATION_SECONDS=0 disables it."""
+        auto = app.state.studio.automation
+        auto.start(interval_from_env())
+        try:
+            yield
+        finally:
+            auto.stop()
+
     app = FastAPI(title="BlockID Agents API", version="0.2.0", docs_url="/docs" if dev else None,
-                  redoc_url="/redoc" if dev else None, openapi_url="/openapi.json" if dev else None)
+                  redoc_url="/redoc" if dev else None, openapi_url="/openapi.json" if dev else None, lifespan=lifespan)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
@@ -135,6 +149,8 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     app.include_router(build_transfer_router(ctx))
     app.include_router(build_company_admins_router(ctx))
     app.include_router(build_updates_router(ctx))
+    app.include_router(build_dividend_policy_router(ctx, ctx.automation))
+
 
     def auth(x_api_key: str = Header(default="")) -> None:
         if not s.api_key or not hmac.compare_digest(x_api_key, s.api_key):

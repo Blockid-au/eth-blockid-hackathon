@@ -35,6 +35,7 @@ from .errors import company_error_info
 from .company_admins import CompanyAuthz, seed_owner
 from .gas import GasDripper
 from .updates import pending_updates
+from . import dividend_policy as divpol
 from . import accounts as acct
 from .mailer import Mailer, welcome
 from .auth import (
@@ -148,6 +149,7 @@ class StudioContext:
     runner_factory: Callable[[], Any] | None = None
     throttle: LoginThrottle = field(default_factory=LoginThrottle)
     rpc_transport: httpx.AsyncBaseTransport | None = None  # tests
+    automation: Any = None  # dividend_policy.DividendAutomation, set by build_router
     _runner: Any = None
 
     @property
@@ -612,6 +614,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         return {"scope": "platform" if ids is None else "company", "company_ids": ids,
                 "valuations": vals, "companies": comps, "mints": jsonable(mints),
                 "updates": pending_updates(db, ids),
+                "policies": divpol.pending_policies(db, ids),
                 "dividends": [{**jsonable(d), "total_maud": int(d["total_units"]) / 1e6} for d in divs]}
 
     @r.get("/v1/admin/companies")
@@ -767,6 +770,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         divs = db.all("SELECT company_id, at, tx_hash, data FROM studio.events WHERE kind='dividend_claimed' "
                       "AND company_id = ANY(%s) AND lower(data->>'wallet') = ANY(%s) ORDER BY at DESC",
                       (ids or [0], low))
+        upcoming = divpol.upcoming_for(db, [c["id"] for c in rows], low)
         out, total_value, total_div = [], 0.0, 0.0
         for c in rows:
             table, source, _ = cap_table(c)
@@ -789,6 +793,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
                 "dividends_maud": round(div_maud, 2),
                 "dividends": [{"at": d["at"], "tx_hash": d["tx_hash"],
                                "amount_maud": int((d["data"] or {}).get("amount") or 0) / 1e6} for d in cdiv[:20]],
+                "upcoming": upcoming.get(c["id"], []),
                 "last_update_at": c.get("updated_at"), "source": source,
                 "names": sorted({x["name"] for x in mine if x.get("name")}),
             })
@@ -843,6 +848,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
             x["pct"] = round(x["shares"] * 100 / total, 4) if total else 0
         rows = [x for x in rows if x["shares"] > 0 or source == "db"]
         return sorted(rows, key=lambda x: -x["shares"]), source, block
+
+    ctx.automation = divpol.DividendAutomation(ctx, cap_table)
 
     @r.get("/v1/companies/{tk}")
     def company_detail(tk: str, request: Request):

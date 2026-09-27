@@ -731,3 +731,4 @@ a.upd-card:hover { border-color: var(--accent); }
 .upd-check { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .9rem; }
 .upd-check .ok { color: var(--up); } .upd-check .bad { color: var(--down); }
 @media (max-width: 640px) { .upd-chip { font-size: .76rem; } }
+.inv-divs li { flex-wrap: wrap; }

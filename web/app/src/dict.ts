@@ -1,6 +1,7 @@
 import { protoEn, protoVi } from "./dict.proto";
 import { invEn, invVi } from "./dict.investor";
 import { updEn, updVi } from "./dict.updates";
+import { divEn, divVi } from "./dict.dividends";
 
 /** App strings added on top of the prototype copy. VI must cover every EN key (checked by the type). */
 const appEn = {
@@ -610,7 +611,7 @@ const appEn = {
   "ws.d.cap-table": "Every holder, wallet and share count, read from the chain.",
   "ws.d.transfers": "Move shares between KYC-verified wallets.",
   "ws.d.mint": "Issue new shares with a live dilution preview. An admin approves the request.",
-  "ws.d.dividends": "Plan a Merkle dividend in mAUD. Holders claim without paying gas.",
+  "ws.d.dividends": "Pay a dividend in mAUD to every shareholder, in proportion to their shares. Shareholders pay no fees.",
   "ws.d.activity": "Every event and transaction for this company, newest first.",
   "ws.d.team": "Who can manage this company, and requests waiting for them.",
   "ad.ret.h": "Opened from the founder flow",
@@ -631,7 +632,7 @@ const appEn = {
   "ad.q.mints": "Mints",
   "ad.q.dividends": "Dividends",
   "ad.q.transfers": "Transfers & KYC",
-  "ad.q.eyebrow": "Queue {i} of 7",
+  "ad.q.eyebrow": "Queue {i} of 8",
   "ad.nav.inbox": "Inbox",
   "ad.nav.queues": "Queues · flow order",
   "ad.nav.registry": "Registry",
@@ -1268,7 +1269,7 @@ const appVi: Record<AppKey, string> = {
   "ws.d.cap-table": "Mọi cổ đông, ví và số cổ phần, đọc từ chuỗi.",
   "ws.d.transfers": "Chuyển cổ phần giữa các ví đã KYC.",
   "ws.d.mint": "Phát hành thêm cổ phần, xem trước mức pha loãng. Admin duyệt yêu cầu.",
-  "ws.d.dividends": "Lập đợt cổ tức Merkle bằng mAUD. Cổ đông nhận mà không trả gas.",
+  "ws.d.dividends": "Chia cổ tức bằng mAUD cho mọi cổ đông theo tỷ lệ cổ phần. Cổ đông không mất phí.",
   "ws.d.activity": "Mọi sự kiện và giao dịch của công ty, mới nhất trước.",
   "ws.d.team": "Ai được quản lý công ty, và các yêu cầu đang chờ họ.",
   "ad.ret.h": "Mở từ luồng của founder",
@@ -1289,7 +1290,7 @@ const appVi: Record<AppKey, string> = {
   "ad.q.mints": "Phát hành thêm",
   "ad.q.dividends": "Cổ tức",
   "ad.q.transfers": "Chuyển nhượng & KYC",
-  "ad.q.eyebrow": "Hàng đợi {i}/7",
+  "ad.q.eyebrow": "Hàng đợi {i}/8",
   "ad.nav.inbox": "Hộp việc",
   "ad.nav.queues": "Hàng đợi · theo luồng",
   "ad.nav.registry": "Quản lý",
@@ -1317,6 +1318,6 @@ const appVi: Record<AppKey, string> = {
   "ad.d.audit": "Mọi thao tác admin: ai làm và khi nào.",
 };
 
-export const en = { ...protoEn, ...appEn, ...invEn, ...updEn };
+export const en = { ...protoEn, ...appEn, ...invEn, ...updEn, ...divEn };
 export type DictKey = keyof typeof en;
-export const vi: Record<DictKey, string> = { ...protoVi, ...appVi, ...invVi, ...updVi };
+export const vi: Record<DictKey, string> = { ...protoVi, ...appVi, ...invVi, ...updVi, ...divVi };

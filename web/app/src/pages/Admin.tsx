@@ -4,7 +4,7 @@ import { safeNext } from "../components/DemoGuide";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import {
-  api, ApiError, type AdminCompany, type ApprovalCompany, type Approvals, type AdminWallets, type AuditRow, type BizUpdate, type CompanySummary, type DividendReq, type IssuerWallet, type MintReq, type Stats, type Valuation,
+  api, ApiError, type AdminCompany, type ApprovalCompany, type Approvals, type AdminWallets, type AuditRow, type BizUpdate, type CompanySummary, type DividendPolicy, type DividendReq, type IssuerWallet, type MintReq, type Stats, type Valuation,
 } from "../api";
 import { GradeChart, KTile, Ranges, StepArea } from "../components/charts";
 import { MarkPanel } from "../components/MarkPanel";
@@ -24,6 +24,7 @@ import { QUEUES, queueCounts, queueItems, type QueueKey } from "../lib/flow";
 import { CompanyAdminsPanel } from "../components/CompanyAdmins";
 import { ErrorFix } from "../components/ErrorFix";
 import { StatusPill, UpdateView } from "./Updates";
+import { PolicyPill, PolicySummary } from "./Dividends";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
@@ -375,12 +376,34 @@ function UpdateItem({ u, busy, act }: { u: BizUpdate; busy: boolean; act: Act })
   );
 }
 
-type AnyItem = Valuation | ApprovalCompany | MintReq | DividendReq | BizUpdate;
+function PolicyItem({ p, busy, act }: { p: DividendPolicy; busy: boolean; act: Act }) {
+  const { t, date } = useI18n();
+  const [reason, setReason] = useState("");
+  return (
+    <div className="pane">
+      <div className="between">
+        <span><b className="mono">{p.ticker}</b> · {p.company_name} <span className="muted-sm">{p.created_by ? "· " + t("pol.ad.by", { w: shortAddr(p.created_by) || p.created_by }) : ""}{p.updated_at ? " · " + date(p.updated_at, true) : ""}</span></span>
+        <span className="row" style={{ gap: 8 }}><PolicyPill s={p.status} />{p.ticker && <Link className="btn ghost sm" to={`/c/${p.ticker}/dividends`}>{t("ad.co.open")}</Link>}</span>
+      </div>
+      <p className="note">{t("pol.ad.p")}</p>
+      <div className="pane"><PolicySummary p={p} /></div>
+      <label className="lf"><span>{t("pol.ad.reason")}</span><input value={reason} maxLength={1000} onChange={(e) => setReason(e.target.value)} /></label>
+      <div className="row">
+        <span className="grow" />
+        <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.rejectPolicy(p.id, reason.trim() || "rejected by admin"), t("pol.ad.rejected"))}>{t("pol.ad.reject")}</button>
+        <button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.approvePolicy(p.id), t("pol.ad.approved"))}>{t("pol.ad.approve")}</button>
+      </div>
+    </div>
+  );
+}
+
+type AnyItem = Valuation | ApprovalCompany | MintReq | DividendReq | BizUpdate | DividendPolicy;
 const keyOf = (q: QueueKey, x: AnyItem): string =>
   q === "valuations" || q === "updates" ? (x as Valuation | BizUpdate).id : q === "issuance" || q === "sync" ? (x as ApprovalCompany).ticker : String((x as MintReq).id);
 function itemLabel(q: QueueKey, x: AnyItem): string {
   if (q === "valuations") return (x as Valuation).url.replace(/^https?:\/\//, "");
   if (q === "updates") return `${(x as BizUpdate).ticker} · ${(x as BizUpdate).title}`;
+  if (q === "policies") return `${(x as DividendPolicy).ticker ?? ""} · ${(x as DividendPolicy).company_name ?? ""}`;
   if (q === "issuance" || q === "sync") return `${(x as ApprovalCompany).ticker} · ${(x as ApprovalCompany).name}`;
   return `${(x as MintReq).ticker ?? ""} #${(x as MintReq).id}`;
 }
@@ -457,6 +480,7 @@ function QueueView({ q, ap, wallets, onChanged }: { q: QueueKey; ap: Async<Appro
           {q === "mints" && <MintItem key={keyOf(q, cur)} m={cur as MintReq} busy={busy} act={act} />}
           {q === "dividends" && <DividendItem key={keyOf(q, cur)} d={cur as DividendReq} busy={busy} act={act} />}
           {q === "updates" && <UpdateItem key={keyOf(q, cur)} u={cur as BizUpdate} busy={busy} act={act} />}
+          {q === "policies" && <PolicyItem key={keyOf(q, cur)} p={cur as DividendPolicy} busy={busy} act={act} />}
           {items.length > 1 && (
             <div className="pane">
               <h4>{t(("ad.q." + q) as DictKey)} · {items.length}</h4>
@@ -754,7 +778,7 @@ function AuditTab() {
 }
 
 /* ================= console ================= */
-const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "updates", "transfers", "companies", "wallets", "audit"] as const;
+const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "policies", "updates", "transfers", "companies", "wallets", "audit"] as const;
 type Section = (typeof SECTIONS)[number];
 
 function Console({ onPwRequired }: { onPwRequired: () => void }) {
@@ -780,7 +804,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const refreshAll = () => { void stats.reload(); void cos.reload(); void ap.reload(); void tr.reload(); };
   const title: Record<Section, string> = {
     inbox: t("ad.nav.inbox"), dashboard: t("ad.t.ov"), valuations: t("ad.q.valuations"), issuance: t("ad.q.issuance"), sync: t("ad.q.sync"),
-    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), updates: t("ad.q.updates"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"),
+    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), policies: t("ad.q.policies"), updates: t("ad.q.updates"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"),
   };
   const isQueue = (QUEUES.map((x) => x.key) as string[]).includes(section);
   const rail = (

@@ -21,6 +21,7 @@ import { Crumbs, FlowRail, Pager, RailGroup, RailItem, SideLayout, StepHead } fr
 import { CO_SEG, CO_STEP, coGate, coReach, coStep, LIVE, valPath, WS, type WsSection } from "../lib/flow";
 import { ErrorFix } from "../components/ErrorFix";
 import { CompanyUpdates } from "./Updates";
+import { CompanyDividends } from "./Dividends";
 
 const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring", "partially_anchored"];
 const RUNNING: CoStatus[] = ["issuing", "anchoring"];
@@ -229,7 +230,7 @@ function DividendForm({ c, onSent }: { c: CompanyDetail; onSent: () => void }) {
 /* ---------- events ---------- */
 /** Localised one-line detail for an event, built from its data (the server's `text` is English-only). */
 function useEventDetail() {
-  const { t, fmt, aud } = useI18n();
+  const { t, fmt, aud, date } = useI18n();
   return (e: CoEvent): string | null => {
     const d = (e.data ?? {}) as Record<string, unknown>;
     const ch = e.chain != null ? chainOf(e.chain).name : "";
@@ -242,8 +243,10 @@ function useEventDetail() {
         return d.contract ? String(d.contract) : null;
       case "revalued":
         return d.mark_aud != null ? t("evd.mark", { m: aud(Number(d.mark_aud), 4) }) : null;
-      case "dividend_created":
+      case "dividend_created": case "dividend_vetoed":
         return d.total_units != null ? `${fmt(Number(d.total_units) / 1e6, 2)} mAUD` : null;
+      case "dividend_declared":
+        return d.total_units != null ? t("evd.declared", { n: fmt(Number(d.total_units) / 1e6, 2), d: d.pay_after ? date(String(d.pay_after), true) : "–" }) + (d.period ? ` · ${String(d.period)}` : "") : null;
       case "sync_failed": case "sync_skipped":
         return [ch, d.error ? String(d.error) : ""].filter(Boolean).join(": ") || null;
       case "refreshed":
@@ -505,7 +508,12 @@ export default function CompanyPage() {
       {sec === "cap-table" && <CapTable rows={holders} ticker={c.ticker} source={c.cap_table_source} block={c.cap_table_block} />}
       {sec === "transfers" && <TransferPanel c={c} onDone={() => void q.reload()} />}
       {sec === "mint" && <MintForm c={c} onSent={() => void q.reload()} />}
-      {sec === "dividends" && <DividendForm c={c} onSent={() => void q.reload()} />}
+      {sec === "dividends" && (
+        <>
+          {canManage && <CompanyDividends ticker={c.ticker} />}
+          <DividendForm c={c} onSent={() => void q.reload()} />
+        </>
+      )}
       {sec === "activity" && <div className="pane"><EventList events={c.events ?? []} sync={c.sync} /></div>}
       {sec === "team" && (
         <>
