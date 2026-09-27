@@ -10,8 +10,8 @@ dividends from — on-chain, with AI that never holds the keys.
 
 - Live app: https://eth.blockid.au · Verify: https://eth.blockid.au/verify/EBA · HashKey Chain page:
   https://eth.blockid.au/hsk · Explorer: https://scan.blockid.au
-- Pitch deck (3 min): [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) ·
-  [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx) · demo video: https://eth.blockid.au/demo.mp4
+- Pitch deck (3 min): [PDF](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pdf) ·
+  [PPTX](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pptx) · demo video: https://eth.blockid.au/deck/blockid-startup-passport-pitch-3min-captions.mp4
 - Repo guide: [README.md](../README.md) · Demo script: [DEMO.md](DEMO.md) · Security: [SECURITY.md](SECURITY.md) ·
   Facts: [FACTS.md](FACTS.md)
 
