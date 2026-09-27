@@ -44,6 +44,7 @@ export function FrozenCard({ f, v, state, compact }: { f: ValuationFinal; v: Val
       </div>
       {!compact && (
         <>
+          {(f.planned_raise_aud ?? 0) > 0 && <p className="sub">{t("v5.fz.raise", { r: money(f.planned_raise_aud ?? 0), n: fmt(f.new_shares ?? 0), d: pct(f.dilution_pct ?? 0, 1), v: money(f.post_money_aud ?? 0) })}</p>}
           {f.note && <p className="sub">{t("v5.fz.note")}: {f.note}</p>}
           {f.reason && <p className="sub">{t("v5.fz.reason")}: {f.reason}{f.approved_by ? " · " + t("v5.fz.approvedby", { a: f.approved_by }) : ""}</p>}
           {f.low_confidence_override && <p className="sub">{t("v5.fz.override", { a: f.low_confidence_override.by, r: f.low_confidence_override.reason })}</p>}
@@ -178,6 +179,7 @@ export function Finalise({ v, x, tok, isAdmin, onChanged }: { v: Val; x: V5; tok
         ...(changed && !outBand ? { note: note.trim() } : note.trim() ? { note: note.trim() } : {}),
         ...(outBand ? { reason: reason.trim() } : {}),
         ...(lowConf && isAdmin ? { allow_low_confidence: true, override_reason: override.trim() } : {}),
+        planned_raise_aud: raise,
       });
       setAgain(false);
       onChanged(r);

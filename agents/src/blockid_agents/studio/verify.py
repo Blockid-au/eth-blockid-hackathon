@@ -58,7 +58,13 @@ VALUATION_METHOD_V5 = (
     "the numbers stored in its inputs; its weight = the stage x method matrix x evidence-quality factors "
     "(params_by_version); a method more than 3x from the weighted median of the methods gets weight 0 (a verified own "
     "price at most 24 months old is never excluded); the blend is the weighted mean, widened to at least "
-    "+/-10/20/35% by confidence. Values based on management projections are labelled as such."
+    "+/-10/20/35% by confidence. Values based on management projections are labelled as such. "
+    "v5 scores (svi.weights_profile = 'v5:<stage>'): nine dimensions weighted by the stage column "
+    "(svi.analysis.stage_profile.weights, which must equal svi.weights and the published stage table); every "
+    "code-computed dimension (traction, market, moat, retention, efficiency) is rebuilt from its sub-metrics - score "
+    "vs the stored stage benchmark (25/50/75/90 at P25/P50/P75/P90, log scale for money and counts), shrunk by the "
+    "verification level (L1 x0.6, L2 x0.8, L3 x0.9, L4 x1), weighted mean capped at 40 + 60 x coverage; "
+    "index = round(sum(weight x score), 2); band from the index."
 )
 
 
@@ -103,10 +109,17 @@ def recompute(report: dict) -> dict:
     (dimension scores, profile metrics/stage, cited market multiples) with the public formula."""
     s = (report or {}).get("svi") or {}
     dims = s.get("dimensions") or {}
-    wver, weights = weights_for(s)
+    v5 = is_v5_score(s)
+    idx_v5 = recompute_index_v5(s) if v5 else None
+    if idx_v5 is not None:  # evaluation v5: 9 dimensions, stage weights, sub-metrics rebuilt from the analysis
+        wver, weights = idx_v5["weights_version"], idx_v5["weights"]
+        scores = idx_v5["dimensions"]
+    else:
+        wver, weights = weights_for(s)
+        scores = {k: _num((dims.get(k) or {}).get("score")) for k in weights}
     contributions = []
     for k, w in weights.items():
-        sc = _num((dims.get(k) or {}).get("score"))
+        sc = scores.get(k, 0.0)
         contributions.append({"dimension": k, "score": sc, "weight": w, "contribution": round(w * sc, 4),
                               "basis": (dims.get(k) or {}).get("basis")})
     index = round(sum(weights[c["dimension"]] * c["score"] for c in contributions), 2)
@@ -140,6 +153,8 @@ def recompute(report: dict) -> dict:
             break
     if version == "v3" and wver == "v4":
         version = "v4"  # v4 = v3 valuation rules + the v4 dimension weights
+    if idx_v5 is not None:
+        version = "v5"  # v5 score (and, with it, the v5 valuation when triangulation.version = "v5")
     out = {"index": index, "band": svi_tools.band(index), "factor": round(factor, 4),
            "low": round(low, -3), "mid": round(mid, -3), "high": round(high, -3),
            "method": method, "formula_version": version, "current_formula": svi_tools.FORMULA_VERSION,
@@ -151,7 +166,48 @@ def recompute(report: dict) -> dict:
         "band": s.get("band") == out["band"],
         **matches((low, mid, high)),
     }
+    if idx_v5 is not None:
+        out["weights_profile"] = s.get("weights_profile")
+        out["stage"] = idx_v5["stage"]
+        out["dimension_matches"] = idx_v5["dimension_matches"]
+        out["matches_report"]["weights"] = idx_v5["weights_ok"]
+        out["matches_report"]["dimensions"] = all(idx_v5["dimension_matches"].values())
+    elif v5:  # claims to be v5 but carries no analysis to rebuild from
+        out["matches_report"]["dimensions"] = False
     return out
+
+
+def is_v5_score(s: dict) -> bool:
+    """An evaluation-v5 score: `weights_profile` "v5:<stage>" or an `analysis` object (docs/EVALUATION-V5-API.md)."""
+    return str(s.get("weights_profile") or "").startswith("v5:") or isinstance(s.get("analysis"), dict)
+
+
+def recompute_index_v5(s: dict) -> dict | None:
+    """v5 index from the stored analysis: every code-computed dimension is rebuilt from its sub-metrics (value vs
+    stored benchmark, verification-level shrink, coverage cap: tools/svi.recompute_v5), the weights must be the stage
+    column the report says it used (analysis.stage_profile.weights == svi.weights == weights_profile stage), and
+    index = round(sum(weight x score), 2). None when the report has no analysis to rebuild from."""
+    from ..tools import stage as stage_tools
+
+    an = s.get("analysis")
+    if not isinstance(an, dict) or not isinstance(an.get("dimensions"), dict):
+        return None
+    stored_w = {k: _num(v) for k, v in (s.get("weights") or {}).items()} if isinstance(s.get("weights"), dict) else {}
+    prof = an.get("stage_profile") if isinstance(an.get("stage_profile"), dict) else {}
+    prof_w = {k: _num(v) for k, v in (prof.get("weights") or {}).items()} if isinstance(prof.get("weights"), dict) \
+        else {}
+    stage = (an.get("stage") or {}).get("stage") if isinstance(an.get("stage"), dict) else None
+    wp = str(s.get("weights_profile") or "")
+    weights = prof_w or stored_w
+    same = (lambda a, b: bool(a) and set(a) == set(b) and all(abs(a[k] - b[k]) < 1e-9 for k in a))
+    weights_ok = (same(weights, stored_w) and abs(sum(weights.values()) - 1.0) < 1e-6
+                  and (not wp or wp == f"v5:{stage}"))
+    if stage in stage_tools.STAGES and prof.get("table_version") in (None, "", stage_tools.STAGE_TABLE_VERSION):
+        weights_ok = weights_ok and same(weights, stage_tools.weights(stage))  # the published stage column
+    rc = svi_tools.recompute_v5({**s, "weights": weights})
+    dims = {k: float(rc["dimensions"].get(k, 0.0)) for k in weights}
+    return {"weights": weights, "weights_version": wp or f"v5:{stage}", "stage": stage, "dimensions": dims,
+            "dimension_matches": rc["matches"]["dimensions"], "weights_ok": weights_ok}
 
 
 def weights_for(s: dict) -> tuple[str, dict[str, float]]:

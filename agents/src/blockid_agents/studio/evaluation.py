@@ -23,7 +23,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from psycopg.types.json import Jsonb
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from ..schemas import MetricValue, SelfReportedMetrics, SelfReportedMetricsV2
 from ..tools import csv_metrics
@@ -89,7 +89,17 @@ class DocumentBody(_Body):
     filename: str = Field(min_length=1, max_length=200)
     sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     text: str | None = Field(default=None, max_length=MAX_TEXT_CHARS)
-    rows: list[list[str]] | None = Field(default=None, max_length=csv_metrics.MAX_ROWS + 1)
+    # metrics CSV: rows as string[][] or the CSV text itself (docs/EVALUATION-V5-API.md §3; the web app sends text)
+    rows: list[list[str]] | str | None = None
+
+    @field_validator("rows")
+    @classmethod
+    def _rows_size(cls, v):
+        if isinstance(v, str) and len(v) > MAX_TEXT_CHARS:
+            raise ValueError(f"CSV text too long (max {MAX_TEXT_CHARS:,} characters)")
+        if isinstance(v, list) and len(v) > csv_metrics.MAX_ROWS + 1:
+            raise ValueError(f"too many rows (max {csv_metrics.MAX_ROWS} months)")
+        return v
 
 
 class VerifyBody(_Body):
@@ -334,7 +344,8 @@ def build_evaluation_router(ctx) -> APIRouter:
                 parsed = csv_metrics.parse(payload)
             except ValueError as e:
                 raise HTTPException(422, str(e)) from None
-            text = body.text if body.text is not None else "\n".join(",".join(r) for r in body.rows or [])
+            text = body.text if body.text is not None else (
+                body.rows if isinstance(body.rows, str) else "\n".join(",".join(r) for r in body.rows or []))
         else:
             if not (body.text or "").strip():
                 raise HTTPException(422, "send the document text (the browser extracts it)")

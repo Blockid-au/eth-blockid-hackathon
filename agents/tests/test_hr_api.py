@@ -4,6 +4,7 @@ valuation-start teams and the founder_quality blend."""
 import json
 
 from eth_account import Account
+from conftest import v5_on
 from test_studio import ADMIN_KEY, USER, USER_KEY, needs_db, siwe_login, studio_env  # noqa: F401 (fixture)
 
 from blockid_agents.audit import AuditLog
@@ -224,7 +225,7 @@ def test_team_at_valuation_start_feeds_founder_quality(studio_env):
     assert v["svi"]["weights"]["founder_quality"] == 0.30
     # the stored report still verifies with the public formula
     r1 = verify.recompute(canonical_report(report_view_from_row(db.get_valuation(vid))))
-    assert all(r1["matches_report"].values()) and r1["formula_version"] == "v4", r1
+    assert all(r1["matches_report"].values()) and r1["formula_version"] == ("v5" if v5_on() else "v4"), r1
     # summary readable via the valuation rule; strangers cannot
     assert u.get(f"/v1/hr/teams/{tid}/summary").status_code == 200
     assert o.get(f"/v1/hr/teams/{tid}/summary").status_code == 403

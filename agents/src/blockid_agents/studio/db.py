@@ -33,7 +33,8 @@ def initial_steps() -> list[dict]:
     from ..tools.valuation_params import v5_enabled
 
     keys = list(STEP_KEYS)
-    if v5_enabled():  # valuation v5: "Checking value with standard methods" (graph node valuation_methods)
+    if v5_enabled():  # evaluation v5 analysts (graph node `analysts`, before svi) + valuation v5 methods
+        keys.insert(keys.index("svi"), "analysts")
         keys.insert(keys.index("narrative"), "valuation_methods")
     return [{"key": k, "status": "pending", "detail": "", "at": None} for k in keys]
 

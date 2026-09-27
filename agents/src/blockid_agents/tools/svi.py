@@ -262,6 +262,7 @@ def valuation_range(rev: float, factor: float, market: MarketAnalysis | None, st
 # so /verify of v1-v4 reports behaves exactly as before; v5 reports record weights_profile = "v5:<stage>" and carry
 # the stage profile they used in svi.analysis.stage_profile.
 FORMULA_VERSION_V5 = "v5"
+TRUST_DIMS_V5 = ("traction", "market", "moat", "retention", "efficiency")  # = tools/evaluation.CODE_DIMS
 
 
 def weights_v5(stage: str) -> dict[str, float]:
@@ -357,6 +358,18 @@ def recompute_v5(svi_dict: dict) -> dict:
         cov = round(cw / tot, 3) if tot else 0.0
         acc = sum(a * w for a, w in scored) / cw
         out_dims[k] = round(min(acc, round(40 + 60 * cov, 2)), 1)
+    # trust_verification = share of the scored weight (dimension weight x sub-metric weight) at level >= 2
+    # (tools/evaluation.evaluate), rebuilt from the same stored sub-metrics
+    tv = (an.get("dimensions") or {}).get("trust_verification")
+    if isinstance(tv, dict) and tv.get("basis") == "computed":
+        tot = hi = 0.0
+        for k in TRUST_DIMS_V5:
+            for sm in ((an.get("dimensions") or {}).get(k) or {}).get("sub_metrics") or []:
+                if sm.get("status") in ("scored", "capped") and sm.get("value") is not None:
+                    wt = float(weights.get(k, 0)) * float(sm.get("weight", 0))
+                    tot += wt
+                    hi += wt if (sm.get("value") or {}).get("level", 0) >= 2 else 0.0
+        out_dims["trust_verification"] = round(100 * round(hi / tot, 3), 1) if tot else 40.0
     index = index_v5({k: {"score": v} for k, v in out_dims.items()}, weights)
     stored = s.get("dimensions") or {}
     return {"index": index, "dimensions": out_dims,

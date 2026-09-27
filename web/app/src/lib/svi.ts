@@ -47,6 +47,8 @@ export function bandGrade(svi: Pick<Svi, "band" | "index">): string {
 }
 
 const STEP_ALIASES: [RegExp, DictKey][] = [
+  [/^analysts$/i, "log.analysts"],
+  [/^valuation_methods$/i, "log.methods"],
   [/fetch|site|crawl|read_?web|website/i, "log.1"],
   [/profile|intake|extract/i, "log.2"],
   [/compet/i, "log.3"],

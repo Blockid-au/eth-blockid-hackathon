@@ -94,10 +94,12 @@ for _name, _desc in (
         handles_pii=False, description=_desc)
 
 # Valuation v5 agent (docs/PLAN-VALUATION-V5.md §5, agents/valuation_agent.py): reads this valuation's stored evidence
-# only (no web, no keys, no chain); maps the industry, suggests Berkus / risk ratings with cited evidence, extracts
-# quote-verified precedent deals. Code computes every number.
+# plus ONE `precedents` web search on the shared budget (Series A / growth; no keys, no chain); maps the industry,
+# suggests Berkus / risk ratings with cited evidence, extracts quote-verified precedent deals. Code computes every
+# number.
 POLICIES["valuation_methods"] = AgentPolicy(
-    tiers=frozenset({"local", "cloud"}), tools=frozenset({"value_methods"}), handles_pii=False,
+    tiers=frozenset({"local", "cloud"}), tools=frozenset({"value_methods", "web_search", "fetch_url",
+                                                         "store_evidence"}), handles_pii=False,
     description="Valuation v5: industry pick, startup-factor ratings with citations, verified precedent deals.")
 
 # Tools that do not exist for ANY agent. Listed explicitly so reviewers see the boundary.

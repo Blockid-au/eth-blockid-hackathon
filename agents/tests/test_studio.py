@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
+from conftest import v5_on
 from eth_account import Account
 from eth_account.messages import encode_defunct
 
@@ -194,6 +195,13 @@ def test_competitor_discovery_filters_and_funding_needs_quote(tmp_path):
     assert out["profile"]["competitors"] == ["TE-FOOD", "OpenSC"]
 
 
+def graph_steps() -> list[str]:
+    """Progress steps of the site valuation: v4, or v5 with the analysts and the valuation-methods steps."""
+    if v5_on():
+        return ["read_site", "profile", "competitors", "market", "analysts", "svi", "valuation_methods", "narrative"]
+    return ["read_site", "profile", "competitors", "market", "svi", "narrative"]
+
+
 def test_site_valuation_graph_progress_and_gate(tmp_path):
     from langgraph.checkpoint.memory import InMemorySaver
     from langgraph.types import Command
@@ -205,7 +213,7 @@ def test_site_valuation_graph_progress_and_gate(tmp_path):
     out = g.invoke({"job_id": "v9", "url": FAKE_SITE}, cfg)
     assert out["__interrupt__"][0].value["gate"] == "valuation"
     steps = prog.steps["v9"]
-    assert list(steps) == ["read_site", "profile", "competitors", "market", "svi", "narrative"]
+    assert list(steps) == graph_steps()
     assert all(v["status"] == "done" for v in steps.values())
     r = prog.results["v9"]
     assert r["counters"]["pages"] == 3 and r["counters"]["competitors"] == 2 and r["counters"]["sources"] > 0
@@ -444,8 +452,7 @@ def test_full_studio_flow(studio_env):
     assert u.post("/v1/studio/valuations", json={"url": "http://127.0.0.1/"}).status_code == 422
     vid = u.post("/v1/studio/valuations", json={"url": "agritrace.example"}).json()["id"]
     v = u.get(f"/v1/studio/valuations/{vid}").json()
-    assert v["status"] == "queued" and [s["key"] for s in v["steps"]] == ["read_site", "profile", "competitors",
-                                                                          "market", "svi", "narrative"]
+    assert v["status"] == "queued" and [s["key"] for s in v["steps"]] == graph_steps()
     assert runner.drain() == 1
     v = u.get(f"/v1/studio/valuations/{vid}").json()
     assert v["status"] == "waiting_approval", v["error"]
@@ -656,7 +663,6 @@ def test_self_reported_metrics_change_svi_and_are_labelled(tmp_path):
     _, _, base = _run_site(tmp_path, "vb")
     g, cfg, r = _run_site(tmp_path, "vs", SELF_REPORTED)
     bd, d = base["svi"]["dimensions"], r["svi"]["dimensions"]
-    assert bd["revenue_performance"]["basis"] == "computed" and bd["growth_capability"]["basis"] == "computed"
     assert base["self_reported"] is None and SELF_REPORTED_WARNING not in base["warnings"]
 
     assert r["self_reported"] == SELF_REPORTED
@@ -664,18 +670,31 @@ def test_self_reported_metrics_change_svi_and_are_labelled(tmp_path):
     assert r["profile"]["metrics"]["revenue_ttm_aud"] == 30_000_000
     assert r["profile"]["metrics"]["paying_customers"] == 1200
     assert r["profile"]["metrics"]["gross_margin_pct"] == 72  # not supplied -> website value kept
-    for k in ("revenue_performance", "growth_capability"):
-        assert d[k]["basis"] == "self_reported" and "self-reported" in d[k]["rationale"]
-    assert "revenue_ttm_aud" in d["revenue_performance"]["rationale"]
-    assert d["revenue_performance"]["score"] > bd["revenue_performance"]["score"]
-    assert d["growth_capability"]["score"] != bd["growth_capability"]["score"]
     assert d["founder_quality"]["basis"] == "ai_suggested"
     assert r["svi"]["index"] != base["svi"]["index"]
     assert r["svi"]["valuation_mid_aud"] > base["svi"]["valuation_mid_aud"]  # revenue x cited multiple
-    assert r["svi"]["method"].startswith("self-reported revenue multiple")
+    if v5_on():  # v5: typed figures are level-1 inputs of the computed dimensions (60 % of their effect)
+        m = r["svi"]["analysis"]["metrics"]
+        assert m["revenue_ttm_aud"]["source"] == "self_reported" and m["revenue_ttm_aud"]["level"] == 1
+        assert m["yoy_growth_pct"]["value"] == 45 and "self-reported" in m["revenue_ttm_aud"]["note"]
+        assert "revenue_ttm_aud" not in base["svi"]["analysis"]["metrics"]
+        assert d["traction"]["basis"] == bd["traction"]["basis"] == "computed"
+        assert d["traction"]["score"] > bd["traction"]["score"]
+        assert "self-reported revenue multiple" in r["svi"]["method"]
+    else:
+        assert bd["revenue_performance"]["basis"] == "computed" and bd["growth_capability"]["basis"] == "computed"
+        for k in ("revenue_performance", "growth_capability"):
+            assert d[k]["basis"] == "self_reported" and "self-reported" in d[k]["rationale"]
+        assert "revenue_ttm_aud" in d["revenue_performance"]["rationale"]
+        assert d["revenue_performance"]["score"] > bd["revenue_performance"]["score"]
+        assert d["growth_capability"]["score"] != bd["growth_capability"]["score"]
+        assert r["svi"]["method"].startswith("self-reported revenue multiple")
 
     final = g.invoke(Command(resume={"approved": True, "reviewer": "admin"}), cfg)
-    assert final["svi"]["dimensions"]["revenue_performance"]["basis"] == "self_reported"
+    if v5_on():
+        assert final["svi"]["analysis"]["metrics"]["revenue_ttm_aud"]["source"] == "self_reported"
+    else:
+        assert final["svi"]["dimensions"]["revenue_performance"]["basis"] == "self_reported"
     assert final["svi"]["dimensions"]["founder_quality"]["basis"] == "human"
 
 
@@ -727,10 +746,16 @@ def test_self_reported_valuation_api(studio_env):
     assert v["status"] == "waiting_approval", v["error"]
     assert v["self_reported"] == SELF_REPORTED
     assert v["warnings"][0] == "Includes self-reported figures (not independently verified)"
-    assert v["svi"]["dimensions"]["revenue_performance"]["basis"] == "self_reported"
-    assert v["svi"]["dimensions"]["growth_capability"]["basis"] == "self_reported"
     p = u.get(f"/v1/studio/valuations/{plain}").json()
-    assert p["self_reported"] is None and p["svi"]["dimensions"]["revenue_performance"]["basis"] == "computed"
+    assert p["self_reported"] is None
+    if v5_on():  # v5: typed figures are level-1 metric inputs (shown with the "Self-reported" badge)
+        m = v["svi"]["analysis"]["metrics"]
+        assert m["revenue_ttm_aud"]["source"] == m["revenue_growth_yoy_pct"]["source"] == "self_reported"
+        assert "revenue_ttm_aud" not in p["svi"]["analysis"]["metrics"]
+    else:
+        assert v["svi"]["dimensions"]["revenue_performance"]["basis"] == "self_reported"
+        assert v["svi"]["dimensions"]["growth_capability"]["basis"] == "self_reported"
+        assert p["svi"]["dimensions"]["revenue_performance"]["basis"] == "computed"
     assert p["svi"]["index"] != v["svi"]["index"]
 
 

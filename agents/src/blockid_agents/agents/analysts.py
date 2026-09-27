@@ -326,6 +326,31 @@ def stage_evidence(result: dict, typed: dict, claims: list[VerifiedClaim], today
     return ev
 
 
+def research_claims(state: dict, verifier: Verifier) -> list[VerifiedClaim]:
+    """The company's own figures the research step already verified (market.company_financials: quote found on the
+    page, currency converted — agents/research.py) as v5 claims, so a cited revenue / ARR counts in traction exactly as
+    it does in the v4 revenue dimension: level 3 from a third-party page, level 1 from the company's own site. GMV and
+    unverified figures are never used; funding raised is kept for the stage and the valuation."""
+    cf = (state.get("market") or {}).get("company_financials") or {}
+    url = cf.get("source_url") or ""
+    if not url:
+        return []
+    out: list[VerifiedClaim] = []
+    year = str(cf.get("revenue_year") or "")
+    if cf.get("usable_for_valuation") and cf.get("revenue_ttm_aud") and cf.get("revenue_type") in ("revenue", "ARR"):
+        out.append(VerifiedClaim(metric="arr" if cf["revenue_type"] == "ARR" else "revenue",
+                                 value=cf.get("revenue_ttm"), unit=cf.get("currency") or "", period=year, as_of=year,
+                                 value_aud=float(cf["revenue_ttm_aud"]), source_url=url,
+                                 quote=(cf.get("quote") or "")[:300], subject="company",
+                                 level=verifier.level_for(url), analyst="research"))
+    if cf.get("funding_raised_total_aud"):
+        out.append(VerifiedClaim(metric="raised_to_date", value=cf.get("funding_raised_total"),
+                                 unit=cf.get("currency") or "", value_aud=float(cf["funding_raised_total_aud"]),
+                                 source_url=url, quote=(cf.get("funding_quote") or cf.get("quote") or "")[:300],
+                                 subject="company", level=verifier.level_for(url), analyst="research"))
+    return out
+
+
 # ------------------------------------------------------------------ the graph step
 def run(state: dict, deps: Deps, *, today: date | None = None, lookups_client=None) -> dict:
     from . import market_size, moat, retention, traction
@@ -353,7 +378,7 @@ def run(state: dict, deps: Deps, *, today: date | None = None, lookups_client=No
             except Exception as e:  # noqa: BLE001
                 deps.audit.record("valuation", "analyst_failed", analyst=k, error=str(e)[:300])
                 results[k] = {"claims": [], "dropped": [f"{k}: failed ({type(e).__name__})"], "error": str(e)[:200]}
-    claims: list[VerifiedClaim] = []
+    claims: list[VerifiedClaim] = research_claims(state, verifier)
     dropped: list[str] = []
     for k in jobs:
         claims += results[k].get("claims") or []

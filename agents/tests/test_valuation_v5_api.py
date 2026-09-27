@@ -218,6 +218,10 @@ def test_v5_projections_finalise_company(v5_on, studio_env):
     assert f["price_per_share_aud"] == round(rec * 1.1, 4) and f["price_deviation_pct"] == pytest.approx(10, abs=0.1)
     assert f["total_shares"] == round(f["pre_money_aud"] / f["price_per_share_aud"])
     assert f["based_on_projections"] and f["report_hash"] == report_hash_from_row(db.get_valuation(vid))
+    # no planned raise sent: the confirmed projections' planned raise (A$1M) at the chosen price
+    assert f["planned_raise_aud"] == 1_000_000 and f["planned_raise_source"] == "projections"
+    assert f["new_shares"] == int(1_000_000 // f["price_per_share_aud"])
+    assert f["dilution_pct"] == round(f["new_shares"] * 100 / (f["total_shares"] + f["new_shares"]), 2)
     valid_until = datetime.fromisoformat(f["valid_until"])
     assert timedelta(days=89) < valid_until - datetime.now(UTC) <= timedelta(days=90)
     assert u.post(f"/v1/studio/valuations/{vid}/finalise", json={}).status_code == 409  # already finalised
@@ -292,7 +296,8 @@ def test_v5_price_approval_four_eyes_and_assumptions(v5_on, studio_env):
     set_confidence(db, vid, "medium")
     rec = a.get(f"/v1/studio/valuations/{vid}/tokenisation").json()["proposal"]["recommended_price_per_share_aud"]
     r = a.post(f"/v1/studio/valuations/{vid}/finalise",
-               json={"price_per_share_aud": round(rec * 0.5, 4), "reason": "Board resolution: half the price."})
+               json={"price_per_share_aud": round(rec * 0.5, 4), "reason": "Board resolution: half the price.",
+                     "planned_raise_aud": 750_000})
     assert r.status_code == 202
     rid = r.json()["pending_request"]["id"]
     # the requester (even a platform admin) cannot approve their own request
@@ -302,6 +307,11 @@ def test_v5_price_approval_four_eyes_and_assumptions(v5_on, studio_env):
     f = r.json()["final"]
     assert f["price_request_id"] == rid and f["price_approved_by"] == "admin"
     assert f["price_per_share_aud"] == round(rec * 0.5, 4) and f["price_deviation_pct"] == pytest.approx(-50, abs=0.1)
+    # the founder's planned raise survives the four-eyes request
+    assert f["planned_raise_aud"] == 750_000 and f["planned_raise_source"] == "founder"
+    assert f["new_shares"] == int(750_000 // f["price_per_share_aud"])
+    assert f["post_money_aud"] == pytest.approx(f["price_per_share_aud"] * f["total_shares"] + 750_000, abs=0.01)
+    assert a.post(f"/v1/studio/valuations/{vid}/finalise", json={"planned_raise_aud": -1}).status_code == 422
     acts = {x["action"] for x in db.all("SELECT action FROM studio.audit WHERE target=%s", (vid,))}
     assert {"valuation_price_requested", "valuation_price_approved", "valuation_finalised"} <= acts
 

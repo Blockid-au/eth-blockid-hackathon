@@ -77,6 +77,9 @@ SCHEMA_PROFILES: dict[str, str] = {
     # evaluation v5 analysts (docs/PLAN-EVALUATION-V5.md §2.2): cited claims only -> extract_json
     "TractionClaims": "extract_json", "MarketSizeClaims": "extract_json", "MoatClaims": "extract_json",
     "RetentionClaims": "extract_json", "DeckFacts": "extract_json",
+    # valuation v5 agent (agents/valuation_agent.py, docs/PLAN-VALUATION-V5.md §5.3): picking one key from a fixed
+    # list and copying deal quotes are extraction; rating 5 Berkus milestones and 12 risks from evidence is judgement
+    "IndustryPick": "extract_json", "DealClaims": "extract_json", "StartupFactors": "reason_score",
 }
 
 # Benchmark priors per profile (docs/LLM-ROUTING.md "AI gateway benchmark"): quality 0..1 (agreement with the

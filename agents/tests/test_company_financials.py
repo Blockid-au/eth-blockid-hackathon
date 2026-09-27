@@ -3,6 +3,7 @@ All offline (fake LLM, fake search provider, fake fetcher)."""
 import re
 
 import pytest
+from conftest import v5_on
 from test_research_budget import run_graph
 from test_studio import studio_deps  # shared offline fixture
 
@@ -11,7 +12,7 @@ from blockid_agents.config import FX_TO_AUD, FX_TO_AUD_AS_OF
 from blockid_agents.fakes import fake_llm
 from blockid_agents.schemas import CompanyFinancials, MarketAnalysis, QualitativeScores, StartupProfile
 from blockid_agents.tools import svi
-from blockid_agents.tools.search import SearchChain, essential_queries
+from blockid_agents.tools.search import ANALYST_QUERY_PLAN, SearchChain, essential_queries
 
 REV_URL = "https://news.example.com/agritrace-arr"
 REV_PAGE = "AgriTrace reported ARR of US$1.6 million in 2025 and has raised US$4 million to date, the company said."
@@ -180,12 +181,23 @@ def test_graph_uses_cited_revenue_within_three_searches(tmp_path):
     r = prog.results["vcf"]
     kinds = [s["kind"] for s in r["searches"]]
     assert kinds[:3] == ["competitors", "market", "company"]  # same priority order as before v3
-    assert kinds[3:] == ["valuation", "comps", "comps_named"]  # v3 plan: no listing -> no market-cap search
+    assert kinds[3:6] == ["valuation", "comps", "comps_named"]  # v3 plan: no listing -> no market-cap search
+    if v5_on():  # evaluation v5: the analysts' conditional searches follow, inside the same budget
+        assert set(kinds[6:]) <= set(ANALYST_QUERY_PLAN)
+    else:
+        assert kinds[6:] == []
     assert len(deps.search.providers[0][1].queries) == len(kinds) <= deps.settings.search_max_queries <= 8
     assert r["profile"]["metrics"]["revenue_ttm_aud"] == 2_400_000
     assert r["profile"]["metrics_sources"]["revenue_ttm_aud"] == "cited_source"
-    rev = r["svi"]["dimensions"]["revenue_performance"]
-    assert rev["basis"] == "cited_source" and REV_URL in rev["rationale"] and rev["sources"] == [REV_URL]
+    if v5_on():  # the cited ARR is a level-3 (publicly corroborated) input of traction T1
+        arr = r["svi"]["analysis"]["metrics"]["arr_aud"]
+        assert arr["value"] == 2_400_000 and arr["level"] == 3 and arr["source_url"] == REV_URL
+        t1 = r["svi"]["analysis"]["dimensions"]["traction"]["sub_metrics"][0]
+        assert t1["metric"] == "arr_aud" and t1["status"] == "scored"
+        assert REV_URL in r["svi"]["dimensions"]["traction"]["sources"]
+    else:
+        rev = r["svi"]["dimensions"]["revenue_performance"]
+        assert rev["basis"] == "cited_source" and REV_URL in rev["rationale"] and rev["sources"] == [REV_URL]
     assert r["company_financials"]["revenue_ttm_aud"] == 2_400_000
     assert any("third-party source" in w for w in r["warnings"])
     assert "company ARR A$2,400,000 (cited)" in prog.steps["vcf"]["market"]["detail"]
@@ -204,7 +216,10 @@ def test_graph_uses_cited_revenue_within_three_searches(tmp_path):
     r = prog.results["vsr"]
     assert r["profile"]["metrics"]["revenue_ttm_aud"] == 500_000
     assert r["profile"]["metrics_sources"]["revenue_ttm_aud"] == "self_reported"
-    assert r["svi"]["dimensions"]["revenue_performance"]["basis"] == "self_reported"
+    if v5_on():  # both figures are candidates; the typed one (level 1) and the cited one (level 3) are reconciled
+        assert r["svi"]["analysis"]["metrics"]["revenue_ttm_aud"]["source"] == "self_reported"
+    else:
+        assert r["svi"]["dimensions"]["revenue_performance"]["basis"] == "self_reported"
 
 
 # ================================================================== valuation range rules

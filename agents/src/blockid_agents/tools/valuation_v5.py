@@ -357,25 +357,34 @@ def triangulate_v5(*, profile, market, ve, dims: dict, svi_index: float, self_re
           if market and market.revenue_multiple_median else None)
     mult = choose_multiple(ve.comps, ve.sector_multiples, mm, default_multiples(profile.sector), ve.listing is not None)
     cf = market.company_financials if market else None
+    listed_blend = None
+    if p.get("revenue_listed_blend") is not None and rev > 0 and ind_basis == "industry_table":
+        mult, listed_blend = industry_multiple(mult, rev, irow, p, snap, dlom=dlom, listed=ve.listing is not None)
     if rev > 0 and base_weight(p, "revenue_multiple", cls) > 0:
         inp = {"revenue_aud": rev, "revenue_source": rsrc, "multiple_source": mult["source"],
                "low_multiple": round(mult["low"], 4), "median_multiple": round(mult["median"], 4),
                "high_multiple": round(mult["high"], 4), "multiples": mult.get("multiples", []),
                "discount": mult.get("discount") or 0.0, "n": mult.get("n", 0), "detail": mult.get("detail", ""),
                "multiple_sources": mult.get("sources", []),
-               "revenue_ref": cf.source_url if (rsrc == "cited_source" and cf) else "", **ov("revenue_multiple")}
+               "revenue_ref": cf.source_url if (rsrc == "cited_source" and cf) else "", **ov("revenue_multiple"),
+               **({"listed_blend": listed_blend} if listed_blend else {})}
         m = vm.build("revenue_multiple", inp, p, cls)
         if m is not None:
             methods.append(m)
     # 3. EBITDA multiple (listed peers, DLOM) — needs actual EBITDA
     if ebitda_actual and ebitda_actual > 0 and base_weight(p, "ebitda_multiple", cls) > 0:
         em = float(asm.get("ebitda.multiple", irow["ev_ebitda"]))
+        band_e = [round(em * 0.7, 4), em, round(em * 1.4, 4)]
+        e_blend = None
+        if p.get("ebitda_listed_blend") is not None and "ebitda.multiple" not in asm and ind_basis == "industry_table":
+            band_e, e_blend = ebitda_size_blend(band_e, rev, ebitda_actual, industry, p, snap, dlom)
         methods.append(vm.build("ebitda_multiple", {
             "ebitda_aud": round(ebitda_actual, 2), "ebitda_year": last_actual["year"],
-            "band": [round(em * 0.7, 4), em, round(em * 1.4, 4)], "dlom": dlom, "net_debt_aud": round(net_debt, 2),
-            "industry": industry, "detail": f"{irow['label']} listed peers",
+            "band": band_e, "dlom": dlom, "net_debt_aud": round(net_debt, 2),
+            "industry": industry, "detail": f"{irow['label']} listed peers" + (
+                f", {e_blend['share']:.0%} listed / private range for its size" if e_blend else ""),
             "evidence": [actual_basis, ind_basis], "sources": [snap.data["industries_source"]],
-            **ov("ebitda_multiple")}, p, cls))
+            **({"listed_blend": e_blend} if e_blend else {}), **ov("ebitda_multiple")}, p, cls))
     # 4. precedent transactions (verified deals, else the cited AU private-business range)
     if base_weight(p, "precedents", cls) > 0:
         deals = [d for d in (vi.get("deals") or []) if d.get("multiple")]
@@ -419,11 +428,16 @@ def triangulate_v5(*, profile, market, ve, dims: dict, svi_index: float, self_re
             rate_kind = "startup"
         g = float(asm.get("dcf.g", min(p["terminal_g_default"], p["terminal_g_cap"], float(crow["rf"]))))
         key, band = snap.precedent_band(industry, max(ebitda_actual or 0, 0))
-        exit_m = float(asm.get("dcf.exit_multiple", band[1]))
+        terminal0 = "gordon"
+        exit_m0 = band[1]
+        if rate_kind == "startup" and p.get("startup_terminal") == "exit":
+            # v5.1: a venture rate applies until exit; the exit is priced at listed peers' EV/EBITDA less the DLOM
+            terminal0, exit_m0 = "exit", round(float(irow["ev_ebitda"]) * (1 - dlom), 4)
+        exit_m = float(asm.get("dcf.exit_multiple", exit_m0))
         common = {"rows": [{k: r[k] for k in ("year", "revenue", "cogs", "opex", "d_and_a", "tax", "capex", "nwc",
                                               "change_nwc")} for r in proj_rows],
                   "base_revenue": base_rev, "base_nwc": base_nwc, "tax_rate": tax_rate, "rate_build": rb,
-                  "rate_kind": rate_kind, "terminal": asm.get("dcf.terminal", "gordon"), "g": g,
+                  "rate_kind": rate_kind, "terminal": asm.get("dcf.terminal", terminal0), "g": g,
                   "exit_multiple": exit_m, "net_debt_aud": round(net_debt, 2), "mid_year": True,
                   "nwc_pct": p["nwc_default_pct_of_delta_revenue"], "evidence": list(proj_ev), **proj_meta}
         uploaded = _uploaded_projected(parsed, fx_rate)
@@ -441,12 +455,17 @@ def triangulate_v5(*, profile, market, ve, dims: dict, svi_index: float, self_re
             targets = list(p["vc_target_multiples"].get(cls, [10.0, 12.5, 15.0]))
             if tm is not None:
                 targets = [float(tm) * 0.8, float(tm), float(tm) * 1.2]
+            vc_rule: dict[str, Any] = {"retention": 1.0}
+            if p.get("vc_target_irr_band") is not None and tm is None:  # v5.1: Sahlman target return + dilution
+                vc_rule = {"target_irr": float(asm.get("dcf.rate", p["startup_discount_rates"].get(cls, 0.40))),
+                           "retention": float(p["vc_retention"].get(cls, 1.0)),
+                           "retention_basis": p["vc_retention_basis"]}
             methods.append(vm.build("vc_method", {
                 "exit_metric_aud": round(float(proj_rows[-1]["revenue"]), 2), "exit_basis": "revenue",
                 "exit_multiple": float(asm.get("vc.exit_multiple", round(mult["median"] * k, 4))),
                 "exit_multiple_source": mult["source"],
                 "years_to_exit": float(asm.get("vc.years_to_exit", len(proj_rows))),
-                "target_multiples": targets, "retention": 1.0,
+                "target_multiples": targets, **vc_rule,
                 "investment_aud": round(float(parsed.get("planned_raise") or 0) * fx_rate, 2),
                 "evidence": list(proj_ev), **proj_meta, **ov("vc_method")}, p, cls))
     # 6. startup methods
@@ -524,8 +543,12 @@ def triangulate_v5(*, profile, market, ve, dims: dict, svi_index: float, self_re
     if base_weight(p, "stage_scorecard", cls) > 0 or cls == "idea" and not any(
             m.method == "scorecard" for m in methods):
         bench = stage_ranges.get(stage) or stage_ranges.get("seed")
+        extra: dict[str, Any] = {}
+        if p.get("stage_benchmark_source") == "au_stage_table":
+            bench, extra = stage_benchmark_v51(stage, p, profile, cf, self_reported)
         methods.append(vm.build("stage_scorecard", {"stage": stage, "benchmark": list(bench),
-                                                    "svi_factor": round(0.5 + svi_index / 100, 4)}, p, cls))
+                                                    "svi_factor": round(0.5 + svi_index / 100, 4), **extra},
+                                p, cls))
 
     methods = [m for m in methods if m is not None]
     methods.sort(key=lambda m: ORDER.index(m.method))
@@ -553,6 +576,91 @@ def triangulate_v5(*, profile, market, ve, dims: dict, svi_index: float, self_re
                                              planned_raise=float(parsed.get("planned_raise") or 0) * fx_rate
                                              if parsed else 0.0, p=p)
     return tri
+
+
+def industry_multiple(mult: dict, rev: float, irow, p, snap, *, dlom: float, listed: bool) -> tuple[dict, dict | None]:
+    """v5.1 revenue multiple with the dated industry table (Damodaran EV/Sales of listed peers, low / high x0.6 /
+    x1.5, less the DLOM for a private company): a single cited sector figure, a market-analysis multiple, 1-2 comps or
+    the uncalibrated default table is blended (geometric, on the effective multiples) with the industry multiple, the
+    listed share growing with company size (0 at <= A$10M revenue, max 50 % from A$1B) — listed aggregates describe
+    listed-scale companies. The multiple keeps its own source (and evidence factor); the blend is recorded in the
+    inputs. Returns (mult dict, listed_blend record or None). Three or more comps are left alone."""
+    import math
+
+    lb = p["revenue_listed_blend"]
+    ev_s = float(irow["ev_sales"])
+    d_i = 0.0 if listed else dlom
+    src = (snap.data.get("industries_sources") or {}).get("psGlobal", {}).get("url") or snap.data["industries_source"]
+    detail = f"{irow.get('damodaran_industry', irow['label'])} listed peers, EV/Sales (Damodaran, " \
+             f"{snap.data.get('industries_data_date', 'Jan 2026')})"
+    ind = {"low": ev_s * 0.6, "median": ev_s, "high": ev_s * 1.5}
+    if mult["source"] not in lb["sources"] or rev <= lb["from_aud"]:
+        return mult, None
+    share = float(lb["max_share"]) * min(1.0, math.log10(rev / lb["from_aud"]) / math.log10(lb["full_aud"] /
+                                                                                            lb["from_aud"]))
+    share = round(share, 4)
+    d_c = float(mult.get("discount") or 0.0)
+    k_c, k_i = 1 - d_c, 1 - d_i
+    out = dict(mult)
+    for x in ("low", "median", "high"):
+        eff = math.exp((1 - share) * math.log(float(mult[x]) * k_c) + share * math.log(ind[x] * k_i))
+        out[x] = round(eff / k_c, 4)
+    out["detail"] = f"{mult.get('detail', '')}; blended {share:.0%} with {detail}".strip("; ")
+    out["sources"] = list(dict.fromkeys([*(mult.get("sources") or []), src]))
+    return out, {"share": share, "industry_ev_sales": round(ev_s, 4), "industry_discount": d_i,
+                 "cited": {x: round(float(mult[x]), 4) for x in ("low", "median", "high")},
+                 "industry": irow.get("damodaran_industry", irow["label"]),
+                 "rule": "geometric blend of the effective multiples; listed share = 0.5 x log10(revenue / A$10M) / "
+                         "log10(100), 0..0.5"}
+
+
+def ebitda_size_blend(band: list[float], rev: float, ebitda: float, industry: str, p, snap,
+                      dlom: float) -> tuple[list[float], dict]:
+    """v5.1: listed-peer EV/EBITDA points (less DLOM) blended geometrically with the private transaction range for
+    the company's size and sector (market_data precedent band, a control price, no DLOM); listed share by revenue as
+    for the revenue multiple. Returned as the band the ebitda_multiple method stores (before its DLOM)."""
+    import math
+
+    lb = p["ebitda_listed_blend"]
+    share = 0.0 if rev <= lb["from_aud"] else float(lb["max_share"]) * min(
+        1.0, math.log10(rev / lb["from_aud"]) / math.log10(lb["full_aud"] / lb["from_aud"]))
+    share = round(share, 4)
+    key, priv = snap.precedent_band(industry, ebitda)
+    k = 1 - dlom
+    out = [round(math.exp((1 - share) * math.log(float(pv)) + share * math.log(float(lv) * k)) / k, 4)
+           for pv, lv in zip(priv, band, strict=True)]
+    return out, {"share": share, "listed_band": [round(float(x), 4) for x in band], "private_band": list(priv),
+                 "private_band_key": key, "rule": "geometric blend of effective multiples; listed share = 0.5 x "
+                 "log10(revenue / A$10M) / log10(100), 0..0.5; private = Australian transaction range by size"}
+
+
+def stage_benchmark_v51(stage: str, p, profile, cf, self_reported: dict | None) -> tuple[list[float], dict]:
+    """v5.1 stage benchmark: funding raised to date x 3.5 / 4.5 / 6 when known (verified cited total first, then the
+    founder's figure, then the website's), else the AU stage pre-money P25 / P50 / P75 (tools/stage)."""
+    from . import stage as stage_tools
+
+    sr = self_reported or {}
+    raised, src = 0.0, ""
+    for val, label in ((getattr(cf, "funding_raised_total_aud", None) if cf else None, "cited source"),
+                       (sr.get("raised_to_date_aud"), "self-reported"),
+                       (profile.metrics.raised_to_date_aud, "website")):
+        if val and float(val) >= float(p["funding_implied_min_aud"]):
+            raised, src = float(val), label
+            break
+    if raised:
+        ks = [float(k) for k in p["funding_implied_multiples"]]
+        basis = (f"funding-implied: raised to date A${raised:,.0f} ({src}) x {ks[0]:g} / {ks[1]:g} / {ks[2]:g} — "
+                 "post-money ~ capital raised / (1.6 x last-round dilution 10-18 %, Carta 2025 medians)")
+        sources = ["https://carta.com/data/linkedin-dilution-by-venture-round-medians/"]
+        if src == "cited source" and getattr(cf, "source_url", ""):
+            sources.insert(0, cf.source_url)
+        return [round(raised * k, -3) for k in ks], {"benchmark_basis": basis, "benchmark_sources": sources,
+                                                      "raised_aud": raised, "raised_source": src}
+    au = stage_tools.au_round_medians(stage)
+    return list(au["pre_money_aud"]), {
+        "benchmark_basis": f"AU {stage} pre-money P25 / P50 / P75 (stage table {stage_tools.STAGE_TABLE_VERSION}): "
+                           f"{au['basis']}",
+        "benchmark_sources": list(au["sources"])}
 
 
 def current_assumptions(tri: dict) -> dict[str, Any]:

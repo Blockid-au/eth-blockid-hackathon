@@ -17,7 +17,7 @@ export interface ProjectionYearIn { year: number; actual: boolean; revenue: numb
 export interface ProjectionIn { currency: string; fiscal_year_end: string; audited: boolean; prepared_by?: string; basis_notes?: string; cash: number; debt: number; shares_fd: number | null; planned_raise: number; years: ProjectionYearIn[] }
 export interface ProjectionView { id: number; status: "draft" | "confirmed" | "superseded"; filename?: string | null; sha256: string; parsed?: ProjectionIn | null; checks: Check[]; can_confirm?: boolean; errors?: number; warnings?: number; attested_at?: string | null }
 export interface ConfirmOut { projection: ProjectionView; valuation_status?: string; value_before_aud?: number; value_after_aud?: number; moved_pct?: number; back_to_review?: boolean }
-export interface FinaliseIn { price_per_share_aud?: number; note?: string; reason?: string; allow_low_confidence?: boolean; override_reason?: string }
+export interface FinaliseIn { price_per_share_aud?: number; note?: string; reason?: string; allow_low_confidence?: boolean; override_reason?: string; planned_raise_aud?: number }
 
 let cfg: Promise<EvalConfig> | null = null;
 /** GET /v1/studio/evaluation/config (public). Any failure → disabled. Cached for the page. */

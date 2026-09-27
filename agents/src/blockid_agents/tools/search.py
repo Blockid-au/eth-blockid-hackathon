@@ -21,6 +21,13 @@ purpose (QUERY_PLAN, in priority order, so a smaller budget keeps the most usefu
   6 comps         "<sector> companies EV/revenue multiple <year>"          (only when the company has revenue)
   7 comps_named   "<competitor 1> <competitor 2> valuation revenue"        (only with revenue + named competitors)
 
+With VALUATION_V5=1 the evaluation analysts' conditional kinds follow (ANALYST_QUERY_PLAN: traction, reviews,
+market_bottom_up, ip) and then the valuation agent's (VALUATION_QUERY_PLAN):
+
+ 12 precedents    "<sector> business acquisition EBITDA multiple <country> <year>"  (Series A / growth stage only)
+
+so the production budget of 12 covers every kind; a smaller budget drops the v5 kinds first.
+
 Each attempt is recorded in the graph state (``searches``: kind, purpose, query, provider, results) so the budget
 holds across steps and checkpoint resumes, and in the audit log. Repeated queries hit the 72 h search cache.
 """
@@ -231,10 +238,19 @@ PURPOSE = {
     "reviews": "reviews",
     "market_bottom_up": "number of target customers",
     "ip": "patents & trade marks",
+    # valuation v5 agent (agents/valuation_agent.py): pages for verified precedent-transaction multiples
+    "precedents": "acquisitions of comparable businesses (multiples paid)",
 }
 QUERY_PLAN = ("competitors", "market", "company", "valuation", "market_cap", "comps", "comps_named")
 # with VALUATION_V5 the analysts' kinds follow, so a smaller budget drops them first
 ANALYST_QUERY_PLAN = ("traction", "reviews", "market_bottom_up", "ip")
+VALUATION_QUERY_PLAN = ("precedents",)  # last: 7 + 4 + 1 = the production budget of 12
+
+
+def precedents_query(p: StartupProfile, year: int) -> str:
+    """Comparable-business acquisitions with the multiple paid; public profile fields only (no names of people)."""
+    sector = p.sector or " ".join(p.search_keywords[:2]) or "business"
+    return sanitize_query(f"{sector} business acquisition EBITDA multiple {country_name(p.country)} {year}")[:200]
 
 
 def valuation_queries(p: StartupProfile, year: int, *, listing: tuple[str, str] | None = None,

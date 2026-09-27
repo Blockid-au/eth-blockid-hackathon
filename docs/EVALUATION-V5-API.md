@@ -134,7 +134,7 @@ Sub-metrics per dimension (keys are stable):
 | GET | `/v1/studio/evaluation/config` | public | `{enabled, stages, table_version, weights_by_stage, benchmarks_by_stage, level_labels, dimension_labels, fields: [{key, group, unit, min_stage}], documents: {kinds, max_per_valuation, max_chars, csv_max_rows}, share_price_by_stage, au_round_medians}` — drives the wizard tabs and the benchmark bars |
 | POST | `/v1/studio/evaluation/stage-preview` | user | `{metrics}` → `StageDecision` ("Looks like: Seed — change") |
 | PUT | `/v1/studio/valuations/{id}/metrics` | owner / admin | `{metrics: SelfReportedMetricsV2}` → re-score (no web) → the valuation view. 409 once a company was created from the valuation |
-| POST | `/v1/studio/valuations/{id}/documents` | owner / admin | `{kind: "deck"|"metrics_csv"|"financials", filename, sha256 (hex of the original bytes), text?: string (≤ 60k chars), rows?: string[][] or csv text (≤ 120 rows)}` → `{doc_id, kind, filename, sha256, parsed}`; max 5 per valuation; 409 when locked |
+| POST | `/v1/studio/valuations/{id}/documents` | owner / admin | `{kind: "deck"|"metrics_csv"|"financials", filename, sha256 (hex of the original bytes), text?: string (≤ 60k chars), rows?: string[][] (≤ 121 incl. header) or the CSV text itself (≤ 60k chars)}` — a metrics CSV may come as `rows` (either form) or as `text` → `{doc_id, kind, filename, sha256, parsed}`; max 5 per valuation; 409 when locked |
 | GET | `/v1/studio/valuations/{id}/documents` | owner / admin | `[{doc_id, kind, filename, sha256, parsed, uploaded_by, created_at}]` (text is not returned) |
 | DELETE | `/v1/studio/valuations/{id}/documents/{doc_id}` | owner / admin | `{deleted: true}` |
 | POST | `/v1/studio/valuations/{id}/rescore` | owner / admin | `{}` → re-runs the deterministic v5 evaluation from stored evidence + typed metrics + documents (deck text extraction runs once per new deck: 1 LLM call, no web) → the valuation view (`svi.analysis` updated). 409 when locked |
@@ -180,6 +180,12 @@ rescore) calls `svi.apply_v5(svi_dict, analysis_dict, qualitative_dict)` after `
   16 Dec 2025), businesses operating at end of FY by ANZSIC division and class × employment size, summed over states
   (ABS perturbation: division sums differ from the published total by < 0.01 %).
 - **Stage in the valuation**: the valuation engine reads `svi.analysis.stage` (StageDecision) when present.
+- **Cited company figures** (27 Sep 2026): the revenue / ARR and funding total that the research step verified
+  (`market.company_financials`, quote found on the page) enter the analysis as claims of analyst `research` — level 3
+  from a third-party page, level 1 from the company's own site — so traction T1 uses them as the v4 revenue dimension
+  did. GMV is never used.
+- **Cohorts**: `analysis.cohorts` is not produced (the metrics CSV template has no per-cohort rows); the UI hides the
+  cohort chart when it is absent. M3 / M12 retention are typed fields (`m3_retention_pct`, `m12_retention_pct`).
 - **Team score blend** (`valuation.apply_team_score`, called by `studio/hr_store.py`) and admin overrides must call
   `agents.analysts.rescore_v5(result, svi_dict=..., qualitative=...)` after `svi.score` when the stored svi has an
   `analysis`; the graph gate already does this.

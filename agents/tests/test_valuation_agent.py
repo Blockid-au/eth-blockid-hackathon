@@ -49,9 +49,11 @@ def make_deps(tmp_path, handlers):
     return Deps(llm=llm, audit=AuditLog(tmp_path / "audit.jsonl"), evidence=store, settings=s)
 
 
-def test_policy_valuation_methods_has_no_web_or_chain_tools():
+def test_policy_valuation_methods_has_one_search_kind_and_no_chain_tools():
     guard("valuation_methods", tier="cloud", tool="value_methods")
-    for tool in ("web_search", "fetch_url", "sign_tx", "shell"):
+    for tool in ("web_search", "fetch_url", "store_evidence"):  # the one `precedents` search (tools/search.py)
+        guard("valuation_methods", tool=tool)
+    for tool in ("sign_tx", "send_tx", "shell", "read_private_key"):
         with pytest.raises(PolicyViolation):
             guard("valuation_methods", tool=tool)
 

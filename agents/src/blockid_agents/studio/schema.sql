@@ -266,6 +266,7 @@ CREATE TABLE IF NOT EXISTS studio.valuation_price_requests (
   decided_by text, decided_at timestamptz, decision_reason text, created_at timestamptz NOT NULL DEFAULT now());
 CREATE UNIQUE INDEX IF NOT EXISTS valuation_price_requests_pending ON studio.valuation_price_requests (valuation_id)
   WHERE status = 'pending';
+ALTER TABLE studio.valuation_price_requests ADD COLUMN IF NOT EXISTS planned_raise_aud numeric;  -- optional (finalise)
 CREATE TABLE IF NOT EXISTS studio.valuation_assumption_changes (
   id serial PRIMARY KEY, valuation_id text NOT NULL REFERENCES studio.valuations(id) ON DELETE CASCADE,
   path text NOT NULL, old jsonb, new jsonb, reason text NOT NULL, actor text NOT NULL,

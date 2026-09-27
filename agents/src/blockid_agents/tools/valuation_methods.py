@@ -384,6 +384,9 @@ def build_ebitda_multiple(inputs: dict, p, cls: str) -> ValuationMethod:
     notes = []
     if "industry_table_uncalibrated" in (inputs.get("evidence") or []):
         notes.append("industry multiple table is being calibrated (BlockID parameter)")
+    if inputs.get("listed_blend"):
+        notes.append(f"size-adjusted: {inputs['listed_blend']['share']:.0%} listed-peer multiple, the rest the private "
+                     "transaction range for a business of this size")
     if value <= 0:
         return _not_run("ebitda_multiple", label, inputs, [], "not used: net debt exceeds the value")
     return ValuationMethod(method="ebitda_multiple", label=label, value_aud=value, low_aud=max(low, 0.0),
@@ -505,16 +508,24 @@ def build_rfs(inputs: dict, p, cls: str) -> ValuationMethod:
 
 def build_revenue_multiple(inputs: dict, p, cls: str) -> ValuationMethod | None:
     """v3 revenue x multiple (same maths and inputs); v5 weight = matrix x multiple source x revenue source."""
-    from .triangulate import revenue_method
+    from .triangulate import MULTIPLE_SOURCE_FACTOR, revenue_method
 
     mult = {"source": inputs.get("multiple_source", "default"), "median": float(inputs.get("median_multiple") or 0),
             "low": float(inputs.get("low_multiple") or 0), "high": float(inputs.get("high_multiple") or 0),
             "discount": float(inputs.get("discount") or 0), "n": inputs.get("n", 0), "detail": inputs.get("detail", ""),
             "multiples": inputs.get("multiples") or [], "sources": inputs.get("multiple_sources") or []}
-    m = revenue_method(float(inputs.get("revenue_aud") or 0), inputs.get("revenue_source", ""), mult,
-                       inputs.get("revenue_ref", ""))
+    v3_src = mult["source"] if mult["source"] in MULTIPLE_SOURCE_FACTOR else "default"  # v3 maths, v5 source
+    m = revenue_method(float(inputs.get("revenue_aud") or 0), inputs.get("revenue_source", ""),
+                       {**mult, "source": v3_src}, inputs.get("revenue_ref", ""))
     if m is None:
         return None
+    if v3_src != mult["source"]:
+        m.inputs["multiple_source"] = mult["source"]
+        m.notes = [n for n in m.notes if n != "multiple is a default, not cited"]
+    if inputs.get("listed_blend"):
+        lb = inputs["listed_blend"]
+        m.notes.append(f"{lb['share']:.0%} of the multiple from listed peers at this company size "
+                       f"({lb['industry_ev_sales']:g}x EV/Sales, Damodaran)")
     ev = p["evidence_factors"]
     src_f = ev.get(mult["source"], 0.25)
     rev_f = ev.get(inputs.get("revenue_source", ""), 0.8)
@@ -522,8 +533,8 @@ def build_revenue_multiple(inputs: dict, p, cls: str) -> ValuationMethod | None:
     ov = inputs.get("weight_override")
     m.raw_weight = round(min(float(ov), p["max_weight_override_ratio"] * base_weight(p, "revenue_multiple", cls))
                          if ov is not None else rule, 6)
-    m.inputs = {**m.inputs, **{k: inputs[k] for k in ("detail", "multiple_sources", "revenue_ref", "weight_override")
-                               if k in inputs}}
+    m.inputs = {**m.inputs, **{k: inputs[k] for k in ("detail", "multiple_sources", "revenue_ref", "weight_override",
+                                                      "listed_blend") if k in inputs}}
     return m
 
 
@@ -543,6 +554,17 @@ def build_stage_scorecard(inputs: dict, p, cls: str) -> ValuationMethod:
     b = inputs.get("benchmark") or [0, 0, 0]
     m = stage_method(inputs.get("stage", ""), (b[0], b[1], b[2]), float(inputs.get("svi_factor") or 0))
     m.raw_weight = base_weight(p, "stage_scorecard", cls)
+    basis = inputs.get("benchmark_basis")
+    if basis:  # v5.1: a calibrated benchmark (AU stage table, or funding raised), not the v3 placeholder
+        m.inputs["benchmark_basis"] = basis
+        m.inputs.update({k: inputs[k] for k in ("raised_aud", "raised_source") if k in inputs})
+        m.notes = [basis]
+        if inputs.get("benchmark_sources"):
+            m.inputs["benchmark_sources"] = list(inputs["benchmark_sources"])
+            m.sources = list(inputs["benchmark_sources"])
+        if str(basis).startswith("funding"):
+            m.label = f"funding-implied value ({inputs.get('stage', '')}) x quality score factor " \
+                      f"{float(inputs.get('svi_factor') or 0):.2f}"
     return m
 
 

@@ -17,8 +17,8 @@ from typing import Any
 
 from .stage import SELF_REPORTED_FACTOR
 
-PARAMS_VERSION = "v5"
-MARKET_DATASET = "2026-09-26"
+PARAMS_VERSION = "v5.1"
+MARKET_DATASET = "2026-09-27"  # Damodaran Jan-2026 industry rows (2026-09-26 = placeholder rows, kept unchanged)
 PROJECTION_LABEL = "Based on management projections (unaudited, not verified by BlockID)."
 INDICATIVE_LABEL = "Indicative value, not a formal valuation or financial advice."
 
@@ -152,7 +152,45 @@ _V5: dict[str, Any] = {
     "rerun_move_to_review": 0.05,
 }
 
-PARAMS: MappingProxyType = MappingProxyType({"v5": _freeze(_V5)})
+# ---------------------------------------------------------------- v5.1 (27 Sep 2026, docs/V5-READINESS.md "Calibration")
+# Only NEW keys (rules used when gathering inputs; every number is still copied into the method inputs, so v5 reports
+# recompute exactly as before). "v5" above is never edited.
+_V5_1: dict[str, Any] = {
+    **_V5,
+    # VC method (Sahlman, HBS 9-288-006, 1987: target returns seed 50-70 %, first stage 40-60 %, second 35-50 %):
+    # target IRR by class = the venture discount rate of the class (startup_discount_rates) +/- 10 pp over the
+    # projection years, and the founders' retention to exit after the later rounds' dilution (Carta software medians
+    # 2025: seed 19.5 %, Series A 18 %, B 14 %, C 10 %) — replaces v5's 20-30x money multiples without retention,
+    # which valued the synthetic seed case 4.7x below the scorecard.
+    "vc_target_irr_band": 0.10,
+    "vc_retention": {"idea": 0.51, "pre_seed": 0.51, "seed": 0.63, "series_a": 0.77, "growth": 0.90},
+    "vc_retention_basis": "Carta median dilution per round, software, 2025 (seed 19.5 %, A 18 %, B 14 %, C 10 %): "
+                          "retention to exit = product of (1 - dilution) of the rounds still to come (to Series C)",
+    # venture-rate DCF / First Chicago (pre-profit classes): a 30-60 % rate applies until exit, so the terminal value is
+    # an exit at listed peers' EV/EBITDA (Damodaran, positive-EBITDA firms) less the marketability discount — a
+    # Gordon perpetuity at a venture rate (v5) gave near-zero values (First Chicago 91x below the seed blend)
+    "startup_terminal": "exit",
+    # revenue multiple: a cited single sector figure / market-analysis multiple / 1-2 comps / the default table is
+    # blended (geometric) with the dated Damodaran EV/Sales of listed peers (less DLOM) by company size — listed-peer
+    # aggregates describe listed-scale companies: share 0 at <= A$10M revenue, rising with log10(revenue) to at most
+    # 0.5 at >= A$1B. The multiple keeps its own evidence factor.
+    "revenue_listed_blend": {"from_aud": 10e6, "full_aud": 1e9, "max_share": 0.5,
+                             "sources": ("sector_cited", "market_analysis", "comps_1_2", "default")},
+    # EBITDA multiple (listed peers): the same size rule — listed-peer EV/EBITDA (less DLOM) and the private
+    # transaction range for the company's size and sector (precedent band) blended geometrically, listed share 0 at
+    # <= A$10M revenue rising to 0.5 at >= A$1B (small listed companies and private businesses trade well below the
+    # large-cap aggregates). Calibrated on 5 AU micro-caps (in-sample: docs/V5-READINESS.md).
+    "ebitda_listed_blend": {"from_aud": 10e6, "full_aud": 1e9, "max_share": 0.5},
+    # stage benchmark (stage_scorecard): the AU stage pre-money table (tools/stage.au_round_medians P25/P50/P75)
+    # instead of the v3 placeholder range; when funding raised to date is known, post-money ~ capital raised /
+    # (1.6 x last-round dilution): cumulative capital ~ 1.6x the last round when rounds step up ~2.5x, dilution
+    # 10-18 % (Carta Series A-C medians) -> 3.5x / 4.5x / 6x capital raised
+    "stage_benchmark_source": "au_stage_table",
+    "funding_implied_multiples": [3.5, 4.5, 6.0],
+    "funding_implied_min_aud": 250_000.0,
+}
+
+PARAMS: MappingProxyType = MappingProxyType({"v5": _freeze(_V5), "v5.1": _freeze(_V5_1)})
 
 
 def params(version: str = PARAMS_VERSION) -> MappingProxyType:

@@ -72,6 +72,9 @@ class FinaliseBody(Body):
     reason: str = Field(default="", max_length=2000)
     allow_low_confidence: bool = False
     override_reason: str = Field(default="", max_length=1000)
+    # optional planned raise (A$) shown with the final: new shares at the chosen price, post-money, dilution.
+    # Omitted -> the planned raise of the confirmed projections (tokenisation proposal), else none.
+    planned_raise_aud: float | None = Field(default=None, ge=0, le=1e11)
 
 
 class NoteBody(Body):
@@ -134,7 +137,7 @@ def price_rules(p) -> dict:
 
 def build_final(row: dict, price: float, *, actor: str, note: str = "", reason: str | None = None,
                 request_id: int | None = None, approved_by: str | None = None, low_override: dict | None = None,
-                now: datetime | None = None) -> dict:
+                now: datetime | None = None, planned_raise: float | None = None) -> dict:
     """The frozen ValuationFinal for a chosen price. Raises ValueError (plain words) when out of bounds."""
     tri = triangulation(row)
     prop = tri.get("tokenisation") or {}
@@ -159,6 +162,8 @@ def build_final(row: dict, price: float, *, actor: str, note: str = "", reason: 
     proj = tri.get("projections") or {}
     rev = next((m.get("inputs", {}).get("revenue_aud") for m in tri.get("methods") or []
                 if m.get("method") == "revenue_multiple"), None)
+    raise_aud = float(prop.get("raise_aud") or 0) if planned_raise is None else float(planned_raise)
+    new_shares = int(raise_aud // price) if raise_aud > 0 else 0
     return {
         "version": FINAL_VERSION, "valuation_id": row["id"], "report_hash": report_hash_from_row(row),
         "formula_version": tri.get("version"), "params_version": tri.get("params_version"),
@@ -174,6 +179,10 @@ def build_final(row: dict, price: float, *, actor: str, note: str = "", reason: 
         "finalised_by": actor, "finalised_at": now.isoformat(),
         "valid_until": (now + timedelta(days=int(p["final_valid_days"]))).isoformat(),
         "low_confidence_override": low_override,
+        "planned_raise_aud": round(raise_aud, 2), "planned_raise_source": (
+            "founder" if planned_raise is not None else "projections" if raise_aud > 0 else None),
+        "new_shares": new_shares, "post_money_aud": round(price * total + raise_aud, 2) if raise_aud > 0 else 0.0,
+        "dilution_pct": round(new_shares * 100 / (total + new_shares), 2) if new_shares else 0.0,
     }
 
 
@@ -501,7 +510,8 @@ def build_finalise_router(ctx) -> APIRouter:
             if abs(price - rec) > 5e-5 and len(note) < 3:
                 raise HTTPException(422, "add a short note explaining the price you chose")
             try:
-                final = build_final(row, price, actor=sess.actor, note=note, low_override=low_override)
+                final = build_final(row, price, actor=sess.actor, note=note, low_override=low_override,
+                                    planned_raise=body.planned_raise_aud)
             except ValueError as e:
                 raise HTTPException(422, str(e)) from None
             new = write_final(row, final)
@@ -514,16 +524,18 @@ def build_finalise_router(ctx) -> APIRouter:
             raise HTTPException(422, f"a price more than {p['price_free_band']:.0%} from the recommended A${rec:,.4f} "
                                      "needs a written reason (at least 20 characters) and a platform admin's approval")
         try:
-            build_final(row, price, actor=sess.actor)  # bounds check now, not at approval time
+            build_final(row, price, actor=sess.actor, planned_raise=body.planned_raise_aud)  # bounds check now
         except ValueError as e:
             raise HTTPException(422, str(e)) from None
         try:
             req = db.one("INSERT INTO studio.valuation_price_requests (valuation_id, status, recommended_price_aud, "
                          "requested_price_aud, deviation_pct, reason, note, requested_by, requested_role, report_hash, "
-                         "low_override) VALUES (%s,'pending',%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
+                         "low_override, planned_raise_aud) VALUES (%s,'pending',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                         "RETURNING *",
                          (vid, Decimal(str(rec)), Decimal(str(price)), Decimal(str(round((price / rec - 1) * 100, 2))),
                           reason, note or None, sess.actor, role, report_hash_from_row(row),
-                          Jsonb(low_override) if low_override else None))
+                          Jsonb(low_override) if low_override else None,
+                          None if body.planned_raise_aud is None else Decimal(str(body.planned_raise_aud))))
         except UniqueViolation:
             raise HTTPException(409, "a price change is already waiting for a platform admin") from None
         db.audit(sess.actor, "valuation_price_requested", vid, role=role, request_id=req["id"], price=price,
@@ -587,7 +599,9 @@ def build_finalise_router(ctx) -> APIRouter:
         try:
             final = build_final(row, float(req["requested_price_aud"]), actor=req["requested_by"],
                                 note=req.get("note") or "",
-                                reason=req["reason"], request_id=rid, approved_by=sess.actor, low_override=low)
+                                reason=req["reason"], request_id=rid, approved_by=sess.actor, low_override=low,
+                                planned_raise=None if req.get("planned_raise_aud") is None
+                                else float(req["planned_raise_aud"]))
         except ValueError as e:
             raise HTTPException(422, str(e)) from None
         if not db.one("UPDATE studio.valuation_price_requests SET status='approved', decided_by=%s, decided_at=now(), "

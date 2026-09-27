@@ -343,7 +343,7 @@ def traction(m: dict[str, MetricValue], stage: str, sector: str, acv: float | No
             t4.score, t4.status, t4.note = 60.0, "capped", "forward signal capped at 60 unless documented"
         subs.append(t4)
     d = _dimension("traction", w, subs, flags_by_metric.get("traction"))
-    d.evidence = [c for c in claims if c.analyst in ("traction", "deck") and c.subject == "company"][:12]
+    d.evidence = [c for c in claims if c.analyst in ("traction", "deck", "research") and c.subject == "company"][:12]
     return d
 
 

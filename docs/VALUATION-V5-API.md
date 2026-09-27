@@ -16,7 +16,7 @@ Errors: `{"detail": "<plain words>"}` with 401 (sign in), 403 (not yours / admin
 
 ```jsonc
 {
-  "version": "v5", "params_version": "v5", "market_dataset": "2026-09-26",
+  "version": "v5", "params_version": "v5.1", "market_dataset": "2026-09-27",
   "value_aud": 4210000, "low_aud": 3100000, "high_aud": 5600000,
   "confidence": "medium", "confidence_reasons": ["..."],
   "valuation_class": "seed",            // idea|pre_seed|seed|series_a|growth|profitable_sme|listed
@@ -111,7 +111,10 @@ Errors block confirm; warnings apply the cap shown in `used_value` and lower the
 | POST | `/v1/admin/price-requests/{rid}/reject` | platform admin | body `{"reason"}` (≥ 5 chars) → TokenisationView |
 
 `FinaliseBody`: `{"price_per_share_aud"?: number, "note"?: string, "reason"?: string,
-"allow_low_confidence"?: bool, "override_reason"?: string}`
+"allow_low_confidence"?: bool, "override_reason"?: string, "planned_raise_aud"?: number (>= 0)}`
+- `planned_raise_aud` (optional): the raise the founder plans at the chosen price; stored in the final with the new
+  shares, post-money and dilution (a price request keeps it until a second admin approves). Omitted → the planned
+  raise of the confirmed projections (tokenisation proposal), else none.
 - no price → the recommended price.
 - price within ±20 % of the recommended price → finalised at once; a `note` (≥ 3 chars) is required when the price
   differs from the recommendation.
@@ -146,7 +149,9 @@ Errors block confirm; warnings apply the cap shown in `used_value` and lower the
  "offer_price_low_aud": 0.1988, "offer_price_high_aud": 0.27,
  "revenue_used_aud": 1200000, "based_on_projections": true, "projection_sha256": "..." | null,
  "finalised_by": "0x..", "finalised_at": "...", "valid_until": "... (+90 days)",
- "low_confidence_override": null | {"by": "admin", "reason": "..."}}
+ "low_confidence_override": null | {"by": "admin", "reason": "..."},
+ "planned_raise_aud": 0 | 500000, "planned_raise_source": null | "founder" | "projections",
+ "new_shares": 0 | 1851851, "post_money_aud": 0 | 4710000, "dilution_pct": 0 | 10.62}
 ```
 `PriceRequest`: `{"id", "valuation_id", "status": "pending|approved|rejected|cancelled", "recommended_price_aud",
 "requested_price_aud", "deviation_pct", "reason", "note", "requested_by", "report_hash", "decided_by",
@@ -187,5 +192,23 @@ platform admin approves it; applying it clears the final (re-finalise needed). R
 
 `GET /v1/verify/{ticker}` / `POST /v1/verify/hash`: `recomputed.formula_version` is `v5` for v5 reports and
 `recomputed.methods` lists `{method, value_aud, low_aud, high_aud, weight}` as rebuilt from the stored inputs;
-`formula.params_by_version.v5` publishes the rules (weights matrix, evidence factors, caps). v1–v4 reports verify as
-before.
+`formula.params_by_version.v5` / `v5.1` publish the rules (weights matrix, evidence factors, caps, calibration). v5
+reports also recompute the **index and band** from `svi.analysis` (every code-computed dimension rebuilt from its
+sub-metrics, trust from the verification levels, weights checked against the published stage column):
+`recomputed.weights_version` = `v5:<stage>`, `recomputed.dimension_matches` per dimension, and
+`matches_report` gains `weights` and `dimensions`. v1–v4 reports verify exactly as before.
+
+## 6. Parameters and market data (27 Sep 2026)
+
+- `params_version` **v5.1** for new valuations (`v5` stays frozen; every report recomputes with its own version):
+  VC method = Sahlman target return (the class's venture rate ± 10 pp) with retention to exit after later rounds
+  (Carta 2025 dilution medians); venture-rate DCF / First Chicago end in an exit at listed peers' EV/EBITDA less the
+  DLOM; stage benchmark = AU stage pre-money table, or funding raised × 3.5 / 4.5 / 6 when known; revenue and EBITDA
+  listed-peer multiples blended with the private-market figure by company size (listed share 0 at ≤ A$10M revenue,
+  50 % from A$1B). Details and sources: docs/V5-READINESS.md "Calibration".
+- `market_dataset` **2026-09-27**: industry rows transcribed from Damodaran's January 2026 datasets (global rows used,
+  Aus/NZ/Canada rows shown for reference; source URLs and sha256 in the file); `2026-09-26` (placeholder rows) is
+  unchanged. With verified rows the EBITDA multiple carries the "industry table" evidence factor (0.6) instead of the
+  placeholder 0.5.
+- Search: the valuation agent may run one `precedents` query (Series A / growth) after the analysts' kinds, inside
+  the production budget of 12 (7 + 4 + 1).

@@ -5,6 +5,8 @@ from dataclasses import replace
 
 import pytest
 
+from conftest import v5_on
+
 from blockid_agents.agents import people as pa
 from blockid_agents.audit import AuditLog
 from blockid_agents.config import get_settings
@@ -306,7 +308,7 @@ def test_team_score_blends_into_valuation_deterministically():
     assert patch == apply_team_score(stored, 91.0, "team report t_x", ["https://hr.blockid.au/r/t_x"])  # same in, same out
     rep = {"profile": stored["profile"], "market": stored["market"], "svi": patch["svi"]}
     r = verify.recompute(rep)
-    assert r["formula_version"] == "v4" and all(r["matches_report"].values()), r
+    assert r["formula_version"] == ("v5" if v5_on() else "v4") and all(r["matches_report"].values()), r
     # admin override of founder_quality at the gate wins
     over = json.loads(json.dumps(stored))
     over["qualitative"]["founder_quality"].update(basis="human", rationale="x [set by admin]")

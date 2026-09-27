@@ -114,6 +114,7 @@ export interface ValuationFinal {
   approved_by?: string | null; total_shares: number; fd_shares_existing?: number | null; offer_price_low_aud: number; offer_price_high_aud: number;
   based_on_projections?: boolean; report_hash?: string | null; params_version?: string; finalised_by?: string | null; finalised_at?: string | null; valid_until?: string | null;
   low_confidence_override?: { by: string; reason: string } | null;
+  planned_raise_aud?: number; new_shares?: number; post_money_aud?: number; dilution_pct?: number;
 }
 export interface PriceRequest {
   id: number; valuation_id: string; status: "pending" | "approved" | "rejected" | "cancelled"; recommended_price_aud: number; requested_price_aud: number;
@@ -272,6 +273,7 @@ export function readFinal(f: unknown): ValuationFinal | null {
     based_on_projections: !!f.based_on_projections, report_hash: str(f.report_hash) || null, params_version: str(f.params_version) || undefined,
     finalised_by: str(f.finalised_by) || null, finalised_at: str(f.finalised_at) || null, valid_until: str(f.valid_until) || null,
     low_confidence_override: isObj(f.low_confidence_override) ? { by: str(f.low_confidence_override.by), reason: str(f.low_confidence_override.reason) } : null,
+    planned_raise_aud: num(f.planned_raise_aud), new_shares: num(f.new_shares), post_money_aud: num(f.post_money_aud), dilution_pct: num(f.dilution_pct),
   };
 }
 export function readPriceRequest(r: unknown): PriceRequest | null {

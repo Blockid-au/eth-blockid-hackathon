@@ -10,7 +10,8 @@ The model only EXTRACTS and CITES inputs; code computes every number (tools/valu
   3. precedent deals    -> DealClaims (series-a / growth): kept only when the quote is verbatim on a stored page and
                            states the multiple (or the price and the revenue / EBITDA), the date is on the page, the
                            multiple is inside bounds and the target is not the company itself
-At most 3 model calls, no web search (deals come from pages already fetched for this valuation), never a value,
+At most 3 model calls and one `precedents` web search on the shared budget (Series A / growth only; deals come from
+pages fetched for this valuation), never a value,
 weight, rate or projection. No personal names are sent (valuation.redact). Every failure degrades to "no input".
 Behind VALUATION_V5: with the flag off the node is not in the graph and nothing here runs.
 """
@@ -255,7 +256,10 @@ def run(state: dict, deps: Deps) -> dict:
         if factors:
             vi.update(startup_factors=factors, factors_basis="ai_suggested")
         dropped += d1
+    searches = [dict(x) for x in state.get("searches") or []]
     if decision.stage in DEAL_STAGES:
+        if vid and search_precedents(profile, vid, searches, today, deps):
+            evidence = _evidence(deps, vid)
         deals, d2 = extract_deals(profile, evidence, today, deps)
         vi["deals"] = deals
         dropped += d2
@@ -267,7 +271,23 @@ def run(state: dict, deps: Deps) -> dict:
     deps.audit.record(AGENT, "valued_v5", stage=decision.stage, valuation_class=tri.valuation_class,
                       confidence=tri.confidence, methods=[m.method for m in tri.methods if m.weight > 0],
                       deals=len(vi.get("deals") or []), dropped=len(dropped))
-    return {"svi": result.model_dump(), "valuation_inputs": st["valuation_inputs"]}
+    return {"svi": result.model_dump(), "valuation_inputs": st["valuation_inputs"], "searches": searches}
+
+
+def search_precedents(profile: StartupProfile, vid: str, searches: list[dict], today: date, deps: Deps) -> int:
+    """One `precedents` search on the shared budget (tools/search.VALUATION_QUERY_PLAN, after the analysts' kinds):
+    pages stored as this valuation's evidence so extract_deals can cite them. Returns the number of pages stored."""
+    from ..tools.brave import fetch_page
+    from ..tools.search import budgeted_search, precedents_query, store_result
+
+    q = precedents_query(profile, today.year)
+    results = budgeted_search(deps, AGENT, searches, "precedents", q)
+    fetch = deps.fetcher or fetch_page
+    n = 0
+    for i, r in enumerate((results or [])[: deps.settings.search_fetch_per_query + 2]):
+        if store_result(deps, AGENT, r, q, vid, fetch if i < deps.settings.search_fetch_per_query else None):
+            n += 1
+    return n
 
 
 def rerun_methods(result: dict, *, reviewer: str | None = None) -> dict | None:

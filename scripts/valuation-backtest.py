@@ -25,6 +25,13 @@ and its DCF-type weight is <= 0.4 x the base weight):
 
     cd agents && .venv/bin/python ../scripts/valuation-backtest.py --v5 --ablation --cases
 
+`--sme` (v5) values the profitable AU SMEs of scripts/fixtures/valuation-sme-cases.json AS IF PRIVATE (acceptance A3):
+their published actuals are a confirmed upload, the projected years a mechanical extrapolation, no listing and no share
+price. Offline: profile from the fixture (engine only). Live: the full graph runs on the company's website (industry
+pick, evidence), then anchors / listing are removed and the methods re-run deterministically with the upload. In live
+v5 mode the reference companies are also re-run without their own price (the "no-own-price" ablation, no extra
+model calls).
+
 Live mode needs LLM_BACKEND=hosted (+ SAMBANOVA_API_KEY / CLAUDE_SEARCH_URL + CLAUDE_SEARCH_TOKEN / DEEPINFRA_API_KEY)
 and SEARCH_PROVIDERS; the bridge URL must be reachable from where you run it (the worker uses the docker host
 address). Each company costs <= 8 searches and ~9 LLM calls.
@@ -44,6 +51,7 @@ sys.path.insert(0, str(ROOT / "agents" / "src"))
 
 FIXTURES = ROOT / "scripts" / "fixtures" / "valuation-backtest.json"
 V5_CASES = ROOT / "scripts" / "fixtures" / "valuation-v5-cases.json"
+SME_CASES = ROOT / "scripts" / "fixtures" / "valuation-sme-cases.json"
 
 # Latest public valuation / market cap (mirrors docs/valuation-reference.md). AUD at the app's dated FX table
 # (config.FX_TO_AUD, USD 1.50 as of 2026-09-26) so reference and engine use the same conversion.
@@ -216,7 +224,9 @@ def run_v5_cases() -> tuple[bool, bool]:
     from blockid_agents.tools.valuation_v5 import recompute_v5, triangulate_v5
 
     p = params()
-    snap = snapshot("2026-09-26")
+    from blockid_agents.tools.valuation_params import MARKET_DATASET
+
+    snap = snapshot(MARKET_DATASET)
     cases = json.loads(V5_CASES.read_text())["cases"]
     print("\nValuation v5 engine fixtures (SYNTHETIC — projection handling, not market accuracy)\n")
     print(f"{'case':<28}{'class':<16}{'value A$':>14}{'conf':>8}{'warn':>6}{'err':>5}  {'A5':<4}{'A6':<5} methods")
@@ -264,6 +274,140 @@ def run_v5_cases() -> tuple[bool, bool]:
     return a5, a6
 
 
+# ------------------------------------------------------------------ profitable SMEs (as if private)
+def sme_projection(c: dict):
+    """Published actuals (A$M -> A$) + 3 mechanically extrapolated years: revenue growth = FY-first..FY-last CAGR
+    clamped to 0-10 %, every line at the last actual year's ratio to revenue. Not a forecast."""
+    from blockid_agents.tools import projections as pj
+
+    ys = c["years"]
+    n = len(ys) - 1
+    cagr = (ys[-1]["revenue"] / ys[0]["revenue"]) ** (1 / n) - 1 if n and ys[0]["revenue"] > 0 else 0.0
+    g = min(max(cagr, 0.0), 0.10)
+    rows = []
+    for y in ys:
+        opex = y["revenue"] - y["cogs"] - y["ebitda"]
+        rows.append({"year": y["year"], "actual": True, "revenue": y["revenue"] * 1e6, "cogs": y["cogs"] * 1e6,
+                     "opex": opex * 1e6, "d_and_a": y["d_and_a"] * 1e6, "capex": y["capex"] * 1e6})
+    last = rows[-1]
+    rev = last["revenue"]
+    for i in range(1, 4):
+        k = (1 + g) ** i
+        rows.append({"year": last["year"] + i, "actual": False,
+                     **{f: round(last[f] * k, 2) for f in ("revenue", "cogs", "opex", "d_and_a", "capex")}})
+    inp = pj.ProjectionInput(currency="AUD", fiscal_year_end="06-30", audited=True,
+                             prepared_by="BlockID backtest (published accounts)",
+                             basis_notes=f"actuals from annual reports; projected years at {g:.1%} growth (CAGR clamped)",
+                             cash=c["cash"] * 1e6, debt=c["debt"] * 1e6, years=rows)
+    return inp, rev, g
+
+
+def sme_record(c: dict) -> tuple[dict, float, float]:
+    from blockid_agents.tools import projections as pj
+    from blockid_agents.tools.market_data import snapshot
+    from blockid_agents.tools.valuation_params import MARKET_DATASET, params
+
+    inp, rev, g = sme_projection(c)
+    snap = snapshot(MARKET_DATASET)
+    checks, used = pj.validate(inp, cls="profitable_sme", industry_row=snap.industry(c["industry"]),
+                               revenue_ref_aud=rev, p=params())
+    return ({"parsed": pj.parsed_record(inp, used), "checks": [x.model_dump() for x in checks],
+             "sha256": f"sme-fixture-{c['asx']}", "attested_by": "backtest", "attested_at": "2026-09-27"}, rev, g)
+
+
+def run_sme(c: dict, live: bool, workdir: Path | None = None) -> dict:
+    from blockid_agents.schemas import Metrics, StartupProfile, VerifiedValuationEvidence
+    from blockid_agents.tools import svi
+    from blockid_agents.tools.valuation_v5 import triangulate_v5
+
+    proj, rev, g = sme_record(c)
+    if not live:
+        prof = StartupProfile(company_name=c["company"], sector=c["sector"], description=c["sector"], country="AU",
+                              metrics=Metrics(revenue_ttm_aud=rev))
+        prof.metrics_sources["revenue_ttm_aud"] = "management_actuals"
+        tri = triangulate_v5(profile=prof, market=None, ve=VerifiedValuationEvidence(as_of="2026-09-27"), dims={},
+                             svi_index=50.0, self_reported=None, v5_inputs={"industry": c["industry"]}, projection=proj,
+                             stage_ranges=svi.STAGE_PRE_REVENUE_RANGE, as_of="2026-09-27")
+        return {"tri": tri.model_dump(), "growth": g, "searches": 0, "industry": c["industry"]}
+    from blockid_agents.agents.valuation_agent import rerun_methods
+
+    res = run_one(live_deps(workdir), f"bt-sme-{c['asx'].lower()}", c["url"])
+    live_anchor = bool((res.get("valuation_evidence") or {}).get("anchors"))
+    ve = dict(res.get("valuation_evidence") or {})
+    ve.update(anchors=[], listing=None)  # as if private: no own price, no listing
+    res["valuation_evidence"] = ve
+    res["profile"]["metrics"]["revenue_ttm_aud"] = rev  # the published actual, as the upload states
+    res["profile"].setdefault("metrics_sources", {})["revenue_ttm_aud"] = "management_actuals"
+    vi = dict(res.get("valuation_inputs") or {})
+    vi["projection"] = proj
+    res["valuation_inputs"] = vi
+    out = rerun_methods(res)
+    return {"tri": out["svi"]["triangulation"], "growth": g, "searches": len(res["searches"]),
+            "industry": vi.get("industry"), "live_found_price": live_anchor}
+
+
+def run_smes(live: bool) -> list[dict]:
+    cases = json.loads(SME_CASES.read_text())["cases"]
+    rows = []
+    print(f"\nProfitable AU SMEs as if private (A3) — {'LIVE graph + upload' if live else 'OFFLINE engine'}\n")
+    print(f"{'company':<16}{'reference A$':>14}{'value A$':>14}{'error':>9}  {'in range':<9}{'class':<16}{'conf':<7}"
+          f"industry")
+    for c in cases:
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                r = run_sme(c, live, Path(tmp))
+        except Exception as e:  # noqa: BLE001
+            print(f"{c['company']}: FAILED {type(e).__name__}: {str(e)[:160]}", file=sys.stderr)
+            continue
+        tri = r["tri"]
+        ref = c["reference_aud_m"] * 1e6
+        row = {"company": c["company"], "asx": c["asx"], "reference_aud": ref, "value_aud": tri["value_aud"],
+               "low_aud": tri["low_aud"], "high_aud": tri["high_aud"], "error": tri["value_aud"] / ref - 1,
+               "in_range": tri["low_aud"] <= ref <= tri["high_aud"], "class": tri.get("valuation_class"),
+               "confidence": tri["confidence"], "industry": r["industry"], "searches": r["searches"],
+               "methods": [(m["method"], round(m["weight"], 2), m["value_aud"]) for m in tri["methods"] if m["weight"]]}
+        rows.append(row)
+        print(f"{c['company']:<16}{ref:>14,.0f}{tri['value_aud']:>14,.0f}{pct(row['error']):>9}  "
+              f"{'yes' if row['in_range'] else 'no':<9}{row['class'] or '':<16}{row['confidence']:<7}{r['industry']}")
+        print(f"{'':<16}methods: " + ", ".join(f"{m} {w:.0%} (A${v:,.0f})" for m, w, v in row["methods"]))
+    if rows:
+        med = statistics.median(abs(x["error"]) for x in rows)
+        print(f"\nmedian |error| SMEs: {med * 100:.1f}%  (target <= 30%)  · in range: "
+              f"{sum(x['in_range'] for x in rows)}/{len(rows)} (target >= 60%)")
+    return rows
+
+
+def llm_spend() -> tuple[float, int, dict[str, int]]:
+    """(US$ estimated from tokens, model calls sent, calls by provider) from the in-process AI gateway ledger(s)."""
+    try:
+        from blockid_agents.ai_gateway import _GATEWAYS
+    except ImportError:
+        return 0.0, 0, {}
+    usd, n, by = 0.0, 0, {}
+    for gw in _GATEWAYS.values():
+        for r in getattr(gw.ledger, "rows", []):
+            if r.sent:
+                n += 1
+                usd += r.cost_usd or 0
+                by[r.provider] = by.get(r.provider, 0) + 1
+    return usd, n, by
+
+
+def no_price_rerun(res: dict) -> float | None:
+    """Live v5 ablation: the stored live result re-valued without its own price / listing (deterministic)."""
+    from blockid_agents.agents.valuation_agent import rerun_methods
+
+    r = json.loads(json.dumps(res))
+    ve = dict(r.get("valuation_evidence") or {})
+    ve.update(anchors=[], listing=None)
+    r["valuation_evidence"] = ve
+    cf = (r.get("market") or {}).get("company_financials")
+    if cf:
+        cf["last_valuation"] = cf["last_valuation_aud"] = None
+    out = rerun_methods(r)
+    return out["svi"]["triangulation"]["value_aud"] if out else None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--live", action="store_true", help="real search + LLM chain (worker env)")
@@ -272,14 +416,18 @@ def main() -> int:
     ap.add_argument("--json", default="", help="write per-company results to this file")
     ap.add_argument("--v5", action="store_true", help="valuation v5 engine (VALUATION_V5=1); prints the v3 value too")
     ap.add_argument("--cases", action="store_true", help="also run the v5 engine fixtures (A5 / A6)")
+    ap.add_argument("--sme", action="store_true", help="v5: profitable AU SMEs as if private (A3)")
+    ap.add_argument("--sme-only", action="store_true", help="only the SME set (implies --v5 --sme)")
     a = ap.parse_args()
+    if a.sme_only:
+        a.v5 = a.sme = True
     import os
 
     os.environ["VALUATION_V5"] = "1" if a.v5 else "0"
 
     fixtures = json.loads(FIXTURES.read_text())["companies"]
     wanted = [c.strip() for c in a.companies.split(",") if c.strip()]
-    refs = [r for r in REFERENCE if not wanted or r["company"] in wanted]
+    refs = [r for r in REFERENCE if (not wanted or r["company"] in wanted) and not a.sme_only]
     rows = []
     for r in refs:
         name, fx = r["company"], fixtures[r["company"]]
@@ -297,11 +445,16 @@ def main() -> int:
                    methods=[(m["method"], round(m["weight"], 2), m["value_aud"]) for m in tri["methods"] if m["weight"]])
         row["error"] = row["value_aud"] / row["reference_aud"] - 1
         row["in_range"] = row["low_aud"] <= row["reference_aud"] <= row["high_aud"]
+        row["cost_usd"] = res.get("llm_cost_usd")
         if a.ablation and not a.live:
             with tempfile.TemporaryDirectory() as tmp:
                 res = run_one(offline_deps(name, fx, Path(tmp), ablate_anchors=True), "bt-abl", fx["url"])
             row["no_anchor_value_aud"] = res["svi"]["triangulation"]["value_aud"]
             row["no_anchor_error"] = row["no_anchor_value_aud"] / row["reference_aud"] - 1
+        elif a.ablation and a.v5:  # live: deterministic re-run of the live result without its own price
+            v = no_price_rerun(res)
+            if v:
+                row["no_anchor_value_aud"], row["no_anchor_error"] = v, v / row["reference_aud"] - 1
         if name in CURRENT_V2_AUD:
             row["v2_error"] = CURRENT_V2_AUD[name] / row["reference_aud"] - 1
         if a.v5 and not a.live:  # the same fixture through the v3 engine, for comparison
@@ -332,24 +485,34 @@ def main() -> int:
         print(line)
         print(f"{'':<16}methods: " + ", ".join(f"{m} {w:.0%} (A${v:,.0f})" for m, w, v in x["methods"])
               + f"; searches {x['searches']}")
-    med = statistics.median(abs(x["error"]) for x in rows)
-    print(f"\nmedian |error| {ver}: {med * 100:.1f}%  (target <= {'25' if a.v5 else '30'}%)  · in range: "
-          f"{sum(x['in_range'] for x in rows)}/{len(rows)}")
+    med = statistics.median(abs(x["error"]) for x in rows) if rows else 0.0
+    if rows:
+        print(f"\nmedian |error| {ver}: {med * 100:.1f}%  (target <= {'25' if a.v5 else '30'}%)  · in range: "
+              f"{sum(x['in_range'] for x in rows)}/{len(rows)}")
     v3e = [abs(x["v3_error"]) for x in rows if "v3_error" in x]
     if v3e:
         print(f"median |error| v3 on the same fixtures: {statistics.median(v3e) * 100:.1f}%")
     v2 = [abs(x["v2_error"]) for x in rows if "v2_error" in x]
     if v2:
         print(f"median |error| v2 (live site values, {len(v2)} companies): {statistics.median(v2) * 100:.1f}%")
-    if a.ablation:
-        print(f"median |error| without market anchors: "
-              f"{statistics.median(abs(x['no_anchor_error']) for x in rows) * 100:.1f}%")
+    na = [abs(x["no_anchor_error"]) for x in rows if "no_anchor_error" in x]
+    if a.ablation and na:
+        print(f"median |error| without market anchors (no own price): {statistics.median(na) * 100:.1f}%  "
+              f"(target <= 45%)")
     ok_cases = True
     if a.cases:
         ok_cases = all(run_v5_cases())
+    sme_rows: list[dict] = []
+    if a.sme:
+        os.environ["VALUATION_V5"] = "1"
+        sme_rows = run_smes(a.live)
+    if a.live:
+        usd, n, by = llm_spend()
+        print(f"\nLLM calls sent: {n} {by} · estimated spend US${usd:.4f} (token-based; free tiers count as 0)")
     if a.json:
-        Path(a.json).write_text(json.dumps(rows, indent=1))
-    return 0 if med <= (0.25 if a.v5 else 0.30) and ok_cases else 1
+        Path(a.json).write_text(json.dumps({"reference": rows, "sme": sme_rows}, indent=1))
+    ok_sme = not sme_rows or statistics.median(abs(x["error"]) for x in sme_rows) <= 0.30
+    return 0 if med <= (0.25 if a.v5 else 0.30) and ok_cases and ok_sme else 1
 
 
 if __name__ == "__main__":

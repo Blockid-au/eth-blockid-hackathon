@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from conftest import v5_on
 from test_studio import studio_deps  # shared offline fixture
 
 from blockid_agents.agents import competitors, research, site_intake
@@ -27,6 +28,7 @@ from blockid_agents.studio.db import MemoryProgress
 from blockid_agents.tools import search as search_mod
 from blockid_agents.tools.brave import BraveSearch, EvidenceStore
 from blockid_agents.tools.search import (
+    ANALYST_QUERY_PLAN,
     BridgeUnavailable,
     ClaudeBridgeSearch,
     SearchChain,
@@ -115,7 +117,9 @@ def test_v3_query_plan_is_bounded_and_logged(tmp_path):
     _, prog = run_graph(deps, "v8")
     r = prog.results["v8"]
     kinds = [s["kind"] for s in r["searches"]]
-    assert kinds == ["competitors", "market", "company", "valuation", "comps", "comps_named"]  # not listed
+    assert kinds[:6] == ["competitors", "market", "company", "valuation", "comps", "comps_named"]  # not listed
+    # evaluation v5: the analysts' conditional kinds follow the valuation-critical ones, inside the same budget
+    assert set(kinds[6:]) <= (set(ANALYST_QUERY_PLAN) if v5_on() else set())
     assert all(s["purpose"] and s["query"] for s in r["searches"])
     assert len(prov.queries) == len(kinds) <= 8
     assert len(fetched) <= 3 * len(kinds)

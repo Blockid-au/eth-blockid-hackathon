@@ -1,0 +1,914 @@
+{
+ "dataset": "2026-09-27",
+ "as_of": "2026-09-27",
+ "description": "Dated market parameters for valuation v5 (docs/PLAN-VALUATION-V5.md §2.3, docs/DECISIONS-V5.md #6). Industry rows transcribed from Damodaran's January 2026 datasets (updated 5 Jan 2026). Refresh by a reviewed PR (rf monthly, Damodaran each January); never scraped at valuation time. Supersedes 2026-09-26 (placeholder industry rows), which stays unchanged for reports that used it.",
+ "countries": {
+  "AU": {
+   "rf": 0.05385,
+   "rf_as_of": "2026-09-26",
+   "rf_source": "https://tradingeconomics.com/australia/government-bond-yield",
+   "erp": 0.06,
+   "erp_basis": "Australian practice MRP 6.0% (owner decision 6)",
+   "erp_source": "https://www.charteredaccountantsanz.com/tools-and-resources/client-service-essentials/business-valuation/market-risk-premium-australian-evidence",
+   "erp_low": 0.0423,
+   "erp_low_basis": "Damodaran mature-market ERP 4.23% (5 Jan 2026), shown as the low end of the sensitivity",
+   "crp": 0.0,
+   "tax_rate": 0.25,
+   "tax_basis": "base-rate entity company tax 25%"
+  },
+  "VN": {
+   "rf": 0.05385,
+   "rf_basis": "values are in AUD: AU 10-year yield; VN 10-year 4.54% (3 Sep 2026) shown for reference",
+   "rf_local": 0.0454,
+   "rf_local_source": "https://tradingeconomics.com/vietnam/government-bond-yield/news/580736",
+   "erp": 0.0813,
+   "erp_basis": "Damodaran total ERP for Vietnam (Ba2) 8.13%, 5 Jan 2026 (owner decision 6); includes the 3.90% country risk premium",
+   "erp_source": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html",
+   "erp_low": 0.0813,
+   "crp": 0.0,
+   "crp_included": 0.039,
+   "tax_rate": 0.2,
+   "tax_basis": "Vietnam CIT 20%"
+  }
+ },
+ "size_premium": [
+  [
+   5000000,
+   0.06
+  ],
+  [
+   20000000,
+   0.04
+  ],
+  [
+   1e+30,
+   0.03
+  ]
+ ],
+ "size_premium_basis": "private-company size premium by EV (A$ < 5M: 6%, 5-20M: 4%, > 20M: 3%): BlockID judgement parameter, admin-editable",
+ "industries_status": "verified",
+ "industries_note": "Per industry: beta_u = unlevered beta corrected for cash (betaGlobal, column 'Unlevered beta corrected for cash'), ev_sales = EV/Sales (psGlobal), ev_ebitda = EV/EBITDA of positive-EBITDA firms (vebitdaGlobal), ebitda_margin = EBITDA/Sales (marginGlobal), gross_margin = gross margin (marginGlobal); global aggregates of listed firms, Damodaran January 2026 (data date 5 Jan 2026). 'aunzca' = the same measures for Australia, New Zealand and Canada (Damodaran's *Rest files) — shown for reference; the global row is used because the AU/NZ/Canada samples are small for most industries (n < 60) and some are dominated by a few firms. 'damodaran_industry' names the source row. ebitda_margin_p90 and gross_margin_band are BlockID judgement parameters (Damodaran publishes aggregates, not percentiles): p90 = max(previous band, aggregate margin + 10 pp rounded up to 1 pp). fintech: Damodaran's 'Financial Svcs. (Non-bank & Insurance)' row is distorted by financing debt (EV multiples and unlevered betas are not meaningful when debt is operating capital), so fintech platforms are valued against Software (System & Application); the financial row is kept under 'reference_financial'.",
+ "industries_source": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datacurrent.html",
+ "industries": {
+  "software": {
+   "label": "Software (system & application)",
+   "keywords": [
+    "saas",
+    "software",
+    "cloud",
+    "platform",
+    "app",
+    "api",
+    "developer"
+   ],
+   "damodaran_industry": "Software (System & Application)",
+   "n_firms": 1532,
+   "beta_u": 1.33,
+   "ev_sales": 9.91,
+   "ev_ebitda": 24.64,
+   "ebitda_margin": 0.298,
+   "gross_margin": 0.678,
+   "ebitda_margin_p90": 0.4,
+   "gross_margin_band": [
+    0.55,
+    0.9
+   ],
+   "precedent_band": "tech",
+   "previous_placeholder": {
+    "beta_u": 1.15,
+    "ev_sales": 6.0,
+    "ev_ebitda": 20.0,
+    "ebitda_margin": 0.25
+   },
+   "aunzca": {
+    "n_firms": 200,
+    "beta_u": 1.16,
+    "ev_sales": 6.11,
+    "ev_ebitda": 33.09,
+    "ebitda_margin": 0.149
+   }
+  },
+  "internet": {
+   "label": "Internet / online services",
+   "keywords": [
+    "marketplace",
+    "online",
+    "internet",
+    "e-commerce platform",
+    "social",
+    "media platform"
+   ],
+   "damodaran_industry": "Software (Internet)",
+   "n_firms": 150,
+   "beta_u": 1.34,
+   "ev_sales": 7.73,
+   "ev_ebitda": 40.55,
+   "ebitda_margin": 0.097,
+   "gross_margin": 0.431,
+   "ebitda_margin_p90": 0.3,
+   "gross_margin_band": [
+    0.1,
+    0.8
+   ],
+   "precedent_band": "tech",
+   "previous_placeholder": {
+    "beta_u": 1.25,
+    "ev_sales": 4.0,
+    "ev_ebitda": 17.0,
+    "ebitda_margin": 0.12
+   },
+   "aunzca": {
+    "n_firms": 23,
+    "beta_u": 1.47,
+    "ev_sales": 18.32,
+    "ev_ebitda": 107.61,
+    "ebitda_margin": 0.123
+   }
+  },
+  "fintech": {
+   "label": "Financial services (non-bank) / payments",
+   "keywords": [
+    "fintech",
+    "payment",
+    "lending",
+    "insurtech",
+    "wealth",
+    "banking",
+    "financial"
+   ],
+   "damodaran_industry": "Software (System & Application)",
+   "n_firms": 1532,
+   "beta_u": 1.33,
+   "ev_sales": 9.91,
+   "ev_ebitda": 24.64,
+   "ebitda_margin": 0.298,
+   "gross_margin": 0.678,
+   "ebitda_margin_p90": 0.4,
+   "gross_margin_band": [
+    0.4,
+    0.9
+   ],
+   "precedent_band": "tech",
+   "previous_placeholder": {
+    "beta_u": 0.95,
+    "ev_sales": 4.0,
+    "ev_ebitda": 14.0,
+    "ebitda_margin": 0.2
+   },
+   "aunzca": {
+    "n_firms": 200,
+    "beta_u": 1.16,
+    "ev_sales": 6.11,
+    "ev_ebitda": 33.09,
+    "ebitda_margin": 0.149
+   },
+   "reference_financial": {
+    "damodaran_industry": "Financial Svcs. (Non-bank & Insurance)",
+    "n": 1138,
+    "beta_u": 0.2951,
+    "ev_sales": 13.7155,
+    "ev_ebitda": 43.4214,
+    "ebitda_margin": 0.1599
+   }
+  },
+  "information_services": {
+   "label": "Information / data services",
+   "keywords": [
+    "data",
+    "analytics",
+    "information",
+    "research"
+   ],
+   "damodaran_industry": "Information Services",
+   "n_firms": 86,
+   "beta_u": 0.87,
+   "ev_sales": 1.88,
+   "ev_ebitda": 10.77,
+   "ebitda_margin": 0.157,
+   "gross_margin": 0.339,
+   "ebitda_margin_p90": 0.4,
+   "gross_margin_band": [
+    0.4,
+    0.85
+   ],
+   "precedent_band": "tech",
+   "previous_placeholder": {
+    "beta_u": 0.9,
+    "ev_sales": 4.5,
+    "ev_ebitda": 17.0,
+    "ebitda_margin": 0.25
+   },
+   "aunzca": {
+    "n_firms": 3,
+    "beta_u": 0.55,
+    "ev_sales": 4.51,
+    "ev_ebitda": 13.48,
+    "ebitda_margin": 0.334
+   }
+  },
+  "healthcare_products": {
+   "label": "Healthcare products / medtech",
+   "keywords": [
+    "medtech",
+    "medical device",
+    "biotech",
+    "health tech",
+    "diagnostic"
+   ],
+   "damodaran_industry": "Healthcare Products",
+   "n_firms": 842,
+   "beta_u": 1.12,
+   "ev_sales": 4.17,
+   "ev_ebitda": 18.55,
+   "ebitda_margin": 0.193,
+   "gross_margin": 0.539,
+   "ebitda_margin_p90": 0.35,
+   "gross_margin_band": [
+    0.4,
+    0.85
+   ],
+   "precedent_band": "healthcare",
+   "previous_placeholder": {
+    "beta_u": 0.95,
+    "ev_sales": 3.5,
+    "ev_ebitda": 16.0,
+    "ebitda_margin": 0.18
+   },
+   "aunzca": {
+    "n_firms": 56,
+    "beta_u": 0.66,
+    "ev_sales": 4.02,
+    "ev_ebitda": 23.2,
+    "ebitda_margin": 0.137
+   }
+  },
+  "healthcare_services": {
+   "label": "Healthcare services",
+   "keywords": [
+    "clinic",
+    "healthcare",
+    "aged care",
+    "care",
+    "allied health",
+    "pharmacy"
+   ],
+   "damodaran_industry": "Healthcare Support Services",
+   "n_firms": 478,
+   "beta_u": 0.78,
+   "ev_sales": 0.49,
+   "ev_ebitda": 11.29,
+   "ebitda_margin": 0.04,
+   "gross_margin": 0.124,
+   "ebitda_margin_p90": 0.25,
+   "gross_margin_band": [
+    0.2,
+    0.6
+   ],
+   "precedent_band": "healthcare",
+   "previous_placeholder": {
+    "beta_u": 0.8,
+    "ev_sales": 1.5,
+    "ev_ebitda": 11.0,
+    "ebitda_margin": 0.12
+   },
+   "aunzca": {
+    "n_firms": 23,
+    "beta_u": 0.61,
+    "ev_sales": 1.79,
+    "ev_ebitda": 20.8,
+    "ebitda_margin": 0.081
+   }
+  },
+  "business_services": {
+   "label": "Business & professional services",
+   "keywords": [
+    "consulting",
+    "agency",
+    "services",
+    "accounting",
+    "legal",
+    "recruitment",
+    "staffing",
+    "outsourcing"
+   ],
+   "damodaran_industry": "Business & Consumer Services",
+   "n_firms": 994,
+   "beta_u": 0.91,
+   "ev_sales": 2.04,
+   "ev_ebitda": 14.09,
+   "ebitda_margin": 0.125,
+   "gross_margin": 0.324,
+   "ebitda_margin_p90": 0.25,
+   "gross_margin_band": [
+    0.2,
+    0.6
+   ],
+   "precedent_band": "professional_services",
+   "previous_placeholder": {
+    "beta_u": 0.85,
+    "ev_sales": 1.8,
+    "ev_ebitda": 11.0,
+    "ebitda_margin": 0.12
+   },
+   "aunzca": {
+    "n_firms": 60,
+    "beta_u": 0.43,
+    "ev_sales": 3.64,
+    "ev_ebitda": 18.73,
+    "ebitda_margin": 0.188
+   }
+  },
+  "education": {
+   "label": "Education & training",
+   "keywords": [
+    "education",
+    "edtech",
+    "training",
+    "learning",
+    "school",
+    "course"
+   ],
+   "damodaran_industry": "Education",
+   "n_firms": 281,
+   "beta_u": 0.74,
+   "ev_sales": 2.06,
+   "ev_ebitda": 8.96,
+   "ebitda_margin": 0.19,
+   "gross_margin": 0.472,
+   "ebitda_margin_p90": 0.29,
+   "gross_margin_band": [
+    0.3,
+    0.85
+   ],
+   "precedent_band": "professional_services",
+   "previous_placeholder": {
+    "beta_u": 0.9,
+    "ev_sales": 2.0,
+    "ev_ebitda": 12.0,
+    "ebitda_margin": 0.12
+   },
+   "aunzca": {
+    "n_firms": 14,
+    "beta_u": 0.4,
+    "ev_sales": 1.78,
+    "ev_ebitda": 14.15,
+    "ebitda_margin": 0.122
+   }
+  },
+  "advertising": {
+   "label": "Advertising & marketing",
+   "keywords": [
+    "advertising",
+    "marketing",
+    "adtech",
+    "creative"
+   ],
+   "damodaran_industry": "Advertising",
+   "n_firms": 419,
+   "beta_u": 1.09,
+   "ev_sales": 1.52,
+   "ev_ebitda": 11.08,
+   "ebitda_margin": 0.106,
+   "gross_margin": 0.348,
+   "ebitda_margin_p90": 0.25,
+   "gross_margin_band": [
+    0.2,
+    0.7
+   ],
+   "precedent_band": "professional_services",
+   "previous_placeholder": {
+    "beta_u": 1.0,
+    "ev_sales": 1.5,
+    "ev_ebitda": 10.0,
+    "ebitda_margin": 0.1
+   },
+   "aunzca": {
+    "n_firms": 13,
+    "beta_u": 0.52,
+    "ev_sales": 1.18,
+    "ev_ebitda": 9.69,
+    "ebitda_margin": 0.12
+   }
+  },
+  "retail_online": {
+   "label": "Retail (online / D2C)",
+   "keywords": [
+    "ecommerce",
+    "e-commerce",
+    "online store",
+    "d2c",
+    "direct to consumer",
+    "shop"
+   ],
+   "damodaran_industry": "Retail (Special Lines)",
+   "n_firms": 649,
+   "beta_u": 0.9,
+   "ev_sales": 1.49,
+   "ev_ebitda": 13.11,
+   "ebitda_margin": 0.088,
+   "gross_margin": 0.366,
+   "ebitda_margin_p90": 0.19,
+   "gross_margin_band": [
+    0.15,
+    0.5
+   ],
+   "precedent_band": "general",
+   "previous_placeholder": {
+    "beta_u": 1.1,
+    "ev_sales": 1.5,
+    "ev_ebitda": 14.0,
+    "ebitda_margin": 0.07
+   },
+   "aunzca": {
+    "n_firms": 37,
+    "beta_u": 0.87,
+    "ev_sales": 1.86,
+    "ev_ebitda": 17.18,
+    "ebitda_margin": 0.096
+   }
+  },
+  "retail": {
+   "label": "Retail & consumer products",
+   "keywords": [
+    "retail",
+    "consumer",
+    "fashion",
+    "beauty",
+    "apparel",
+    "grocery"
+   ],
+   "damodaran_industry": "Retail (General)",
+   "n_firms": 252,
+   "beta_u": 0.94,
+   "ev_sales": 1.93,
+   "ev_ebitda": 17.1,
+   "ebitda_margin": 0.095,
+   "gross_margin": 0.326,
+   "ebitda_margin_p90": 0.2,
+   "gross_margin_band": [
+    0.15,
+    0.5
+   ],
+   "precedent_band": "general",
+   "previous_placeholder": {
+    "beta_u": 0.9,
+    "ev_sales": 0.9,
+    "ev_ebitda": 9.0,
+    "ebitda_margin": 0.08
+   },
+   "aunzca": {
+    "n_firms": 9,
+    "beta_u": 0.63,
+    "ev_sales": 2.55,
+    "ev_ebitda": 22.25,
+    "ebitda_margin": 0.109
+   }
+  },
+  "food_agri": {
+   "label": "Food, beverage & agribusiness",
+   "keywords": [
+    "food",
+    "beverage",
+    "agri",
+    "farm",
+    "agtech",
+    "agriculture",
+    "wine",
+    "supply chain traceability"
+   ],
+   "damodaran_industry": "Food Processing",
+   "n_firms": 1450,
+   "beta_u": 0.56,
+   "ev_sales": 1.34,
+   "ev_ebitda": 11.07,
+   "ebitda_margin": 0.114,
+   "gross_margin": 0.258,
+   "ebitda_margin_p90": 0.22,
+   "gross_margin_band": [
+    0.15,
+    0.55
+   ],
+   "precedent_band": "manufacturing",
+   "previous_placeholder": {
+    "beta_u": 0.7,
+    "ev_sales": 1.3,
+    "ev_ebitda": 10.0,
+    "ebitda_margin": 0.1
+   },
+   "aunzca": {
+    "n_firms": 51,
+    "beta_u": 0.78,
+    "ev_sales": 0.91,
+    "ev_ebitda": 10.19,
+    "ebitda_margin": 0.077
+   }
+  },
+  "manufacturing": {
+   "label": "Manufacturing & industrial",
+   "keywords": [
+    "manufactur",
+    "industrial",
+    "machinery",
+    "engineering",
+    "factory",
+    "robotics"
+   ],
+   "damodaran_industry": "Machinery",
+   "n_firms": 1553,
+   "beta_u": 1.33,
+   "ev_sales": 2.61,
+   "ev_ebitda": 16.88,
+   "ebitda_margin": 0.132,
+   "gross_margin": 0.33,
+   "ebitda_margin_p90": 0.25,
+   "gross_margin_band": [
+    0.15,
+    0.55
+   ],
+   "precedent_band": "manufacturing",
+   "previous_placeholder": {
+    "beta_u": 0.95,
+    "ev_sales": 1.8,
+    "ev_ebitda": 12.0,
+    "ebitda_margin": 0.14
+   },
+   "aunzca": {
+    "n_firms": 30,
+    "beta_u": 0.68,
+    "ev_sales": 2.42,
+    "ev_ebitda": 18.27,
+    "ebitda_margin": 0.087
+   }
+  },
+  "hardware": {
+   "label": "Electronics & hardware",
+   "keywords": [
+    "hardware",
+    "device",
+    "electronics",
+    "iot",
+    "sensor",
+    "semiconductor"
+   ],
+   "damodaran_industry": "Electronics (General)",
+   "n_firms": 1481,
+   "beta_u": 1.57,
+   "ev_sales": 2.23,
+   "ev_ebitda": 18.73,
+   "ebitda_margin": 0.097,
+   "gross_margin": 0.185,
+   "ebitda_margin_p90": 0.25,
+   "gross_margin_band": [
+    0.15,
+    0.55
+   ],
+   "precedent_band": "manufacturing",
+   "previous_placeholder": {
+    "beta_u": 1.05,
+    "ev_sales": 2.0,
+    "ev_ebitda": 13.0,
+    "ebitda_margin": 0.12
+   },
+   "aunzca": {
+    "n_firms": 43,
+    "beta_u": 0.99,
+    "ev_sales": 3.37,
+    "ev_ebitda": 31.06,
+    "ebitda_margin": 0.063
+   }
+  },
+  "logistics": {
+   "label": "Transport & logistics",
+   "keywords": [
+    "logistics",
+    "transport",
+    "freight",
+    "delivery",
+    "shipping",
+    "mobility"
+   ],
+   "damodaran_industry": "Transportation",
+   "n_firms": 451,
+   "beta_u": 0.75,
+   "ev_sales": 1.32,
+   "ev_ebitda": 11.18,
+   "ebitda_margin": 0.097,
+   "gross_margin": 0.192,
+   "ebitda_margin_p90": 0.2,
+   "gross_margin_band": [
+    0.1,
+    0.45
+   ],
+   "precedent_band": "general",
+   "previous_placeholder": {
+    "beta_u": 0.9,
+    "ev_sales": 1.2,
+    "ev_ebitda": 9.0,
+    "ebitda_margin": 0.1
+   },
+   "aunzca": {
+    "n_firms": 15,
+    "beta_u": 0.61,
+    "ev_sales": 1.29,
+    "ev_ebitda": 8.73,
+    "ebitda_margin": 0.146
+   }
+  },
+  "hospitality": {
+   "label": "Hospitality, travel & leisure",
+   "keywords": [
+    "hospitality",
+    "restaurant",
+    "cafe",
+    "hotel",
+    "travel",
+    "tourism",
+    "events"
+   ],
+   "damodaran_industry": "Restaurant/Dining",
+   "n_firms": 410,
+   "beta_u": 0.66,
+   "ev_sales": 2.47,
+   "ev_ebitda": 16.6,
+   "ebitda_margin": 0.134,
+   "gross_margin": 0.367,
+   "ebitda_margin_p90": 0.25,
+   "gross_margin_band": [
+    0.2,
+    0.7
+   ],
+   "precedent_band": "general",
+   "previous_placeholder": {
+    "beta_u": 0.95,
+    "ev_sales": 2.0,
+    "ev_ebitda": 12.0,
+    "ebitda_margin": 0.12
+   },
+   "aunzca": {
+    "n_firms": 17,
+    "beta_u": 0.3,
+    "ev_sales": 3.49,
+    "ev_ebitda": 13.22,
+    "ebitda_margin": 0.226
+   }
+  },
+  "real_estate": {
+   "label": "Real estate services / proptech",
+   "keywords": [
+    "property",
+    "real estate",
+    "proptech",
+    "construction tech"
+   ],
+   "damodaran_industry": "Real Estate (Operations & Services)",
+   "n_firms": 752,
+   "beta_u": 0.51,
+   "ev_sales": 4.15,
+   "ev_ebitda": 18.46,
+   "ebitda_margin": 0.175,
+   "gross_margin": 0.4,
+   "ebitda_margin_p90": 0.35,
+   "gross_margin_band": [
+    0.2,
+    0.8
+   ],
+   "precedent_band": "general",
+   "previous_placeholder": {
+    "beta_u": 0.8,
+    "ev_sales": 3.0,
+    "ev_ebitda": 14.0,
+    "ebitda_margin": 0.15
+   },
+   "aunzca": {
+    "n_firms": 31,
+    "beta_u": 0.61,
+    "ev_sales": 2.49,
+    "ev_ebitda": 15.09,
+    "ebitda_margin": 0.139
+   }
+  },
+  "construction": {
+   "label": "Construction & trades",
+   "keywords": [
+    "construction",
+    "builder",
+    "trades",
+    "plumbing",
+    "electrical contractor"
+   ],
+   "damodaran_industry": "Engineering/Construction",
+   "n_firms": 1390,
+   "beta_u": 0.76,
+   "ev_sales": 0.83,
+   "ev_ebitda": 11.26,
+   "ebitda_margin": 0.064,
+   "gross_margin": 0.175,
+   "ebitda_margin_p90": 0.17,
+   "gross_margin_band": [
+    0.1,
+    0.4
+   ],
+   "precedent_band": "general",
+   "previous_placeholder": {
+    "beta_u": 0.9,
+    "ev_sales": 1.0,
+    "ev_ebitda": 9.0,
+    "ebitda_margin": 0.07
+   },
+   "aunzca": {
+    "n_firms": 30,
+    "beta_u": 0.75,
+    "ev_sales": 1.4,
+    "ev_ebitda": 15.91,
+    "ebitda_margin": 0.076
+   }
+  },
+  "energy_clean": {
+   "label": "Energy & clean tech",
+   "keywords": [
+    "energy",
+    "solar",
+    "battery",
+    "clean tech",
+    "climate",
+    "renewable",
+    "carbon"
+   ],
+   "damodaran_industry": "Green & Renewable Energy",
+   "n_firms": 258,
+   "beta_u": 0.57,
+   "ev_sales": 7.38,
+   "ev_ebitda": 14.17,
+   "ebitda_margin": 0.467,
+   "gross_margin": 0.504,
+   "ebitda_margin_p90": 0.57,
+   "gross_margin_band": [
+    0.15,
+    0.6
+   ],
+   "precedent_band": "general",
+   "previous_placeholder": {
+    "beta_u": 1.0,
+    "ev_sales": 2.5,
+    "ev_ebitda": 12.0,
+    "ebitda_margin": 0.15
+   },
+   "aunzca": {
+    "n_firms": 23,
+    "beta_u": 0.6,
+    "ev_sales": 4.41,
+    "ev_ebitda": 9.66,
+    "ebitda_margin": 0.262
+   }
+  },
+  "general": {
+   "label": "Total market (all industries)",
+   "keywords": [],
+   "damodaran_industry": "Total Market (without financials)",
+   "n_firms": 43056,
+   "beta_u": 0.96,
+   "ev_sales": 2.33,
+   "ev_ebitda": 13.7,
+   "ebitda_margin": 0.148,
+   "gross_margin": 0.296,
+   "ebitda_margin_p90": 0.3,
+   "gross_margin_band": [
+    0.15,
+    0.8
+   ],
+   "precedent_band": "general",
+   "previous_placeholder": {
+    "beta_u": 0.9,
+    "ev_sales": 2.0,
+    "ev_ebitda": 12.0,
+    "ebitda_margin": 0.14
+   },
+   "aunzca": {
+    "n_firms": 3956,
+    "beta_u": 0.93,
+    "ev_sales": 2.69,
+    "ev_ebitda": 11.98,
+    "ebitda_margin": 0.19
+   }
+  }
+ },
+ "precedent_bands_status": "cited_sector_range",
+ "precedent_bands_note": "Australian private-business EBITDA multiples paid in transactions (broker / adviser composites, 2026): < A$5M EBITDA typically 2-6x, mid-market (A$1-5M EBITDA) 3.5-6x; by sector for the mid-market. Cited sector ranges, never verified comps.",
+ "precedent_bands_sources": [
+  "https://lyndonadvisory.com/blog/ebitda-multiples-australia-2026",
+  "https://olivergroup.com.au/insights/ebitda-multiples-by-industry-australia/",
+  "https://www.quinnma.com.au/blog/valuations/what-is-my-business-worth-2026/"
+ ],
+ "precedent_bands": {
+  "small": [
+   2.0,
+   3.5,
+   5.0
+  ],
+  "mid_market": [
+   3.5,
+   4.5,
+   6.0
+  ],
+  "tech": [
+   6.0,
+   9.0,
+   14.0
+  ],
+  "healthcare": [
+   6.0,
+   8.5,
+   12.0
+  ],
+  "professional_services": [
+   5.0,
+   6.5,
+   9.0
+  ],
+  "manufacturing": [
+   4.0,
+   5.5,
+   7.0
+  ],
+  "general": [
+   3.5,
+   4.5,
+   6.0
+  ]
+ },
+ "precedent_size_thresholds_aud": {
+  "small_below": 1000000,
+  "sector_from": 5000000
+ },
+ "dlom": {
+  "value": 0.25,
+  "band": [
+   0.2,
+   0.35
+  ],
+  "source": "https://www.acquiry.com/sector-multiples/dlom-research/"
+ },
+ "industries_sources": {
+  "betaGlobal": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/betaGlobal.xls",
+   "sha256": "10c33f46df2a35fa7e4e8c4386c01f9da636fc2ab3e1e98307a52a947c9ab52b",
+   "updated": "2026-01-05"
+  },
+  "betaRest": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/betaRest.xls",
+   "sha256": "232b2ee1c7dcac95872b4f16a211f42c628a103d8ef096a8a936e62cd0b9451f",
+   "updated": "2026-01-05"
+  },
+  "betaemerg": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/betaemerg.xls",
+   "sha256": "9ae04d9565657126266bf0877cefeedb52df02c21c70ba1d70e27ce4249b719d",
+   "updated": "2026-01-05"
+  },
+  "marginGlobal": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/marginGlobal.xls",
+   "sha256": "89fe631c20f3494bb8afbd6f4407bc2000e3c94e58603da1f2d1f3acd1113e79",
+   "updated": "2026-01-05"
+  },
+  "marginRest": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/marginRest.xls",
+   "sha256": "dc92ac0a78d1cae1f8111b5ecc91e517ed439e78480a0aa1dfdd915397a496e7",
+   "updated": "2026-01-05"
+  },
+  "marginemerg": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/marginemerg.xls",
+   "sha256": "33d43f961d08123bf59632f6582aebcf5ce6b08ed440ac2c10d15feee81f5337",
+   "updated": "2026-01-05"
+  },
+  "psGlobal": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/psGlobal.xls",
+   "sha256": "07b0af7cf43c88e62cf90dc00e8f28787dce2511d33a78a73e2c54f680c648ff",
+   "updated": "2026-01-05"
+  },
+  "psRest": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/psRest.xls",
+   "sha256": "ad934143ec9fb8059f339a42878d750c025bae159f729f6def30d56be4c85018",
+   "updated": "2026-01-05"
+  },
+  "psemerg": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/psemerg.xls",
+   "sha256": "022c23929319e67b7e0ac8115049be35a023946a7aa4bb2b33b1f55e2577cfab",
+   "updated": "2026-01-05"
+  },
+  "vebitdaGlobal": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/vebitdaGlobal.xls",
+   "sha256": "7c54331b5461e0a1df6b0b3e4225bcd7a8d45efd189f74b2bbdfc229f8e00c27",
+   "updated": "2026-01-05"
+  },
+  "vebitdaRest": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/vebitdaRest.xls",
+   "sha256": "6f366b3ae93baf79de3056d901341849de97d669f52c813d4beb59aaa12c6486",
+   "updated": "2026-01-05"
+  },
+  "vebitdaemerg": {
+   "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/vebitdaemerg.xls",
+   "sha256": "9088b877229be7f75df4234c0b252276cf6b27b368d1acf0b0e52ba1a7ab17c1",
+   "updated": "2026-01-05"
+  }
+ },
+ "industries_data_date": "2026-01-05"
+}

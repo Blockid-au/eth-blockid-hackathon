@@ -31,7 +31,12 @@ def _valuation(env, metrics=None):
 
 
 @needs_db
-def test_flag_off_keeps_v4_and_hides_endpoints(studio_env):
+def test_flag_off_keeps_v4_and_hides_endpoints(studio_env, monkeypatch):
+    monkeypatch.setenv("VALUATION_V5", "0")  # the flag-off contract, in both suite runs
+    from blockid_agents.graph import build_site_valuation
+
+    runner = studio_env["runner"]  # the worker builds its graph at start-up: rebuild it with the flag off
+    runner.graph = build_site_valuation(runner.deps, runner.graph.checkpointer, runner.progress)
     u = studio_env["client"]()
     assert u.get("/v1/studio/evaluation/config").json()["enabled"] is False
     siwe_login(u, USER_KEY)
