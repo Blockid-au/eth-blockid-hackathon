@@ -39,8 +39,9 @@ export function linksIn(s: string): string[] {
 const tidy = (s: string) => s.replace(/\r/g, "").replace(/[ \t ]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 
 async function readPdf(buf: ArrayBuffer, onStep: (s: CvStep) => void): Promise<{ text: string; pages: number }> {
-  const [pdfjs, worker] = await Promise.all([import("pdfjs-dist/legacy/build/pdf.mjs"), import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url")]);
-  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // bundled by Vite as a .js worker chunk (a .mjs asset is served as octet-stream + nosniff and would not load)
+  if (!pdfjs.GlobalWorkerOptions.workerPort) pdfjs.GlobalWorkerOptions.workerPort = new Worker(new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url), { type: "module" });
   const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
   const parts: string[] = [];
   const n = Math.min(doc.numPages, 30);
