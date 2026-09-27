@@ -16,6 +16,14 @@ Pipeline per person (policy "people_analyst": web_search / fetch_url / store_evi
   6. ONE model call per team -> TeamAnalysis (worked-together evidence, strengths, gaps, risks, questions, red flags)
   7. CODE scoring (below). The model never produces a final score.
 
+Live progress: every step also reports to a `Tracker` (studio/hr_store.HrProgress writes it to the report row for
+GET /v1/hr/teams/{id} -> "progress"; see the contract in studio/hr.py): plain-English feed lines, counters, the
+current step, per-person partial results as soon as a person is scored, and model / search fallbacks (llm.emit).
+
+Nothing to analyse (docs/PLAN-AI-GATEWAY.md §2): when searches ran but nothing was found or readable and nobody
+has self-reported information, the run stops BEFORE any model call with NoPublicInfo / SourcesUnreachable (their
+`code` is the user-facing error code, studio/hr_store.ERROR_TEXT) instead of letting a model guess.
+
 Scoring (all in code):
   person quality = sum(weight x sub-score) / 100, weights PERSON_WEIGHTS (25/25/15/15/10/10); a sub-score with no
     verified cited fact and no founder-provided support is capped at 50 (verifiability: founder text never counts)
@@ -38,7 +46,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field
 
 from ..deps import Deps
-from ..llm import last_provider
+from ..llm import last_provider, primary_provider, provider_label, reset_listener, set_listener
 from ..schemas import EvidenceItem
 from ..tools.brave import fetch_page, sanitize_query
 
@@ -369,6 +377,64 @@ Never mention health, religion, politics, family, address, contact details, age,
 Progress = Callable[[str, str | None, str], None]
 
 
+class Tracker:
+    """Live-progress sink (studio/hr_store.HrProgress). This base class ignores everything (tests, CLI).
+    Step kinds with timings (ETA): fetch, search, person_model, team_model."""
+
+    def plan(self, people: list[dict], *, fetches: int, searches: int, team: bool) -> None: ...
+    def phase(self, phase: str) -> None: ...
+    def begin(self, kind: str, person: str | None, step: str, detail: str = "") -> None: ...
+    def end(self, kind: str) -> None: ...
+    def note(self, msg: str, *, level: str = "info", person: str | None = None, source: str | None = None) -> None: ...
+    def count(self, **inc: int) -> None: ...
+    def person(self, pid: int, status: str, *, facts: list | None = None, score: float | None = None,
+               fit: float | None = None) -> None: ...
+    def llm_event(self, event: dict, person: str | None = None) -> None: ...
+
+
+NULL_TRACKER = Tracker()
+
+
+class ReviewError(RuntimeError):
+    """A run that cannot produce a meaningful report; `code` is the user-facing error code (studio/hr_store
+    ERROR_TEXT: the plain sentence shown to the requester; str(self) is the internal detail)."""
+    code = "internal"
+
+
+class NoPublicInfo(ReviewError):
+    """Searches ran but found nothing about anyone, no link was readable and nobody has a bio / CV / headline."""
+    code = "no_public_info"
+
+
+class SourcesUnreachable(ReviewError):
+    """Every search failed and no provided link could be read: nothing to analyse."""
+    code = "sources_unreachable"
+
+
+def check_evidence(people: list[dict], stored: dict, searches: list[dict], pages_fetched: int) -> None:
+    """Raise NoPublicInfo / SourcesUnreachable before any model call when there is nothing to analyse (a model
+    would only guess). Never raised when no search was attempted (search not configured: links / bios only)."""
+    if not searches or any(stored.values()) or pages_fetched or any(has_founder_info(p) for p in people):
+        return
+    def unreachable(err: str | None) -> bool:  # "brave: no results; claude: no results" is an answer, not an outage
+        return bool(err) and not all(part.strip().endswith("no results") for part in err.split(";"))
+
+    if all(unreachable(x.get("error")) for x in searches):
+        raise SourcesUnreachable(f"all {len(searches)} searches failed: {searches[-1].get('error')}")
+    raise NoPublicInfo(f"{len(searches)} searches, {sum(int(x.get('results') or 0) for x in searches)} results, "
+                       "no readable page and no self-reported information")
+
+
+def _plural(n: int, one: str, many: str | None = None) -> str:
+    return f"{n} {one if n == 1 else (many or one + 's')}"
+
+
+def fit_word(score: float | None) -> str:
+    if score is None:
+        return ""
+    return "Strong fit" if score >= 70 else "Partial fit" if score >= 50 else "Weak fit"
+
+
 def _subject(team_id: str, pid) -> str:
     return f"hr:{team_id}:{pid}"
 
@@ -416,8 +482,10 @@ def multiplier(p: dict) -> float:
 class Research:
     """Evidence gathering for one report (budgeted search + SSRF-safe fetch + evidence store)."""
 
-    def __init__(self, deps: Deps, team_id: str, progress: Progress):
+    def __init__(self, deps: Deps, team_id: str, progress: Progress, tracker: Tracker | None = None):
         self.deps, self.team_id, self.progress = deps, team_id, progress
+        self.tracker = tracker or NULL_TRACKER
+        self.planned_searches = 0
         self.fetch = deps.fetcher or fetch_page
         self.search = deps.search_for(AGENT)
         self.searches: list[dict] = []
@@ -453,13 +521,25 @@ class Research:
         for url in (p.get("urls") or [])[:6]:
             if not re.match(r"^https?://", url or ""):
                 continue
+            name = p.get("full_name")
             if any(host(url) == h or host(url).endswith("." + h) for h in UNREADABLE_HOSTS):
                 notes.append(f"{url}: not readable by the agent (sign-in wall); the typed bio is used as self-reported")
+                self.tracker.note(f"Skipped {host(url)} — this site cannot be read without signing in; the typed "
+                                  "bio is used instead", level="warn", person=name, source=url)
                 continue
-            self.progress("fetch", p.get("full_name"), f"reading {host(url)}")
+            self.progress("fetch", name, f"reading {host(url)}")
+            self.tracker.begin("fetch", name, "Reading a link", host(url))
+            cached = url in self._fetched
             text = self._get(url)
+            self.tracker.end("fetch")
             if not self.store(_subject(self.team_id, p["id"]), url, url, "", text, "provided", "provided"):
                 notes.append(f"{url}: could not be read")
+                self.tracker.note(f"Could not read {host(url)}", level="warn", person=name, source=url)
+            else:
+                if not cached:
+                    self.tracker.count(pages_read=1)
+                self.tracker.note(f"Read {host(url)} — {len(text):,} characters saved as evidence", level="found",
+                                  person=name, source=url)
         return notes
 
     def run_searches(self, people: list[dict], company: str, per_person: int, per_team: int) -> None:
@@ -467,6 +547,7 @@ class Research:
             self.deps.audit.record(AGENT, "search_skipped", reason="no search provider configured")
             return
         plan = {p["id"]: person_queries(p, company)[:per_person] for p in people}
+        self.planned_searches = min(per_team, sum(len(q) for q in plan.values()))
         order = sorted(people, key=priority)
         for rnd in range(max(per_person, 0)):
             for p in order:
@@ -482,26 +563,44 @@ class Research:
         from ..tools.search import MAX_COUNT, SearchUnavailable
 
         self.deps.tool(AGENT, "web_search", query=query, kind="person", purpose="public professional profile")
+        from ..tools.search import LABELS
+
         rec: dict = {"person_id": p["id"], "query": query, "provider": None, "results": 0}
         self.searches.append(rec)
-        self.progress("search", p.get("full_name"), f"search {len(self.searches)}: {query}")
+        n, total, name = len(self.searches), max(self.planned_searches, len(self.searches)), p.get("full_name")
+        self.progress("search", name, f"search {n}: {query}")
+        self.tracker.begin("search", name, f"Search {n} of {total}", query)
+        self.tracker.count(searches=1)
         try:
             results, provider = self.search.search(query, count=MAX_COUNT)
         except SearchUnavailable as e:
             rec["error"] = str(e)[:300]
             self.deps.audit.record(AGENT, "search_unavailable", query=query, error=str(e)[:300])
+            self.tracker.end("search")
+            self.tracker.note(f"Search {n}/{total} · {query} — no results from any search service", level="warn",
+                              person=name)
             return
         rec.update(provider=provider, results=len(results))
         self.deps.audit.record(AGENT, "search_served", query=query, provider=provider, results=len(results))
         subject = _subject(self.team_id, p["id"])
+        read = 0
         for i, r in enumerate(results[:FETCH_PER_QUERY + SNIPPETS_PER_QUERY]):
             url = r.get("url") or ""
             if not url.startswith("https://"):
                 continue
+            cached = url in self._fetched
             text = self._get(url) if i < FETCH_PER_QUERY else ""
+            if text.strip() and not cached:
+                read += 1
             kind = "web" if text.strip() else "search_snippet"
             self.store(subject, url, r.get("title") or url, r.get("description", ""),
                        text if text.strip() else r.get("description", ""), query, kind)
+        self.tracker.end("search")
+        if read:
+            self.tracker.count(pages_read=read)
+        self.tracker.note(f"Search {n}/{total} · {query} — {_plural(len(results), 'result')}"
+                          + (f", read {_plural(read, 'page')}" if read else "")
+                          + f" ({LABELS.get(provider, provider)})", level="found" if results else "info", person=name)
 
     def target_page(self, website: str) -> str:
         """Homepage text of a business given only by its website (SSRF-safe; stored as evidence)."""
@@ -843,25 +942,54 @@ def _anchors(team: dict, target: dict | None, p: dict, draft: CVDraft) -> list[s
     return list(dict.fromkeys(out))
 
 
+def _readable(url: str) -> bool:
+    return bool(re.match(r"^https?://", url or "")) and not any(
+        host(url) == h or host(url).endswith("." + h) for h in UNREADABLE_HOSTS)
+
+
 def analyse(team: dict, people: list[dict], deps: Deps, *, target: dict | None = None,
-            progress: Progress | None = None) -> dict:
+            progress: Progress | None = None, tracker: Tracker | None = None) -> dict:
     """Run the People Analyst for one report. `team`: {id, mode, name, website}; `people`: hr_people rows (id,
     full_name, role, kind, headline, full_time, start_year, equity_pct, urls, bio, cv, position);
-    `target`: resolved target context (see studio/hr.py) or None. Returns the Report dict (see studio/hr.py)."""
-    prog = progress or (lambda step, person, msg: None)
+    `target`: resolved target context (see studio/hr.py) or None; `tracker`: live progress (see Tracker).
+    Returns the Report dict (see studio/hr.py)."""
+    tr = tracker or NULL_TRACKER
+    current: dict = {"person": None}
+    token = set_listener(lambda ev: tr.llm_event(ev, current["person"]))
+    try:
+        return _analyse(team, people, deps, target, progress or (lambda step, person, msg: None), tr, current)
+    finally:
+        reset_listener(token)
+
+
+def _analyse(team: dict, people: list[dict], deps: Deps, target: dict | None, prog: Progress, tr: Tracker,
+             current: dict) -> dict:
     s = deps.settings
     tid, mode = team["id"], team.get("mode") or "team"
     if mode == "team" and target is None:
         target = {"type": "business", "company": team.get("name"), "website": team.get("website")}
-    rs = Research(deps, tid, prog)
-    notes_by: dict[int, list[str]] = {}
-    for p in people:
-        notes_by[p["id"]] = rs.provided(p)
+    rs = Research(deps, tid, prog, tr)
     company = ((target or {}).get("company") if (target or {}).get("type") == "business" else "") or (
         team.get("name") or "" if mode == "team" else "")
     company = " ".join(_SUFFIX.sub(" ", company).replace(",", " ").split())
-    rs.run_searches(people, company, s.hr_searches_per_person,
-                    s.hr_searches_per_team if mode == "team" else s.hr_searches_per_person)
+    per_person = s.hr_searches_per_person
+    per_team = s.hr_searches_per_team if mode == "team" else s.hr_searches_per_person
+    planned = 0 if rs.search is None else min(per_team, sum(len(person_queries(p, company)[:per_person])
+                                                            for p in people))
+    fetches = len({u for p in people for u in (p.get("urls") or [])[:6] if _readable(u)})
+    tr.plan(people, fetches=fetches, searches=planned, team=mode == "team")
+    tr.phase("reading")
+    tr.note(f"Starting the review of {_plural(len(people), 'person', 'people')}"
+            + (f" — {_plural(fetches, 'link')} to read" if fetches else "")
+            + (f", up to {_plural(planned, 'web search', 'web searches')}" if planned else ""))
+    notes_by: dict[int, list[str]] = {}
+    for p in people:
+        current["person"] = p["full_name"]
+        notes_by[p["id"]] = rs.provided(p)
+    tr.phase("searching")
+    rs.run_searches(people, company, per_person, per_team)
+    if rs.search is None:
+        tr.note("No web search service is configured; only the links provided are used", level="warn")
 
     counters = {"searches": len(rs.searches), "search_budget": s.hr_searches_per_team if mode == "team"
                 else s.hr_searches_per_person, "pages_fetched": rs.pages_fetched, "facts_verified": 0,
@@ -871,6 +999,7 @@ def analyse(team: dict, people: list[dict], deps: Deps, *, target: dict | None =
     # pages any team member's research stored; a page stored for someone else (e.g. the company's team page a
     # co-founder provided) is also evidence for every person it names
     stored = {p["id"]: deps.evidence.for_subject(_subject(tid, p["id"]), limit=60) for p in people}
+    check_evidence(people, stored, rs.searches, rs.pages_fetched)
     provided = {ev.url for evs in stored.values() for ev, _ in evs if ev.kind == "provided"}
     for p in sorted(people, key=lambda x: int(x.get("position") or 0)):
         evidence = list(stored[p["id"]])
@@ -882,10 +1011,21 @@ def analyse(team: dict, people: list[dict], deps: Deps, *, target: dict | None =
                     own.add(ev.url)
         evidence.sort(key=lambda e: (e[0].kind != "provided", e[0].kind == "search_snippet"))
         prog("extract", p["full_name"], f"analysing {len(evidence)} source(s)")
+        current["person"] = p["full_name"]
+        tr.phase("extracting")
+        tr.person(p["id"], "working")
+        n_pages = min(len(evidence), MAX_PAGES_IN_PROMPT)
+        first = provider_label(primary_provider(deps.agent_llm.get(AGENT, deps.llm), s.hr_tier))
+        tr.begin("person_model", p["full_name"], "Reading the sources", _plural(n_pages, "page"))
+        tr.note(f"{first} is reading {_plural(n_pages, 'page')} about {p['full_name']}", person=p["full_name"])
+        t0 = time.monotonic()
         a = deps.ask(AGENT, s.hr_tier, SYSTEM_PERSON, _person_prompt(p, target, evidence, notes_by[p["id"]]),
                      PersonAnalysis)
+        tr.end("person_model")
         counters["llm_calls"] += 1
         models[f"person:{p['id']}"] = last_provider() or "unknown"
+        tr.note(f"{provider_label(models['person:' + str(p['id'])])} answered in "
+                f"{time.monotonic() - t0:.0f} s", person=p["full_name"])
         deps.audit.record(AGENT, "person_analysed", team=tid, person=p["id"], model=models[f"person:{p['id']}"])
         anchors = _anchors(team, target, p, a.profile)
         facts, unconfirmed, dropped, ids = verify_facts(p, a.facts, evidence, anchors, provided)
@@ -921,8 +1061,18 @@ def analyse(team: dict, people: list[dict], deps: Deps, *, target: dict | None =
         counters["facts_verified"] += len(facts)
         counters["facts_unconfirmed"] += len(unconfirmed)
         counters["facts_dropped_sensitive"] += dropped + dropped_cv
+        tr.count(facts_verified=len(facts), facts_unconfirmed=len(unconfirmed))
+        tr.note(f"Checked the facts about {p['full_name']}: {_plural(len(facts), 'verified fact')}, "
+                f"{len(unconfirmed)} unconfirmed" + (f", {dropped + dropped_cv} private item(s) removed"
+                                                     if dropped + dropped_cv else ""),
+                level="found" if facts else "info", person=p["full_name"])
+        tr.phase("scoring")
         prog("score", p["full_name"], f"quality {quality}" + (f", fit {fit['score']}" if fit else "")
              + f" · {len(facts)} verified fact(s)")
+        tr.note(f"Scored {p['full_name']}: " + (f"{fit_word(fit['score'])} {fit['score']:.0f} · " if fit else "")
+                + f"quality {quality:.0f}", level="found", person=p["full_name"])
+        tr.person(p["id"], "done", facts=facts, score=quality, fit=fit["score"] if fit else None)
+        tr.count(people_done=1)
 
     team_block, team_inputs = None, None
     if mode == "team":
@@ -930,6 +1080,11 @@ def analyse(team: dict, people: list[dict], deps: Deps, *, target: dict | None =
         ta = None
         if len(cards) >= 1:
             prog("team", None, "team-level review")
+            current["person"] = None
+            tr.phase("scoring")
+            tr.begin("team_model", None, "Team review", "How the people work together")
+            tr.note(f"{provider_label(primary_provider(deps.agent_llm.get(AGENT, deps.llm), s.hr_tier))} is "
+                    f"reviewing the team as a whole")
             summary = "\n\n".join(
                 f"PERSON {c['full_name']} — {c['role']} ({c['kind']}); functions: {', '.join(c['functions'])}; "
                 f"quality {c['score']}\n" + "\n".join(f"  [{f['id']}] {f['text']}" for f in c["facts"][:20])
@@ -937,6 +1092,7 @@ def analyse(team: dict, people: list[dict], deps: Deps, *, target: dict | None =
             ta = deps.ask(AGENT, s.hr_tier, SYSTEM_TEAM,
                           f"Business: {team.get('name')} ({team.get('website') or ''})\n\n<data>\n{summary}\n</data>",
                           TeamAnalysis)
+            tr.end("team_model")
             counters["llm_calls"] += 1
             models["team"] = last_provider() or "unknown"
             deps.audit.record(AGENT, "team_analysed", team=tid, model=models["team"])
@@ -957,6 +1113,8 @@ def analyse(team: dict, people: list[dict], deps: Deps, *, target: dict | None =
                       "risks": [x for x in (ta.risks if ta else [])[:8] if not is_sensitive(x)],
                       "questions": [x for x in (ta.questions if ta else [])[:8] if not is_sensitive(x)]}
 
+    if team_block:
+        tr.note(f"Scored the team: {team_block['score']:.0f} (grade {team_block['grade']})", level="found")
     prog("done", None, (f"team score {team_block['score']} ({team_block['grade']})" if team_block else
                         f"{len(cards)} person report(s)"))
     return {

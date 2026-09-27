@@ -162,6 +162,8 @@ class StudioContext:
     rpc_transport: httpx.AsyncBaseTransport | None = None  # tests
     automation: Any = None  # dividend_policy.DividendAutomation, set by build_router
     offerings: Any = None  # offerings.OfferingService, set by build_router
+    evidence: Any = None  # tools.brave.EvidenceStore shared with the worker (hr suggestions); None -> DATA_DIR file
+    page_fetcher: Callable[[str], str] | None = None  # SSRF-safe page fetch (hr suggestions); None -> fetch_page
     _runner: Any = None
 
     @property
@@ -407,8 +409,41 @@ def build_router(ctx: StudioContext) -> APIRouter:
         return out
 
     # -------------------------------------------------------------- valuations
-    def valuation_view(row: dict, *, evidence: bool = False) -> dict:
+    def team_rows(vids: list[str]) -> dict[str, dict]:
+        """Latest team report per valuation (one query): the live source of the valuation's `team`."""
+        if not vids:
+            return {}
+        rows = ctx.need_db().all(
+            "SELECT DISTINCT ON (valuation_id) * FROM studio.hr_teams WHERE valuation_id = ANY(%s) AND mode='team' "
+            "ORDER BY valuation_id, created_at DESC", (vids,))
+        return {r["valuation_id"]: r for r in rows}
+
+    def live_team(row: dict, trow: dict | None) -> dict | None:
+        """The valuation's founding-team summary, live (progress, person ids + links, fit to this business).
+        `applied` / `reason` come from the last blend (studio/hr_store.apply_to_valuation)."""
+        from .hr_store import summary as hr_summary
+
+        stored = (row.get("result") or {}).get("team")
+        if stored and trow is not None and stored.get("id") != trow["id"]:
+            t2 = ctx.need_db().one("SELECT * FROM studio.hr_teams WHERE id=%s", (stored["id"],))
+            if t2 is not None and t2.get("status") == "done" and trow.get("status") != "done":
+                trow = t2  # keep showing the applied report until a newer one is done
+        if trow is None:
+            return stored
+        try:
+            live = hr_summary(trow, s.hr_public_url)
+        except Exception:  # noqa: BLE001 - never break the valuation view
+            log.exception("hr live summary")
+            return stored
+        same = bool(stored) and stored.get("id") == trow["id"]
+        return {**live, "applied": bool(stored.get("applied")) if same else False,
+                "reason": stored.get("reason") if same else None,
+                "applied_at": stored.get("applied_at") if same and stored.get("applied") else None}
+
+    def valuation_view(row: dict, *, evidence: bool = False, team_row: Any = False) -> dict:
         res = row.get("result") or {}
+        if team_row is False:
+            team_row = team_rows([row["id"]]).get(row["id"])
         out = {
             "id": row["id"], "url": row["url"], "status": row["status"], "steps": row.get("steps") or [],
             "counters": res.get("counters") or {"pages": 0, "competitors": 0, "sources": 0},
@@ -419,7 +454,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
             "requested_by": row.get("requested_by"),
             "searches": res.get("searches") or [], "llm_providers_used": res.get("llm_providers_used") or [],
             "created_at": row.get("created_at"), "updated_at": row.get("updated_at"),
-            "team": res.get("team"),  # founding-team summary (studio/hr.py) once its report is done
+            "team": live_team(row, team_row),  # founding-team summary (studio/hr.py), live progress + fit
         }
         if evidence:
             out["evidence"] = res.get("evidence") or []
@@ -487,7 +522,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
         else:
             rows = db.all("SELECT * FROM studio.valuations WHERE lower(requested_by)=lower(%s) "
                           "ORDER BY created_at DESC LIMIT 100", (sess.actor,))
-        return [valuation_view(x) for x in rows]
+        teams = team_rows([x["id"] for x in rows])
+        return [valuation_view(x, team_row=teams.get(x["id"])) for x in rows]
 
     @r.get("/v1/studio/valuations/{vid}")
     def get_valuation(vid: str, sess: Session = Depends(require_user)):
@@ -657,8 +693,10 @@ def build_router(ctx: StudioContext) -> APIRouter:
         ids = authz.scope(sess)  # None = all companies
         only = "" if ids is None else " AND c.id = ANY(%(ids)s)"
         p = None if ids is None else {"ids": ids}
-        vals = [] if ids is not None else [valuation_view(x) for x in db.all(
-            "SELECT * FROM studio.valuations WHERE status='waiting_approval' ORDER BY created_at")]
+        vrows = [] if ids is not None else db.all(
+            "SELECT * FROM studio.valuations WHERE status='waiting_approval' ORDER BY created_at")
+        teams = team_rows([x["id"] for x in vrows])
+        vals = [valuation_view(x, team_row=teams.get(x["id"])) for x in vrows]
         comps = [company_view(c) for c in db.all(
             "SELECT * FROM studio.companies c WHERE (status IN ('pending_issue','issued','pending_anchor',"
             "'partially_anchored') OR (status='failed' AND local_token IS NULL AND local_block IS NULL))"

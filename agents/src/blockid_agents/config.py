@@ -81,6 +81,62 @@ STAGE_OUTLIER_RATIO = 5.0
 RANGE_MIN_HALF_WIDTH: dict[str, float] = {"high": 0.10, "medium": 0.20, "low": 0.35}
 
 
+# ---------------------------------------------------------------- AI gateway (ai_gateway.py, docs/LLM-ROUTING.md)
+# Prices in US$ per 1M tokens (input, output) as listed by each provider's /models on 2026-09-27. SambaNova is the
+# free tier for this key (its /models lists paid-tier prices, not charged), Claude runs on the subscription (host
+# bridge / CLI): both are 0 marginal cost here, their scarcity is handled by the quota windows instead.
+# Used for the estimated spend in the usage ledger (DEEPINFRA_DAILY_BUDGET_USD) and the router's cost term.
+MODEL_PRICES_USD_PER_MTOK: dict[str, tuple[float, float]] = {
+    "deepinfra:deepseek-ai/DeepSeek-V4-Flash": (0.09, 0.18),
+    "deepinfra:openai/gpt-oss-120b": (0.037, 0.17),
+    "deepinfra:Qwen/Qwen3-235B-A22B-Instruct-2507": (0.09, 0.55),
+    "deepinfra:deepseek-ai/DeepSeek-V3.2": (0.26, 0.38),
+    "deepinfra:deepseek-ai/DeepSeek-V3.1": (0.25, 0.95),
+    "deepinfra:moonshotai/Kimi-K2.6": (0.75, 3.5),
+    "deepinfra:zai-org/GLM-4.7": (0.4, 1.75),
+    "deepinfra:deepseek-ai/DeepSeek-V4-Pro": (1.3, 2.6),
+    "deepinfra:meta-llama/Llama-3.3-70B-Instruct-Turbo": (0.1, 0.32),
+    "deepinfra:google/gemma-4-31B-it": (0.13, 0.38),
+    "deepinfra:Qwen/Qwen3-Next-80B-A3B-Instruct": (0.09, 1.1),
+}
+DEFAULT_PAID_PRICE_USD_PER_MTOK = (0.5, 2.0)  # unknown DeepInfra model: assume a mid-priced one (conservative)
+# Context windows (tokens) from the providers' /models (2026-09-27). Unknown models: 32k (the router then keeps them
+# off long prompts until their window is added here).
+MODEL_CONTEXT_TOKENS: dict[str, int] = {
+    "sambanova:DeepSeek-V3.1": 131072, "sambanova:DeepSeek-V3.2": 32768, "sambanova:gpt-oss-120b": 131072,
+    "sambanova:Meta-Llama-3.3-70B-Instruct": 131072, "sambanova:gemma-4-31B-it": 262144,
+    "sambanova:MiniMax-M2.7": 196608,
+    "deepinfra:deepseek-ai/DeepSeek-V4-Flash": 1048576, "deepinfra:openai/gpt-oss-120b": 131072,
+    "deepinfra:Qwen/Qwen3-235B-A22B-Instruct-2507": 262144, "deepinfra:deepseek-ai/DeepSeek-V3.2": 163840,
+    "deepinfra:deepseek-ai/DeepSeek-V3.1": 163840, "deepinfra:moonshotai/Kimi-K2.6": 262144,
+    "deepinfra:zai-org/GLM-4.7": 202752, "deepinfra:deepseek-ai/DeepSeek-V4-Pro": 1048576,
+    "deepinfra:meta-llama/Llama-3.3-70B-Instruct-Turbo": 131072, "deepinfra:google/gemma-4-31B-it": 262144,
+    "deepinfra:Qwen/Qwen3-Next-80B-A3B-Instruct": 262144,
+    # the bridge refuses bodies > 600 KB (~150k tokens); Sonnet's own window is 200k
+    "claude-bridge": 150000, "claude-cli": 200000,
+}
+DEFAULT_CONTEXT_TOKENS = 32768
+
+
+def _limits_env(raw: str) -> dict[str, dict[str, float]]:
+    """AI_LIMITS="sambanova:DeepSeek-V3.1=rpm:30,rpd:5000;claude-bridge=rpd:200" -> per-model limit overrides."""
+    out: dict[str, dict[str, float]] = {}
+    for part in (raw or "").split(";"):
+        if "=" not in part:
+            continue
+        mid, spec = part.rsplit("=", 1) if part.count("=") > 1 else part.split("=", 1)
+        vals = {}
+        for kv in spec.split(","):
+            k, _, v = kv.partition(":")
+            try:
+                vals[k.strip().lower()] = float(v)
+            except ValueError:
+                continue
+        if mid.strip() and vals:
+            out[mid.strip()] = vals
+    return out
+
+
 def fx_to_aud(currency: str) -> float | None:
     return FX_TO_AUD.get((currency or "").upper().strip())
 
@@ -128,6 +184,47 @@ class Settings:
     llm_provider_order: tuple[str, ...] = field(default_factory=lambda: tuple(
         x.lower() for x in _csv("LLM_PROVIDER_ORDER", "sambanova,deepinfra")))
 
+    # --- AI gateway (ai_gateway.py; docs/PLAN-AI-GATEWAY.md §1, docs/LLM-ROUTING.md) ------------------------------
+    # dynamic: each task profile orders its candidates by quality x reliability / cost (ledger + benchmark priors);
+    # static: the env order above (LLM_PROVIDER_ORDER / *_MODELS) — health (breaker, quota) still demotes / skips.
+    # AI_GATEWAY=0: the previous behaviour exactly (FallbackLLM in env order, per-backend 10-min parking, no ledger).
+    ai_gateway: bool = field(default_factory=lambda: _env("AI_GATEWAY", "1").lower() in ("1", "true", "yes"))
+    # default static until scripts/ai-benchmark.py has refreshed the priors on the live keys (docs/LLM-ROUTING.md)
+    ai_routing: str = field(default_factory=lambda: _env("AI_ROUTING", "static").lower())
+    ai_connect_timeout_s: float = field(default_factory=lambda: float(_env("AI_CONNECT_TIMEOUT_S", "10")))
+    ai_deadline_claude_s: float = field(default_factory=lambda: float(_env("AI_DEADLINE_CLAUDE_S", "120")))
+    ai_deadline_deepinfra_s: float = field(default_factory=lambda: float(_env("AI_DEADLINE_DEEPINFRA_S", "90")))
+    # SambaNova's deadline is SAMBANOVA_TIMEOUT (default 60 s)
+    ai_hedge: bool = field(default_factory=lambda: _env("AI_HEDGE", "1").lower() in ("1", "true", "yes"))
+    ai_hedge_delay_s: float = field(default_factory=lambda: float(_env("AI_HEDGE_DELAY_S", "20")))  # no p90 yet
+    ai_hedge_min_s: float = field(default_factory=lambda: float(_env("AI_HEDGE_MIN_S", "8")))
+    ai_hedge_max_s: float = field(default_factory=lambda: float(_env("AI_HEDGE_MAX_S", "45")))
+    ai_demote_pct: float = field(default_factory=lambda: float(_env("AI_DEMOTE_PCT", "80")))
+    ai_skip_pct: float = field(default_factory=lambda: float(_env("AI_SKIP_PCT", "95")))
+    ai_pacing_wait_s: float = field(default_factory=lambda: float(_env("AI_PACING_WAIT_S", "10")))
+    ai_queue_wait_s: float = field(default_factory=lambda: float(_env("AI_QUEUE_WAIT_S", "30")))
+    ai_cache_ttl_hours: float = field(default_factory=lambda: float(_env("AI_CACHE_TTL_HOURS", "24")))  # 0 = off
+    ai_stats_ttl_s: float = field(default_factory=lambda: float(_env("AI_STATS_TTL_S", "3600")))  # re-rank hourly
+    # concurrency caps: SambaNova per model, the others per provider (a fair per-user queue waits for a slot)
+    ai_concurrency_sambanova: int = field(default_factory=lambda: int(_env("AI_CONCURRENCY_SAMBANOVA", "6")))
+    ai_concurrency_deepinfra: int = field(default_factory=lambda: int(_env("AI_CONCURRENCY_DEEPINFRA", "8")))
+    ai_concurrency_claude_bridge: int = field(default_factory=lambda: int(_env("AI_CONCURRENCY_CLAUDE_BRIDGE", "2")))
+    # known limits (demote at >= AI_DEMOTE_PCT of a window, skip at >= AI_SKIP_PCT until it resets)
+    sambanova_rpm: int = field(default_factory=lambda: int(_env("SAMBANOVA_RPM", "60")))  # per model
+    sambanova_rpd: int = field(default_factory=lambda: int(_env("SAMBANOVA_RPD", "12000")))  # per model
+    bridge_complete_max_per_day: int = field(default_factory=lambda: int(_env("BRIDGE_COMPLETE_MAX_PER_DAY", "300")))
+    bridge_search_max_per_day: int = field(default_factory=lambda: int(_env("BRIDGE_MAX_PER_DAY", "150")))
+    brave_monthly_quota: int = field(default_factory=lambda: int(_env("BRAVE_MONTHLY_QUOTA", "2000")))
+    deepinfra_daily_budget_usd: float = field(default_factory=lambda: float(_env("DEEPINFRA_DAILY_BUDGET_USD", "3")))
+    ai_limits: dict = field(default_factory=lambda: _limits_env(_env("AI_LIMITS")))  # per-model overrides
+    # read the bridge's GET /healthz counters (complete_today / today) at most once a minute: they also count calls
+    # the ledger has not seen (e.g. before a deploy), so the bridge windows start from the real usage
+    ai_bridge_poll: bool = field(default_factory=lambda: _env("AI_BRIDGE_POLL", "1").lower() in ("1", "true", "yes"))
+    # optional per-profile candidate filters (csv of model ids, e.g. "sambanova:DeepSeek-V3.1,claude-bridge")
+    ai_profile_extract_json: tuple[str, ...] = field(default_factory=lambda: _csv("AI_PROFILE_EXTRACT_JSON", ""))
+    ai_profile_reason_score: tuple[str, ...] = field(default_factory=lambda: _csv("AI_PROFILE_REASON_SCORE", ""))
+    ai_profile_long_context: tuple[str, ...] = field(default_factory=lambda: _csv("AI_PROFILE_LONG_CONTEXT", ""))
+
     # --- Web search (tools/search.py): providers tried in order ------------------------------
     search_providers: tuple[str, ...] = field(default_factory=lambda: tuple(
         x.lower() for x in _csv("SEARCH_PROVIDERS", "brave,claude")))
@@ -151,6 +248,9 @@ class Settings:
         "HR_SAMBANOVA_MODELS", "DeepSeek-V3.1,DeepSeek-V3.2"))
     hr_deepinfra_models: tuple[str, ...] = field(default_factory=lambda: _csv(
         "HR_DEEPINFRA_MODELS", "deepseek-ai/DeepSeek-V4-Flash,Qwen/Qwen3-235B-A22B-Instruct-2507"))
+    # models tried first for the People Analyst's reason_score calls (the team review) when healthy
+    hr_reason_score_models: tuple[str, ...] = field(default_factory=lambda: _csv(
+        "HR_REASON_SCORE_MODELS", "claude-bridge"))
     hr_search_providers: tuple[str, ...] = field(default_factory=lambda: tuple(
         x.lower() for x in _csv("HR_SEARCH_PROVIDERS", "claude,brave")))
     hr_tier: str = field(default_factory=lambda: _env("HR_TIER", "cloud"))

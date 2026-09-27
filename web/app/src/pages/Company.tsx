@@ -26,6 +26,7 @@ import { CompanyUpdates } from "./Updates";
 import { CompanyDividends } from "./Dividends";
 import { CompanyOffering } from "./Offerings";
 import { OfferingBadge } from "../components/OfferingBadge";
+import { TeamTile } from "../components/TeamCard";
 
 const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring", "partially_anchored"];
 const RUNNING: CoStatus[] = ["issuing", "anchoring"];
@@ -533,6 +534,7 @@ export default function CompanyPage() {
             <div className="kpi"><small>{t("k.holders")}</small><b>{fmt(holders.length || c.holders || 0)}</b><span>{live ? t("k.kyc") : " "}</span></div>
             <div className="kpi"><small>{t("k.anchor")}</small><b>{c.hoodi?.block ? "#" + fmt(c.hoodi.block) : t("c.k.noanchor")}</b><span>Ethereum Hoodi{c.hsk?.block ? ` · HashKey #${fmt(c.hsk.block)}` : ""}</span></div>
           </div>
+          {c.valuation_id && <TeamTile valuationId={c.valuation_id} canManage={canManage || canRequest} />}
           {live && c.marks?.length ? (
             <MarkPanel ticker={c.ticker} name={c.name} grade={g} svi={c.svi} marks={c.marks} events={c.events} valuation={c.valuation_aud} totalShares={c.total_shares} holders={holders.length} />
           ) : null}

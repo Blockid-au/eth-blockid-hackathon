@@ -135,3 +135,47 @@ HR_TIER=cloud  HR_SEARCHES_PER_PERSON=3 (cap 3)  HR_SEARCHES_PER_TEAM=12 (cap 12
   providers and the search providers. Emails and phone numbers are redacted before anything is stored, prompted or
   searched; sensitive categories are filtered from the output by code. See [SECURITY.md](SECURITY.md).
 
+
+## AI gateway (27 Sep 2026, docs/PLAN-AI-GATEWAY.md §1)
+
+With `LLM_BACKEND=hosted` every cloud chain above is wrapped in `RoutedLLM` → `ai_gateway.Gateway`
+(`agents/src/blockid_agents/ai_gateway.py`). The env lists (`LLM_PROVIDER_ORDER`, `SAMBANOVA_MODELS`,
+`DEEPINFRA_MODELS`, `HR_*`) still define the candidate pool and — with the default `AI_ROUTING=static` — the order.
+`AI_GATEWAY=0` restores the previous behaviour exactly (FallbackLLM, 10-min parking, no ledger).
+
+| Piece | Default | Env |
+|---|---|---|
+| Deadlines (connect / total) | 10 s / Claude 120 s, SambaNova 60 s, DeepInfra 90 s; a hung call is cancelled (connection closed) | `AI_CONNECT_TIMEOUT_S`, `AI_DEADLINE_CLAUDE_S`, `SAMBANOVA_TIMEOUT`, `AI_DEADLINE_DEEPINFRA_S` |
+| Hedging (HR + valuation routers) | after the primary's p90 (8–45 s, 20 s without data) the next healthy model starts; first schema-valid answer wins, the loser is cancelled | `AI_HEDGE`, `AI_HEDGE_DELAY_S`, `AI_HEDGE_MIN_S`, `AI_HEDGE_MAX_S` |
+| Circuit breaker per model | 3 consecutive failures / ≥ 50 % errors over ≥ 6 calls in 5 min / one 429·402 → open 2, 4, 8, 10 min, then one half-open probe | — |
+| Quota windows (ledger `studio.ai_usage` + `x-ratelimit-*` headers + bridge `/healthz`) | SambaNova 60 rpm / 12,000 rpd per model; bridge /complete 300/day, /search 150/day; Brave 2,000/month; DeepInfra US$3/day; demote ≥ 80 %, skip ≥ 95 % until reset | `SAMBANOVA_RPM`, `SAMBANOVA_RPD`, `BRIDGE_COMPLETE_MAX_PER_DAY`, `BRIDGE_MAX_PER_DAY`, `BRAVE_MONTHLY_QUOTA`, `DEEPINFRA_DAILY_BUDGET_USD`, `AI_LIMITS="sambanova:X=rpm:30,rpd:5000;claude-bridge=rpd:200"`, `AI_DEMOTE_PCT`, `AI_SKIP_PCT`, `AI_BRIDGE_POLL` |
+| Pacing | token bucket per rate-limited model: 90 % of rpm, bursts rpm/6 | `AI_PACING_WAIT_S` |
+| Concurrency + fair queue | SambaNova 6 per model, DeepInfra 8, bridge 2; the user served least recently goes first (user = `requested_by` of the valuation / HR run) | `AI_CONCURRENCY_*`, `AI_QUEUE_WAIT_S` |
+| Task profiles | `extract_json` (StartupProfile, CompetitorList, FundingClaims, RelevanceVerdicts, CompanyFinancials, ValuationEvidence, PersonAnalysis, SuggestedPeople), `reason_score` (QualitativeScores, Narrative, MarketAnalysis, TeamAnalysis, ContractReview, any `cloud_max`), `long_context` (> 30k tokens), `search`; callers may pass `profile=` | `AI_PROFILE_EXTRACT_JSON` / `_REASON_SCORE` / `_LONG_CONTEXT` (csv filters) |
+| Ordering | `static`: env order; `dynamic`: quality × reliability ÷ cost (priors `ai_gateway.PRIORS` + ledger success / schema-valid rate / p90, re-ranked hourly). Always: context-window pre-check, HR `reason_score` pinned to Claude while healthy | `AI_ROUTING`, `AI_STATS_TTL_S`, `HR_REASON_SCORE_MODELS` |
+| Schema repair | one retry on the same model with the validation error, then the next model | — |
+| Result cache | 24 h, key = (profile, schema, prompt hash), `studio.ai_cache` | `AI_CACHE_TTL_HOURS` (0 = off) |
+
+Feed events for the HR live progress: `llm_fallback` ("Claude busy → using DeepSeek"), `llm_rerouted`
+("SambaNova DeepSeek-V3.1 near its daily limit → using …"), `llm_hedged` ("… is slow → also asking …").
+Admin: `GET /v1/admin/ai/health`, `POST /v1/admin/ai/models/{id}/pause|resume` (shape in `studio/ai_admin.py`).
+
+### Default order and benchmark
+
+Default order = the env order in production (`SAMBANOVA_MODELS=DeepSeek-V3.1,gemma-4-31B-it,DeepSeek-V3.2`, then the
+Claude bridge, then DeepInfra DeepSeek-V4-Flash, gpt-oss-120b; HR: Claude bridge → SambaNova DeepSeek-V3.1/V3.2 →
+DeepInfra V4-Flash / Qwen3-235B, with Claude pinned for the team review). Rationale: free and strong first, the
+scarce subscription where disambiguation matters, cheap paid models last; the gateway now demotes / skips any of them
+before its limit is hit instead of waiting for a 429. All ids above were confirmed in `/models` on 2026-09-27
+(context windows and prices in `config.MODEL_CONTEXT_TOKENS` / `MODEL_PRICES_USD_PER_MTOK`).
+
+`scripts/ai-benchmark.py` (`--list`, `--record-claude`, `--run`, spend cap `--max-usd 0.50`) runs the golden set:
+CompanyFinancials on the 8 backtest companies (agreement with the verified figures) and the HR fixtures
+(`scripts/fixtures/hr-extraction.json`, fictional people with namesake / private-data traps: grounded facts, recall of
+Claude's facts, trap facts, score MAE, team worked-together diff). The Claude reference was recorded on 2026-09-27
+(Sonnet via the bridge: 12/13 facts grounded, 69–124 s per person). The model run was stopped before completion for the
+deploy, so `PRIORS` still carry the 2026-09-26 SVI benchmark above and `AI_ROUTING` stays `static`. To finish:
+
+    cd agents; set -a; . <(sudo cat /opt/blockid/app.env); set +a; unset DATABASE_URL
+    .venv/bin/python ../scripts/ai-benchmark.py --run      # ~30 min, < US$0.10 estimated
+    # then update ai_gateway.PRIORS from scripts/fixtures/ai-benchmark-results.json and set AI_ROUTING=dynamic

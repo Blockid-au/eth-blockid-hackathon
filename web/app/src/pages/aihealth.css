@@ -1,0 +1,65 @@
+/* Admin "AI health" (/admin/ai) — pages/AiHealth.tsx. Theme tokens only (light/dark follow styles.css). */
+.aihealth { display: grid; gap: 16px; min-width: 0; }
+.aihealth .banner.ok { background: var(--up-soft); color: var(--up); margin: 0; }
+.aihealth .num { font-variant-numeric: tabular-nums; }
+.aihealth .warn { color: var(--warn); }
+.aihealth .bad { color: var(--down); }
+.aisub { font-size: .76rem; overflow-wrap: anywhere; }
+
+.aipill { display: inline-flex; align-items: center; gap: 6px; font: 600 .72rem/1 var(--body); border-radius: 999px; padding: 5px 9px; white-space: nowrap; background: var(--sunken); color: var(--muted); }
+.aipill i { font-style: normal; font-size: .62rem; }
+.aipill.ok { background: var(--up-soft); color: var(--up); }
+.aipill.warn { background: var(--warn-soft); color: var(--warn); }
+.aipill.bad { background: var(--down-soft); color: var(--down); }
+
+.aikpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.aikpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.aikpi small { color: var(--muted); font-size: .76rem; }
+.aikpi b { font: 600 1.5rem/1.1 var(--display); }
+.aikpi span { font-size: .76rem; }
+@media (max-width: 900px) { .aikpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.aiprov { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.aiprovc { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 6px; font-size: .84rem; min-width: 0; }
+.aiprov-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+.aigrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.aicard { border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.aicard.t-ok { border-left-color: var(--up); }
+.aicard.t-warn { border-left-color: var(--warn); }
+.aicard.t-bad { border-left-color: var(--down); }
+.aicard header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.aicard header > div { min-width: 0; display: grid; gap: 2px; }
+.aicard h5 { margin: 0; font: 600 .95rem/1.3 var(--display); }
+.aireason { margin: 0; font-size: .8rem; color: var(--muted); }
+.aireason.bad { color: var(--down); }
+.ailast { margin: 0; font-size: .78rem; overflow-wrap: anywhere; }
+
+.aiws { display: grid; gap: 8px; }
+.aiw { display: grid; gap: 4px; font-size: .78rem; }
+.aiw-top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.aiw-pct { font-weight: 600; }
+.aiw-pct.ok { color: var(--up); }
+.aiw-bar { position: relative; height: 8px; border-radius: 4px; background: var(--sunken); }
+.aiw-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--faint); transition: width .4s ease; }
+.aiw-fill.ok { background: var(--up); }
+.aiw-fill.warn { background: var(--warn); }
+.aiw-fill.bad { background: var(--down); }
+.aiw-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--warn); border-radius: 1px; box-shadow: 0 0 0 1px var(--surface); }
+.aiw-mark.hard { background: var(--down); }
+
+.aistats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }
+.aistats div { display: grid; gap: 2px; min-width: 0; }
+.aistats dt { color: var(--muted); font-size: .72rem; }
+.aistats dd { margin: 0; font-size: .86rem; font-weight: 600; }
+.aistats dd small { font-weight: 400; }
+
+.aictl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.aictl select { font: .8rem var(--body); padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.aictl .err { font-size: .76rem; }
+.aitable td { vertical-align: middle; }
+.aitable .aictl { justify-content: flex-end; flex-wrap: nowrap; }
+
+.aiprof { display: grid; gap: 12px; font-size: .84rem; }
+.aiprof ol { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.aiprof li { overflow-wrap: anywhere; }

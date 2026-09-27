@@ -113,14 +113,19 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
         DIVIDEND_AUTOMATION_SECONDS=0 disables it."""
         from .studio.offerings import interval_from_env as offering_interval
 
+        from .studio.hr_store import HrWatchdog, watchdog_interval_from_env
+
         auto, offers = app.state.studio.automation, app.state.studio.offerings
+        hrw = HrWatchdog(app.state.studio.db)
         auto.start(interval_from_env())
         offers.start(offering_interval())  # closes offerings whose closing date has passed (OFFERING_AUTOMATION_SECONDS)
+        hrw.start(watchdog_interval_from_env())  # stalled HR runs: re-queue once, then fail (HR_WATCHDOG_SECONDS)
         try:
             yield
         finally:
             auto.stop()
             offers.stop()
+            hrw.stop()
 
     app = FastAPI(title="BlockID Agents API", version="0.2.0", docs_url="/docs" if dev else None,
                   redoc_url="/redoc" if dev else None, openapi_url="/openapi.json" if dev else None, lifespan=lifespan)
@@ -158,6 +163,9 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     app.include_router(build_dividend_policy_router(ctx, ctx.automation))
     app.include_router(build_offerings_router(ctx, ctx.offerings))
     app.include_router(build_hr_router(ctx))  # founding-team / person reviews (hr.blockid.au)
+    from .studio.ai_admin import build_ai_admin_router
+
+    app.include_router(build_ai_admin_router(ctx))  # admin AI health: /v1/admin/ai/* (ai_gateway.py)
 
 
     def auth(x_api_key: str = Header(default="")) -> None:

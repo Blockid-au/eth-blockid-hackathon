@@ -150,6 +150,8 @@ class BraveSearch:
         self.news_supported = True  # flips off if the plan rejects the News endpoint
         self.unavailable_until = 0.0  # monotonic deadline; set when Brave refuses service
         self.unavailable_reason = ""
+        self.last_cached = False  # the last search() was served from the cache (the AI gateway's ledger skips it)
+        self.last_headers: dict = {}  # rate-limit headers of the last live response (monthly quota)
         self.http = httpx.Client(
             timeout=10,
             transport=transport,
@@ -182,6 +184,7 @@ class BraveSearch:
             params["freshness"] = freshness
         key = hashlib.sha256(json.dumps([news, params], sort_keys=True).encode()).hexdigest()
         cached = self.store.cache_get(key, self.ttl)
+        self.last_cached = cached is not None
         if cached is None:
             if time.monotonic() < self.unavailable_until:
                 raise BraveUnavailable(f"Brave unavailable (cached): {self.unavailable_reason}")
@@ -190,6 +193,7 @@ class BraveSearch:
                 r = self.http.get(BRAVE_NEWS if news else BRAVE_WEB, params=params)
             except httpx.HTTPError as e:
                 self._mark_unavailable(f"network error: {e}")
+            self.last_headers = {k.lower(): v for k, v in r.headers.items() if "ratelimit" in k.lower()}
             if news and r.status_code == 400 and "OPTION_NOT_IN_PLAN" in r.text:
                 self.news_supported = False
                 return self.search(query, news=False, count=count, freshness=freshness, country=country)

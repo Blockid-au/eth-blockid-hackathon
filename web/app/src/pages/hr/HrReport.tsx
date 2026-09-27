@@ -5,7 +5,7 @@ import { useI18n } from "../../i18n";
 import type { DictKey } from "../../dict";
 import { TEAM_COMPONENTS, type PersonCard, type Team, type TeamFunction } from "../../api";
 import { StatusBar } from "../../components/StatusBar";
-import { ethUrl } from "../../lib/hrhost";
+import { EthCtas } from "./ethCta";
 import { initials, partLabel, useHrTitle } from "./common";
 import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, EvLabel, fmtDate, halfWidth, Icon, srcIndex, type Conf } from "./evidence";
 import { ConsentFooter, MethodBox, Panel, ReportActions, ScoreInline, SourcesTable, TabNav } from "./reportParts";
@@ -53,7 +53,7 @@ function TeamReportView({ team, tab }: { team: Team; tab: TTab }) {
         </div>
         <ReportActions team={team} path={base} />
       </header>
-      <TabNav base={base} tabs={tabs} cur={tab} className="hp-tabs" label={t("hr.pr.menu")} />
+      <TabNav base={base} tabs={tabs} cur={tab} label={t("hr.pr.menu")} />
 
       <Panel id="overview" cur={tab} title={t("hr.tab.overview")}>
         <section className="hp-card hp-hero" aria-labelledby="team-h">
@@ -76,16 +76,15 @@ function TeamReportView({ team, tab }: { team: Team; tab: TTab }) {
                 <i style={{ width: "70%", background: "var(--sunken)" }} />
               </div>
               <p className="hp-lead">{t("hr.tr.contrib.p", { s: fmt(tb.score, 0), x: fmt(points, 1) })}</p>
-              {valId ? (
-                <div className="hp-linkcard"><div><b>{t("hr.r.valuation")}</b><p>{t("hr.r.valuation.p")}</p></div><a className="btn sm" href={ethUrl(`/v/${encodeURIComponent(valId)}/report`)}>{t("hr.r.valuation.btn")} ↗</a></div>
-              ) : <p className="hp-lead">{t("hr.tr.noval")} <a href={ethUrl("/start")}>{t("hr.home.final.btn")} ↗</a></p>}
+              {valId ? <p className="hp-lead"><b>{t("hr.r.valuation")}.</b> {t("hr.r.valuation.p")}</p> : <p className="hp-lead">{t("hr.tr.noval")}</p>}
             </div>
           </div>
         </section>
+        <EthCtas website={team.website ?? (team.target?.type === "business" ? team.target.website : null)} valuationId={valId} name={team.name} />
         <div className="hp-card">
           <h2>{t("hr.tr.comp")} <span className="count">{t("hr.tr.comp.n", { n: rep.people.length })}</span></h2>
           <div className="hp-tbl">
-            <table className="hp-comp">
+            <table className="hp-comp hp-teamcomp">
               <thead><tr><th scope="col">{t("hr.np.sum.person")}</th><th scope="col">{t("hr.p.kind")}</th><th scope="col" className="r">{t("hr.tr.weight")}</th><th scope="col">{t("hr.me.col.score")}</th><th scope="col" /></tr></thead>
               <tbody>
                 {people.map((c) => (

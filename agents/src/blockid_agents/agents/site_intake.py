@@ -19,6 +19,7 @@ from urllib.parse import urldefrag, urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
+from pydantic import BaseModel, Field
 
 from ..deps import Deps
 from ..schemas import SELF_REPORTED_TO_METRIC, EvidenceItem, SelfReportedMetrics, StartupProfile
@@ -282,3 +283,174 @@ def profile(state: dict, deps: Deps) -> dict:
                          for k, v in p.metrics.model_dump().items() if k in used or v}
     deps.tool(AGENT, "store_profile", company=p.company_name, pages=len(pages), self_reported=used)
     return {"profile": p.model_dump(), "status": "profiled"}
+
+
+# ------------------------------------------------------------------ people on team / about pages (hr suggestions)
+# Deterministic, no model: "Jane Doe — CEO", "Jane Doe, Co-founder & CTO", "Jane Doe is the CEO", "CEO: Jane Doe".
+# Used by GET /v1/hr/suggest-people (studio/hr.py) on pages site intake already stored, or one fetched /team page.
+TEAM_WORDS = ("team", "leadership", "founder", "people", "management", "board", "who-we-are")
+ABOUT_WORDS = ("about", "company", "story", "mission")
+_ROLE = re.compile(
+    r"\b(?:co-?\s?founder(?:\s*(?:&|and|/)\s*(?:ceo|cto|coo|cfo|cpo|chief\s+\w+\s+officer))?"
+    r"|founder(?:\s*(?:&|and|/)\s*(?:ceo|cto|coo|cfo|managing\s+director))?"
+    r"|chief\s+\w+(?:\s+\w+)?\s+officer|ceo|cto|cfo|coo|cmo|cpo|cro|cio"
+    r"|head\s+of\s+[a-z]+(?:\s+[a-z]+)?|managing\s+director|non-executive\s+director|general\s+manager"
+    r"|(?:vp|vice\s+president)(?:\s+of)?\s+[a-z]+|president|chair(?:man|woman|person)?"
+    r"|(?:board\s+)?advis[eo]r|director(?:\s+of\s+[a-z]+)?|product\s+manager"
+    r"|(?:lead|senior|principal)\s+(?:software\s+)?(?:engineer|designer|developer|scientist))\b", re.I)
+_NAME_STOP = {"our", "the", "team", "meet", "about", "us", "leadership", "founders", "founder", "board", "advisors",
+              "advisory", "contact", "home", "careers", "company", "management", "and", "with", "from", "by", "of",
+              "as", "is", "we", "at", "for", "in", "on", "a", "an", "led", "former", "previously", "chief", "head",
+              "ceo", "cto", "cfo", "coo", "cmo", "director", "manager", "vp", "president", "co-founder", "cofounder",
+              "executive", "officer", "senior", "lead", "principal", "engineer", "partner", "partners", "people"}
+_SEP_BEFORE = re.compile(r"(?:\s*(?:,|\||:|–|—|-|\(|/)\s*|\s+is\s+(?:the\s+|our\s+|a\s+|an\s+)?|\s+as\s+(?:the\s+|our\s+)?"
+                         r"|\s+)$", re.I)
+
+
+def _name_token(tok: str) -> bool:
+    t = tok.strip(".,;:()'\"")
+    return (2 <= len(t) <= 24 and t[0].isupper() and not t.isupper() and t.lower() not in _NAME_STOP
+            and all(c.isalpha() or c in "'’-." for c in t))
+
+
+def _name_before(text: str) -> str | None:
+    m = _SEP_BEFORE.search(text)
+    head = text[:m.start()] if m else text
+    toks = head.split()[-4:]
+    out: list[str] = []
+    for tok in reversed(toks):
+        if not _name_token(tok) or tok.endswith((".", ",", ":", ";")) and out:
+            break
+        out.insert(0, tok.strip(".,;:()'\""))
+    return " ".join(out) if 2 <= len(out) <= 4 else None
+
+
+def _name_after(text: str) -> str | None:
+    m = re.match(r"\s*(?::|–|—|\s-\s)\s*", text)
+    if not m:
+        return None
+    out: list[str] = []
+    for tok in text[m.end():].split()[:4]:
+        clean = tok.strip(".,;:()'\"")
+        if not _name_token(clean):
+            break
+        out.append(clean)
+        if tok.endswith((",", ".", ";", ")")):
+            break
+    return " ".join(out) if 2 <= len(out) <= 4 else None
+
+
+def person_kind(role: str) -> str:
+    r = (role or "").lower()
+    if re.search(r"advis|board|non-executive|chair", r):
+        return "advisor"
+    if re.search(r"co-?\s?founder", r):
+        return "founder" if re.search(r"\bceo\b|chief executive|managing director", r) else "cofounder"
+    if "founder" in r:
+        return "founder"
+    if re.search(r"\bc[a-z]o\b|chief|head of|director|president|\bvp\b|general manager", r):
+        return "executive"
+    return "employee"
+
+
+def people_from_text(text: str, exclude: tuple[str, ...] = ()) -> list[dict]:
+    """[{full_name, role}] named with a role in a page's text (order of appearance, deduped, <= 20)."""
+    text = " ".join(strip_contacts(text or "").split())
+    bad = {w.lower() for x in exclude for w in re.split(r"\W+", x or "") if len(w) >= 3}
+    out: dict[str, dict] = {}
+    for m in _ROLE.finditer(text):
+        role = " ".join(m.group(0).split())
+        more = re.match(r"\s*(?:&|and|/|,)\s*(co-?\s?founder|founder)\b", text[m.end():m.end() + 30], re.I)
+        if more and "founder" not in role.lower():
+            role = f"{role} & {more.group(1)}"
+        name = _name_before(text[max(0, m.start() - 80):m.start()]) or _name_after(text[m.end():m.end() + 80])
+        if not name or {w.lower() for w in name.split()} & bad:
+            continue
+        key = name.lower()
+        if key in out:
+            if len(role) > len(out[key]["role"]) and role.lower() not in out[key]["role"].lower():
+                out[key]["role"] = f"{out[key]['role']} & {role}"[:80]
+            continue
+        out[key] = {"full_name": name, "role": role[:80]}
+        if len(out) >= 20:
+            break
+    for p in out.values():
+        r = p["role"]
+        p["role"] = r if not r.islower() else (r.upper() if len(r) <= 3 else r[0].upper() + r[1:])
+    return list(out.values())
+
+
+def page_rank(url: str) -> int:
+    path = urlparse(url).path.lower()
+    return 0 if any(w in path for w in TEAM_WORDS) else 1 if any(w in path for w in ABOUT_WORDS) else 2
+
+
+# ------------------------------------------------------------------ model fallback for hr suggestions
+# docs/PLAN-AI-GATEWAY.md §2: when the deterministic parser above finds nobody, GET /v1/hr/suggest-people may make
+# ONE cheap `extract_json`-profile model call over the team / about text it ALREADY has (stored by site intake or
+# the one /team fetch) — never a new search or fetch. Budgeted by the caller (per-user rate limit + a daily cap).
+# Every name the model returns must appear in the page it cites (code check), so nothing is invented.
+SUGGEST_CHARS = 12_000  # total page text sent to the model
+SUGGEST_SYSTEM = """You list the people named on a company's own team / about pages. Return ONLY people the text
+names with a job title or role at THIS company (founders, executives, team members, advisors, board). For each:
+full_name exactly as written, role (short, as written, "" if none) and page (the URL of the page naming them).
+Never guess, never add people who are not in the text, never include contact details. Empty list if nobody."""
+
+
+class SuggestedPerson(BaseModel):
+    full_name: str = Field(max_length=120)
+    role: str = Field(default="", max_length=120)
+    page: str = Field(default="", max_length=500)
+
+
+class SuggestedPeople(BaseModel):
+    people: list[SuggestedPerson] = Field(default_factory=list, max_length=30)
+
+
+def complete_profile(llm, profile: str, tier: str, system: str, user: str, schema):
+    """complete_json with a gateway task profile when the client supports one (llm.py `profile=` keyword), else the
+    plain call."""
+    import inspect
+
+    try:
+        params = inspect.signature(llm.complete_json).parameters
+        takes = "profile" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+    except (TypeError, ValueError):
+        takes = False
+    if takes:
+        return llm.complete_json(tier, system, user, schema, profile=profile)
+    return llm.complete_json(tier, system, user, schema)
+
+
+def suggest_people_with_model(llm, pages: list[tuple[str, str]], exclude: tuple[str, ...] = (), *,
+                              tier: str = "cloud") -> list[dict]:
+    """[{full_name, role, source_url}] from ONE model call over already-stored page text [(url, text)] (team /
+    about pages first). Names not literally on the cited page (or any given page) are dropped."""
+    from .people import fold, names_person
+
+    pages = [(u, " ".join(strip_contacts(t or "").split())) for u, t in sorted(pages, key=lambda x: page_rank(x[0]))
+             if (t or "").strip()]
+    if not pages:
+        return []
+    budget, blocks, used = SUGGEST_CHARS, [], []
+    for u, t in pages:
+        if budget <= 200:
+            break
+        blocks.append(f'<page url="{u}">\n{t[:budget]}\n</page>')
+        used.append((u, t))
+        budget -= min(len(t), budget)
+    out = complete_profile(llm, "extract_json", tier, SUGGEST_SYSTEM, "\n\n".join(blocks), SuggestedPeople)
+    bad = {w.lower() for x in exclude for w in re.split(r"\W+", x or "") if len(w) >= 3}
+    found: dict[str, dict] = {}
+    for p in out.people:
+        name = " ".join((p.full_name or "").split())
+        if (len(name.split()) < 2 or any(ch.isdigit() for ch in name) or "@" in name
+                or {w.lower() for w in name.split()} & bad or fold(name) in found):
+            continue
+        cited = next(((u, t) for u, t in used if u == p.page), None)
+        where = next((u for u, t in ([cited] if cited else []) + used if names_person(t, name)), None)
+        if where is None:
+            continue
+        found[fold(name)] = {"full_name": name[:120], "role": " ".join((p.role or "").split())[:80],
+                             "source_url": where}
+    return list(found.values())[:12]

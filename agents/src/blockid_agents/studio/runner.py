@@ -46,8 +46,11 @@ class ValuationRunner:
 
     def drain(self) -> int:
         n = 0
+        from ..ai_gateway import user_scope
+
         while (row := self.db.claim_valuation()) is not None:
-            status = self.run(row["id"], row["url"], row.get("self_reported"))
+            with user_scope(row.get("requested_by")):  # fair per-user model queue (ai_gateway.FairLimiter)
+                status = self.run(row["id"], row["url"], row.get("self_reported"))
             log.info("valuation %s (%s) -> %s", row["id"], row["url"], status)
             n += 1
         return n

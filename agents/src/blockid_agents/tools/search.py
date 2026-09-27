@@ -67,6 +67,7 @@ class ClaudeBridgeSearch:
         self.unavailable_until = 0.0
         self.unavailable_reason = ""
         self.last_cost_usd: float | None = None
+        self.last_cached = False  # the last search() was served from the cache (the AI gateway's ledger skips it)
         self.http = httpx.Client(timeout=timeout, transport=transport, trust_env=False,
                                  headers={"X-Bridge-Token": token, "Accept": "application/json"})
 
@@ -84,6 +85,7 @@ class ClaudeBridgeSearch:
         count = max(1, min(int(count), MAX_COUNT))
         key = "claude:" + hashlib.sha256(json.dumps([q, count]).encode()).hexdigest()
         data = self.store.cache_get(key, self.ttl) if self.store else None
+        self.last_cached = data is not None
         if data is None:
             if not self.available:
                 raise BridgeUnavailable(f"Claude search bridge unavailable (cached): {self.unavailable_reason}")
@@ -120,21 +122,42 @@ class ClaudeBridgeSearch:
 
 
 class SearchChain:
-    """Try each provider in order; returns (results, provider name). Empty results fall through to the next."""
+    """Try each provider in order; returns (results, provider name). Empty results fall through to the next.
 
-    def __init__(self, providers: list[tuple[str, object]]):
+    With a `gateway` (ai_gateway.Gateway, the "search" profile) the order is quota-aware: a provider at >= 80 % of
+    its window (Brave monthly quota, bridge daily search cap) is tried last, at >= 95 % or with an open circuit it is
+    skipped; every live (non-cached) search is counted in the shared usage ledger."""
+
+    def __init__(self, providers: list[tuple[str, object]], gateway=None):
         self.providers = providers
+        self.gateway = gateway
 
     @property
     def names(self) -> list[str]:
         return [n for n, _ in self.providers]
 
     def search(self, query: str, *, count: int = MAX_COUNT, freshness: str | None = None) -> tuple[list[dict], str]:
+        from ..llm import emit  # progress listener (HR live feed): fallbacks are reported
+
         errors = []
-        for name, p in self.providers:
+        providers = self.providers
+        gw = self.gateway
+        if gw is not None:
+            order, status = gw.search_order([n for n, _ in providers])
+            by = dict(providers)
+            for n, (st, why) in status.items():
+                if n not in order:
+                    errors.append(f"{n}: {st} ({why})")
+            providers = [(n, by[n]) for n in order]
+        for i, (name, p) in enumerate(providers):
+            nxt = providers[i + 1][0] if i + 1 < len(providers) else None
             if not getattr(p, "available", True):
                 errors.append(f"{name}: unavailable ({getattr(p, 'unavailable_reason', '')})")
                 continue
+            if gw is not None and not gw.breaker(f"search:{name}").allow():
+                errors.append(f"{name}: circuit open")
+                continue
+            t0 = time.monotonic()
             try:
                 if isinstance(p, BraveSearch):
                     results = p.search(query, count=count, freshness=freshness)
@@ -143,15 +166,25 @@ class SearchChain:
             except Exception as e:  # quota / refusal / network -> next provider
                 log.warning("search provider %s failed: %s", name, e)
                 errors.append(f"{name}: {e}")
+                if gw is not None:
+                    gw.record_search(name, ok=False, latency_s=time.monotonic() - t0,
+                                     cached=bool(getattr(p, "last_cached", False)), error=f"{type(e).__name__}: {e}",
+                                     headers=getattr(p, "last_headers", None), next_name=nxt)
+                emit({"type": "search_fallback", "failed": name, "next": nxt, "error": f"{type(e).__name__}: {e}"[:200]})
                 continue
+            if gw is not None:
+                gw.record_search(name, ok=True, latency_s=time.monotonic() - t0,
+                                 cached=bool(getattr(p, "last_cached", False)), headers=getattr(p, "last_headers", None))
             if results:
                 return results, name
             errors.append(f"{name}: no results")
         raise SearchUnavailable("; ".join(errors) or "no search provider configured")
 
 
-def build_search(settings, store: EvidenceStore, providers_order: tuple[str, ...] | None = None) -> SearchChain | None:
-    """providers_order overrides SEARCH_PROVIDERS (e.g. HR_SEARCH_PROVIDERS for the People Analyst)."""
+def build_search(settings, store: EvidenceStore, providers_order: tuple[str, ...] | None = None,
+                 gateway=None) -> SearchChain | None:
+    """providers_order overrides SEARCH_PROVIDERS (e.g. HR_SEARCH_PROVIDERS for the People Analyst); `gateway`
+    (ai_gateway.Gateway) makes the order quota-aware and records usage."""
     providers: list[tuple[str, object]] = []
     for name in (settings.search_providers if providers_order is None else providers_order):
         if name == "brave" and settings.brave_api_key:
@@ -161,7 +194,7 @@ def build_search(settings, store: EvidenceStore, providers_order: tuple[str, ...
             providers.append(("claude", ClaudeBridgeSearch(settings.claude_search_url, settings.claude_search_token,
                                                            store, timeout=settings.claude_search_timeout,
                                                            cache_ttl_hours=settings.brave_cache_ttl_hours)))
-    return SearchChain(providers) if providers else None
+    return SearchChain(providers, gateway) if providers else None
 
 
 # ------------------------------------------------------------------ the three essential queries + budget

@@ -7,6 +7,7 @@ import type {
 } from "./api";
 import { allocate, median } from "./lib/math";
 import { hrApplyToVal, hrForValuation, hrHandle, hrInit, NO_MATCH } from "./mock.hr";
+import { aiHealth, aiPause, aiResume } from "./mock.ai";
 
 const DAY = 864e5;
 const NOW = Date.now();
@@ -29,7 +30,7 @@ let mustChange = true;
 const actor = () => session?.address ?? session?.username ?? "anon";
 const needUser = () => { if (!session) throw new ApiError(401, "Not signed in"); };
 const needAdmin = () => { needUser(); if (session!.role !== "admin") throw new ApiError(403, "admin only"); if (session!.must_change) throw new ApiError(403, "password change required"); };
-hrInit({ actor: () => actor(), needUser: () => needUser(), isAdmin: () => session?.role === "admin" });
+hrInit({ actor: () => actor(), needUser: () => needUser(), isAdmin: () => session?.role === "admin", valUrl: (id) => vals.get(id)?.v.url ?? null });
 
 /* ---------------- companies ---------------- */
 const NAMES = ["Maya Chen", "Tom Nguyen", "Seed Fund I", "ESOP pool", "Angels", "Priya Shah", "Liam O'Brien", "Hana Sato", "Kiwi Ventures", "Quoc Tran", "Ava Rossi", "Noah Kim", "Southern Cross Capital", "Mai Pham"];
@@ -485,6 +486,14 @@ const routes: [string, RegExp, H][] = [
     if (!w) throw new ApiError(404, "Not found"); w.status = "revoked"; w.revoked_at = iso(Date.now()); log("revoke_issuer", w.address, { label: w.label }); return { ok: true };
   }],
   ["GET", /^\/v1\/admin\/audit$/, () => { needAdmin(); return audit.slice(0, 200); }],
+  ["GET", /^\/v1\/admin\/ai\/health$/, () => { needAdmin(); return aiHealth(); }],
+  ["POST", /^\/v1\/admin\/ai\/models\/(.+)\/(pause|resume)$/, (m, b) => {
+    needAdmin();
+    const id = decodeURIComponent(m[1]);
+    const out = m[2] === "pause" ? aiPause(id, actor(), b) : aiResume(id);
+    if (!out) throw new ApiError(404, "unknown model");
+    return { ok: true, model: out };
+  }],
   ["GET", /^\/v1\/admin\/wallets$/, (): AdminWallets => { needAdmin(); return { admins: ADMIN_WALLETS, issuer: { address: ISSUER, local_balance: "9981.42", hoodi_balance: "3.214" }, relayer: { address: RELAYER, local_balance: "498.77", hoodi_balance: "0.412" } }; }],
 ];
 

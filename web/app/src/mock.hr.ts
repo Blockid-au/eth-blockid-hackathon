@@ -1,20 +1,23 @@
 /* Mock of the founding-team / person review API (studio/hr.py) for ?mock=1. In memory; shapes follow the hr.py docstring. */
 import { ApiError } from "./api";
 import type {
-  CvProfile, FitRequirement, HrTarget, HrTargetView, PersonCard, PersonFact, PersonIn, PersonKind, PersonSubScore, Team, TeamFunction,
-  TeamListItem, TeamReport, TeamStep, TeamSummary, Valuation,
+  CvProfile, FitRequirement, HrFeedItem, HrPartialPerson, HrPhase, HrProgress, HrSuggestions, HrTarget, HrTargetView, PersonCard, PersonFact,
+  PersonIn, PersonKind, PersonSubScore, Team, TeamFunction, TeamListItem, TeamReport, TeamStep, TeamSummary, Valuation,
 } from "./api";
 
 export const NO_MATCH = Symbol("no-match");
-interface Ctx { actor: () => string; needUser: () => void; isAdmin: () => boolean }
+interface Ctx { actor: () => string; needUser: () => void; isAdmin: () => boolean; valUrl?: (id: string) => string | null }
 let ctx: Ctx = { actor: () => "anon", needUser: () => undefined, isAdmin: () => false };
 export function hrInit(c: Ctx) { ctx = c; }
 
 const DAY = 864e5;
 const iso = (t: number) => new Date(t).toISOString();
-const STEP_MS = 1100;
+/** A mock run takes ~20 s end to end (RUN_MS), streaming feed lines and per-person partial results. */
+const RUN_MS = 20000;
 
-interface Rec { t: Team; t0: number | null; by: string; input: PersonIn[]; targetIn: HrTarget | null; demo?: boolean }
+interface Ev { at: number; phase: HrPhase; pct: number; person: string | null; pi: number | null; step: string; detail: string; level: HrFeedItem["level"]; msg: string; source?: string | null;
+  d?: Partial<Record<"pages_read" | "searches" | "facts_verified" | "facts_unconfirmed" | "people_done", number>>; personDone?: boolean; personStart?: boolean }
+interface Rec { t: Team; t0: number | null; by: string; input: PersonIn[]; targetIn: HrTarget | null; demo?: boolean; pre?: TeamReport; evs?: Ev[] }
 const recs = new Map<string, Rec>();
 let pid = 100;
 
@@ -177,28 +180,88 @@ function buildReport(rec: Rec): TeamReport {
   };
 }
 
-/* ---------- lifecycle ---------- */
-function stepsFor(rec: Rec): { key: string; person: string | null }[] {
-  const out: { key: string; person: string | null }[] = [{ key: "queued", person: null }];
-  for (const p of rec.t.people) for (const k of ["fetch", "search", "extract", "score"]) out.push({ key: k, person: p.full_name });
-  if (rec.t.mode !== "person") out.push({ key: "team", person: null });
-  out.push({ key: "done", person: null });
-  return out;
+/* ---------- lifecycle (simulated live progress, docs/PLAN-HR-V2.md §1) ---------- */
+/** Script of progress events for a run; `at` is ms after start, spread over RUN_MS. */
+function script(rec: Rec, rep: TeamReport): Ev[] {
+  const raw: Omit<Ev, "at" | "pct">[] = [];
+  const add = (e: Omit<Ev, "at" | "pct">) => raw.push(e);
+  const ppl = rec.t.people;
+  add({ phase: "queued", person: null, pi: null, step: "Queued", detail: "Waiting for a research worker", level: "info", msg: `Queued — ${ppl.length} ${ppl.length === 1 ? "person" : "people"} to review` });
+  ppl.forEach((p, i) => {
+    const card = rep.people[i];
+    const first = p.full_name;
+    add({ phase: "reading", person: first, pi: i, step: "Starting", detail: `${p.role || "Team member"}`, level: "info", msg: `Starting ${first} (${i + 1} of ${ppl.length})`, personStart: true });
+    const urls = p.urls ?? [];
+    urls.forEach((u, k) => {
+      if (/linkedin\.com/i.test(u)) add({ phase: "reading", person: first, pi: i, step: `Read link ${k + 1} of ${urls.length}`, detail: host(u), level: "warn", msg: `Skipped ${host(u)} — LinkedIn pages cannot be read`, source: u });
+      else add({ phase: "reading", person: first, pi: i, step: `Read link ${k + 1} of ${urls.length}`, detail: host(u), level: "found", msg: `Read ${host(u)} — 1 fact`, source: u, d: { pages_read: 1 } });
+    });
+    const org = rec.t.target?.type === "role" ? rec.t.target.company || rec.t.name : rec.t.name;
+    const qs = [`"${first}" "${org}"`, `"${first}" ${p.role || "founder"}`, `"${first}" interview OR award`];
+    qs.forEach((q, k) => {
+      const n = rnd(first + q, 0, 7);
+      add({ phase: "searching", person: first, pi: i, step: `Search ${k + 1} of 3`, detail: q, level: n ? "info" : "warn", msg: `Search ${k + 1}/3 · ${q} — ${n ? n + (n === 1 ? " result" : " results") : "no results"}`, d: { searches: 1 } });
+    });
+    if (i === 1) add({ phase: "extracting", person: first, pi: i, step: "Model", detail: "Claude busy", level: "warn", msg: "Claude busy → using DeepSeek" });
+    const pages = rnd(first + "pg", 3, 8);
+    add({ phase: "extracting", person: first, pi: i, step: "Reading pages", detail: `${pages} pages`, level: "info", msg: `${i === 1 ? "DeepSeek" : "Claude"} is reading ${pages} pages about ${first}`, d: { pages_read: 0 } });
+    add({ phase: "extracting", person: first, pi: i, step: "Checking facts", detail: "Matching quotes to sources", level: "found", msg: `Verified ${card.facts.length} facts, ${card.unconfirmed.length} unconfirmed`, d: { facts_verified: card.facts.length, facts_unconfirmed: card.unconfirmed.length } });
+    const fit = card.fit;
+    const fitWord = fit ? (fit.score >= 70 ? "Strong fit" : fit.score >= 55 ? "Partial fit" : "Weak fit") : null;
+    add({ phase: "scoring", person: first, pi: i, step: "Scoring", detail: fit ? fit.label ?? "fit" : "quality", level: "found", msg: fit ? `Scored ${first}: ${fitWord} ${Math.round(fit.score)} · quality ${Math.round(card.score)}` : `Scored ${first}: quality ${Math.round(card.score)}`, d: { people_done: 1 }, personDone: true });
+  });
+  if (rec.t.mode !== "person") add({ phase: "scoring", person: null, pi: null, step: "Team", detail: "Complementarity, key roles, concentration", level: "found", msg: `Scored the team: ${rep.team?.score ?? "–"} (grade ${rep.team?.grade ?? "–"})` });
+  add({ phase: "done", person: null, pi: null, step: "Done", detail: "", level: "info", msg: "Report written" });
+  const n = raw.length;
+  return raw.map((e, k) => ({ ...e, at: k === n - 1 ? RUN_MS : Math.round((k / (n - 1)) * (RUN_MS - 800)), pct: k === n - 1 ? 100 : Math.min(99, Math.round((k / (n - 1)) * 100)) }));
 }
-const MSG: Record<string, (p: string | null) => string> = {
-  queued: () => "Queued", fetch: (p) => `Read the links provided for ${p}`, search: (p) => `Searched public sources for ${p} (3 queries)`,
-  extract: (p) => `Matched facts to sources for ${p}`, score: (p) => `Scored ${p}`, team: () => "Scored the team as a whole", done: () => "Report written",
-};
+const STALL = (rec: Rec) => rec.t.people.some((p) => /stall/i.test(p.full_name)); // mock-only: a name containing "stall" freezes at ~40%
+
+function progressAt(rec: Rec, el: number): HrProgress {
+  const evs = rec.evs!, rep = rec.pre!;
+  let seen = evs.filter((e) => e.at <= el);
+  let stalled = false;
+  if (STALL(rec)) { const cut = Math.max(2, Math.floor(evs.length * 0.4)); if (seen.length > cut) { seen = seen.slice(0, cut); stalled = el > evs[cut - 1].at + 5000; } }
+  const last = seen[seen.length - 1] ?? evs[0];
+  const counters = { pages_read: 0, searches: 0, facts_verified: 0, facts_unconfirmed: 0, people_done: 0, people_total: rec.t.people.length };
+  const st: HrPartialPerson["status"][] = rec.t.people.map(() => "waiting");
+  for (const e of seen) {
+    for (const [k, v] of Object.entries(e.d ?? {})) (counters as Record<string, number>)[k] += v ?? 0;
+    if (e.pi != null) st[e.pi] = e.personDone ? "done" : "working";
+  }
+  const people: HrPartialPerson[] = rec.t.people.map((p, i) => {
+    const c = rep.people[i];
+    const done = st[i] === "done";
+    const factsSoFar = done ? c.facts : st[i] === "working" && seen.some((e) => e.pi === i && /^Verified/.test(e.msg)) ? c.facts : [];
+    return { id: p.id, name: p.full_name, status: st[i], facts: factsSoFar, score: done ? c.score : null, fit: done ? c.fit?.score ?? null : null, grade: done ? grade(c.score) : null };
+  });
+  const lastAt = rec.t0! + last.at;
+  const phase: HrPhase = stalled ? "stalled" : last.phase;
+  const eta = phase === "done" || stalled ? (phase === "done" ? 0 : null) : Math.max(1, Math.round((RUN_MS - el) / 1000));
+  return {
+    phase, pct: last.pct, eta_s: eta, started_at: iso(rec.t0!), updated_at: iso(stalled ? lastAt : Math.min(Date.now(), rec.t0! + el)),
+    current: { person: last.person, step: stalled ? "Stalled" : last.step, detail: stalled ? "No heartbeat for 90 s — the watchdog will retry once" : last.detail },
+    feed: seen.slice(-60).map((e) => ({ at: iso(rec.t0! + e.at), level: e.level, msg: e.msg, person: e.person, source: e.source ?? null })),
+    counters, partial: { people },
+  };
+}
+
 function tick(rec: Rec) {
   if (rec.t0 == null || rec.t.status === "done" || rec.t.status === "failed" || rec.t.status === "draft") return;
   const el = Date.now() - rec.t0;
-  if (el < 0) { rec.t.status = "queued"; rec.t.steps = []; return; }
-  const all = stepsFor(rec);
-  const n = Math.min(all.length, Math.floor(el / STEP_MS) + 1);
-  rec.t.steps = all.slice(0, n).map((s, i) => ({ at: iso(rec.t0! + i * STEP_MS), step: s.key, person: s.person, msg: MSG[s.key](s.person) }) as TeamStep);
-  rec.t.status = n >= all.length ? "done" : n > 1 ? "running" : "queued";
-  if (rec.t.status === "done" && !rec.t.result) rec.t.result = buildReport(rec);
-  rec.t.updated_at = iso(Date.now());
+  if (el < 0) { rec.t.status = "queued"; rec.t.steps = []; rec.t.progress = queuedProgress(rec); return; }
+  if (!rec.pre) { rec.pre = buildReport(rec); rec.evs = script(rec, rec.pre); }
+  const p = progressAt(rec, el);
+  rec.t.progress = p;
+  rec.t.steps = p.feed.map((f) => ({ at: f.at, step: f.level, person: f.person ?? null, msg: f.msg }) as TeamStep);
+  rec.t.status = p.phase === "done" ? "done" : p.phase === "queued" ? "queued" : "running";
+  if (rec.t.status === "done" && !rec.t.result) rec.t.result = rec.pre;
+  rec.t.updated_at = p.updated_at ?? iso(Date.now());
+}
+function queuedProgress(rec: Rec): HrProgress {
+  return { phase: "queued", pct: 0, eta_s: Math.round(RUN_MS / 1000), started_at: null, updated_at: iso(Date.now()), current: { person: null, step: "Queued", detail: "Waiting for a research worker" },
+    feed: [{ at: iso(Date.now()), level: "info", msg: "Queued" }], counters: { pages_read: 0, searches: 0, facts_verified: 0, facts_unconfirmed: 0, people_done: 0, people_total: rec.t.people.length },
+    partial: { people: rec.t.people.map((p) => ({ id: p.id, name: p.full_name, status: "waiting", facts: [], score: null, fit: null })) } };
 }
 
 function newRec(o: { id?: string; mode: "team" | "person"; name: string; website?: string | null; valuation_id?: string | null; people: PersonIn[]; target: HrTarget | null; by: string; at?: number; demo?: boolean }): Rec {
@@ -217,7 +280,7 @@ function newRec(o: { id?: string; mode: "team" | "person"; name: string; website
   recs.set(id, rec);
   return rec;
 }
-function run(rec: Rec, delay = 0) { rec.t.status = "queued"; rec.t.result = null; rec.t.error = null; rec.t0 = Date.now() + delay; rec.t.steps = []; }
+function run(rec: Rec, delay = 0) { rec.t.status = "queued"; rec.t.result = null; rec.t.error = null; rec.t0 = Date.now() + delay; rec.t.steps = []; rec.pre = undefined; rec.evs = undefined; rec.t.progress = queuedProgress(rec); }
 
 const view = (rec: Rec): Team => {
   tick(rec);
@@ -231,10 +294,28 @@ function summary(rec: Rec): TeamSummary {
   return {
     id: rec.t.id, mode: rec.t.mode, name: rec.t.name, status: rec.t.status, valuation_id: rec.t.valuation_id ?? null,
     score: r ? (r.team?.score ?? r.people[0]?.fit?.score ?? r.people[0]?.score ?? null) : null, grade: r?.team?.grade ?? (r ? grade(r.people[0]?.score ?? 0) : null),
-    people: rec.t.people.map((p, i) => ({ full_name: p.full_name, role: p.role, kind: p.kind, score: r?.people[i]?.score ?? null, fit: r?.people[i]?.fit?.score ?? null })),
+    people: rec.t.people.map((p, i) => {
+      const pp = rec.t.progress?.partial.people.find((x) => x.id === p.id);
+      const c = r?.people[i] ?? (pp?.status === "done" ? rec.pre?.people[i] : undefined);
+      return { id: p.id, full_name: p.full_name, role: p.role, kind: p.kind, score: c?.score ?? null, fit: c?.fit?.score ?? null,
+        fit_label: c?.fit?.label ?? null, fit_matched: c?.fit?.matched?.slice(0, 3) ?? [], fit_missing: c?.fit?.missing?.slice(0, 3) ?? [],
+        status: r ? "done" : pp?.status ?? "waiting", url: rec.t.mode === "person" ? rec.t.report_url : `${rec.t.report_url}/p/${p.id}` };
+    }),
     strengths: r?.team?.strengths.slice(0, 3) ?? r?.people[0]?.strengths.slice(0, 3) ?? [], gaps: r?.team?.gaps.slice(0, 3) ?? r?.people[0]?.gaps.slice(0, 3) ?? [],
     url: rec.t.report_url,
+    progress: rec.t.progress ? { phase: rec.t.progress.phase, pct: rec.t.progress.pct, eta_s: rec.t.progress.eta_s, updated_at: rec.t.progress.updated_at } : null,
+    confidence: r ? confOf(r.people) : null,
+    error: rec.t.status === "failed" ? rec.t.error ?? null : null,
   };
+}
+/** Share of weighted points backed by verified facts (studio/hr_store.confidence_of). */
+function confOf(cards: PersonCard[]): "high" | "medium" | "low" | null {
+  const parts = cards.flatMap((c) => Object.values(c.fit?.components ?? c.subscores));
+  const tot = parts.reduce((a, x) => a + x.score * x.weight, 0);
+  if (!parts.length || tot <= 0) return null;
+  const ver = parts.filter((x) => !x.capped && !x.self_reported && x.fact_ids?.length).reduce((a, x) => a + x.score * x.weight, 0);
+  const sh = ver / tot;
+  return sh >= 0.75 ? "high" : sh >= 0.45 ? "medium" : "low";
 }
 const get = (id: string) => { const r = recs.get(decodeURIComponent(id)); if (!r) throw new ApiError(404, "Report not found"); return r; };
 const needEdit = (rec: Rec) => { ctx.needUser(); if (rec.by !== ctx.actor() && !ctx.isAdmin()) throw new ApiError(403, "Only the requester or an admin can change this report"); };
@@ -261,9 +342,10 @@ export function hrApplyToVal(v: Valuation) {
   if (!v.team_id) return;
   const rec = recs.get(v.team_id);
   if (!rec) return;
-  v.team = summary(rec);
   const s = rec.t.result?.team?.score;
   const svi = v.svi;
+  const can = s != null && !!svi?.dimensions?.founder_quality;
+  v.team = { ...summary(rec), applied: can, reason: can ? null : rec.t.status === "done" ? "valuation has no scores yet" : "team report is not done", applied_at: can ? rec.t.updated_at ?? null : null };
   if (s == null || !svi?.dimensions?.founder_quality) return;
   svi.dimensions.founder_quality = { score: s, basis: "team_report", rationale: `Founding team report ${rec.t.id}: team score ${s} (grade ${rec.t.result!.team!.grade}).` };
   const idx = Object.entries(svi.dimensions).reduce((a, [k, d]) => a + Number(d.score) * Number(svi.weights[k] ?? 0), 0);
@@ -284,18 +366,32 @@ export function hrApplyToVal(v: Valuation) {
       { full_name: "Liam O'Brien", role: "Advisor", kind: "advisor", full_time: false, start_year: 2021, equity_pct: 1, urls: [], bio: "Former CFO of a listed transport company." },
     ],
   });
-  run(team); team.t0 = Date.now() - 44 * DAY; tick(team);
+  run(team); team.t0 = Date.now() - 44 * DAY; tick(team); tick(team);
   const person = newRec({
     id: "p_demo", mode: "person", name: "Maya Chen", by: DEMO_BY, at: Date.now() - 3 * DAY, demo: true,
     target: { type: "role", company: "Southern Cross Freight", title: "Chief Operating Officer", description: "Lead operations across 14 depots and a 300-person workforce.", requirements: ["10+ years in freight or logistics operations", "Has run a P&L above A$20M", "Led teams of 100+ people", "Experience with routing or fleet software", "Board reporting experience"] },
     people: [{ full_name: "Maya Chen", role: "CEO", kind: "founder", headline: "Freight operator, ex-Toll Group", full_time: true, start_year: 2019, urls: ["https://harbourline.com.au/team", "https://www.linkedin.com/in/mayachen"], bio: "Ran regional operations at Toll Group for 6 years; founded Harbourline in 2019.", cv: "Toll Group — Regional Operations Manager 2013–2019 …" }],
   });
-  run(person); person.t0 = Date.now() - 3 * DAY; tick(person);
+  run(person); person.t0 = Date.now() - 3 * DAY; tick(person); tick(person);
 }
 
 /* ---------- router ---------- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type H = (m: RegExpMatchArray, b: any) => unknown;
+const SUGGEST: Record<string, [string, string, PersonKind][]> = {
+  "harbourline.com.au": [["Maya Chen", "CEO & Co-founder", "founder"], ["Tom Nguyen", "CTO & Co-founder", "cofounder"], ["Priya Shah", "Head of Sales", "executive"], ["Liam O'Brien", "Advisor", "advisor"]],
+};
+function suggest(q: URLSearchParams): HrSuggestions {
+  const vid = q.get("valuation_id");
+  let site = q.get("website");
+  if (!site && vid) site = vid === "demo" ? "https://harbourline.com.au" : ctx.valUrl?.(vid) ?? [...recs.values()].find((r) => r.t.valuation_id === vid)?.t.website ?? null;
+  if (!site) { if (vid) throw new ApiError(404, "Valuation not found"); throw new ApiError(422, "valuation_id or website required"); }
+  const h = host(site);
+  const list = SUGGEST[h] ?? [["Alex Morgan", "Founder & CEO", "founder"], ["Sam Lee", "Co-founder & CTO", "cofounder"]] as [string, string, PersonKind][];
+  const base = /^https?:/.test(site) ? site.replace(/\/$/, "") : "https://" + h;
+  return { website: base, source: SUGGEST[h] ? "site_intake" : "fetched", people: list.map(([full_name, role, kind]) => ({ full_name, role, kind, source_url: base + (SUGGEST[h] ? "/team" : "/about") })) };
+}
+
 const routes: [string, RegExp, H][] = [
   ["POST", /^\/v1\/hr\/teams$/, (_m, b) => {
     ctx.needUser();
@@ -347,6 +443,10 @@ const routes: [string, RegExp, H][] = [
 /** Returns NO_MATCH when the path is not an HR route. */
 export function hrHandle(method: string, path: string, body: unknown): unknown {
   if (!path.startsWith("/v1/hr/")) return NO_MATCH;
+  if (method === "GET" && path.startsWith("/v1/hr/suggest-people")) {
+    const qs = path.split("?")[1];
+    return suggest(qs ? new URLSearchParams(qs) : new URLSearchParams(Object.entries((body ?? {}) as Record<string, string>).filter(([, v]) => typeof v === "string")));
+  }
   for (const [m, re, h] of routes) {
     if (m !== method) continue;
     const mm = path.match(re);

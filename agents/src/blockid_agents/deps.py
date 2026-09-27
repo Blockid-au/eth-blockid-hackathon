@@ -63,12 +63,15 @@ class Deps:
         s = settings or get_settings()
         data = Path(s.data_dir)
         store = EvidenceStore(data / "evidence.sqlite")
-        search = build_search(s, store)
-        brave = next((p for n, p in (search.providers if search else []) if n == "brave"), None)
+        from .ai_gateway import get_gateway
         from .llm import build_agent_llms
 
+        gw = get_gateway(s) if s.ai_gateway else None  # quota-aware search order + shared usage ledger
+        search = build_search(s, store, gateway=gw)
+        brave = next((p for n, p in (search.providers if search else []) if n == "brave"), None)
+
         agent_search = {}
-        hr_search = build_search(s, store, s.hr_search_providers)
+        hr_search = build_search(s, store, s.hr_search_providers, gateway=gw)
         if hr_search is not None:
             agent_search["people_analyst"] = hr_search
         return cls(llm=llm, audit=AuditLog(data / "audit.jsonl"), evidence=store, settings=s, brave=brave,

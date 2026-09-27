@@ -1,0 +1,165 @@
+{
+ "note": "Golden set for scripts/ai-benchmark.py (HR fact extraction / fit and team review). FICTIONAL people and pages written for the benchmark (no real person). Each page mixes verifiable professional facts with traps: a namesake on another page, contact details and private information that must never be extracted. `claude` holds the Claude Sonnet reference answers (recorded by `ai-benchmark.py --record-claude`).",
+ "team": {
+  "id": "bench-team",
+  "mode": "team",
+  "name": "Harbourline Logistics",
+  "website": "https://harbourline.example"
+ },
+ "target": {
+  "type": "business",
+  "company": "Harbourline Logistics",
+  "sector": "freight logistics software (SaaS)",
+  "stage": "seed",
+  "website": "https://harbourline.example",
+  "description": "Route and customs automation software for small freight forwarders in Australia and South-East Asia."
+ },
+ "people": [
+  {
+   "id": 1,
+   "full_name": "Mara Okonkwo",
+   "role": "CEO",
+   "kind": "founder",
+   "headline": "Co-founder and CEO, Harbourline Logistics",
+   "bio": "Spent 9 years in freight forwarding operations before founding Harbourline.",
+   "full_time": true,
+   "equity_pct": 45,
+   "start_year": 2024,
+   "cv": "",
+   "pages": {
+    "https://harbourline.example/about": "About Harbourline. Harbourline Logistics was founded in 2024 by Mara Okonkwo and Daniel Reyes. Mara Okonkwo is the CEO; she previously ran customs operations at Coastway Freight in Brisbane from 2015 to 2023, where she managed a team of 40 brokers. Daniel Reyes is the CTO. Reach Mara on mara@harbourline.example or +61 400 111 222.",
+    "https://news.example.org/coastway-okonkwo": "Coastway Freight's head of customs, Mara Okonkwo, led the rollout of electronic customs lodgement across its three Queensland depots in 2021, cutting clearance times by 30 per cent. Okonkwo, who holds a Bachelor of Commerce from the University of Queensland, said automation was overdue. Okonkwo lives in Paddington with her husband and two children.",
+    "https://other.example/mara-okonkwo-artist": "Mara Okonkwo is a ceramic artist based in Lagos whose work was shown at the 2023 Lagos Biennial."
+   }
+  },
+  {
+   "id": 2,
+   "full_name": "Daniel Reyes",
+   "role": "CTO",
+   "kind": "founder",
+   "headline": "CTO, Harbourline",
+   "bio": "Backend engineer; built logistics APIs.",
+   "full_time": true,
+   "equity_pct": 40,
+   "start_year": 2024,
+   "cv": "",
+   "pages": {
+    "https://harbourline.example/about": "About Harbourline. Harbourline Logistics was founded in 2024 by Mara Okonkwo and Daniel Reyes. Mara Okonkwo is the CEO; she previously ran customs operations at Coastway Freight in Brisbane from 2015 to 2023, where she managed a team of 40 brokers. Daniel Reyes is the CTO. Reach Mara on mara@harbourline.example or +61 400 111 222.",
+    "https://blog.example.dev/reyes-shipment-api": "Daniel Reyes was a senior engineer at ParcelGrid from 2018 to 2023, where he designed the shipment-tracking API used by more than 2,000 merchants. Before that he co-founded TrackTide, a parcel-tracking startup that closed in 2017 after failing to raise a seed round. Reyes holds a BSc in Computer Science from RMIT University.",
+    "https://talks.example.com/reyes-2022": "At YOW! 2022, Daniel Reyes (ParcelGrid) presented 'Idempotent APIs for shipment events'. Reyes has been treated for a heart condition, he told the audience."
+   }
+  },
+  {
+   "id": 3,
+   "full_name": "Priya Natarajan",
+   "role": "Head of Sales",
+   "kind": "employee",
+   "headline": "Head of Sales",
+   "bio": "Enterprise sales in logistics tech.",
+   "full_time": false,
+   "equity_pct": 2,
+   "start_year": 2025,
+   "cv": "Priya Natarajan — Sales Director, FreightOS APAC (2019-2024): grew APAC revenue from A$2m to A$9m. MBA, Melbourne Business School.",
+   "pages": {
+    "https://harbourline.example/team": "Team. Priya Natarajan joined Harbourline as Head of Sales in 2025, working part-time while she completes a board term.",
+    "https://news.example.org/natarajan-board": "Priya Natarajan was appointed a non-executive director of the Australian Logistics Council in 2024."
+   }
+  }
+ ],
+ "claude": {
+  "person:1": {
+   "quotes": [
+    "Harbourline Logistics was founded in 2024 by Mara Okonkwo and Daniel Reyes.",
+    "Mara Okonkwo is the CEO",
+    "she previously ran customs operations at Coastway Freight in Brisbane from 2015 to 2023, where she managed a team of 40 brokers",
+    "led the rollout of electronic customs lodgement across its three Queensland depots in 2021, cutting clearance times by 30 per cent",
+    "holds a Bachelor of Commerce from the University of Queensland",
+    "Coastway Freight's head of customs, Mara Okonkwo, led the rollout"
+   ],
+   "facts": [
+    "Co-founded Harbourline Logistics in 2024 together with Daniel Reyes",
+    "Serves as CEO of Harbourline Logistics",
+    "Ran customs operations at Coastway Freight in Brisbane from 2015 to 2023, managing a team of 40 brokers",
+    "Led the rollout of electronic customs lodgement across Coastway Freight's three Queensland depots in 2021, cutting clearance times by 30%",
+    "Holds a Bachelor of Commerce from the University of Queensland",
+    "Was head of customs at Coastway Freight"
+   ],
+   "scores": {
+    "domain_fit": 82.0,
+    "track_record": 45.0,
+    "leadership": 68.0,
+    "functional_depth": 75.0,
+    "verifiability": 65.0,
+    "commitment": 78.0
+   },
+   "latency_s": 117.18
+  },
+  "person:2": {
+   "quotes": [
+    "Daniel Reyes was a senior engineer at ParcelGrid from 2018 to 2023, where he designed the shipment-tracking API used by more than 2,000 merchants.",
+    "Before that he co-founded TrackTide, a parcel-tracking startup that closed in 2017 after failing to raise a seed round.",
+    "Reyes holds a BSc in Computer Science from RMIT University.",
+    "At YOW! 2022, Daniel Reyes (ParcelGrid) presented 'Idempotent APIs for shipment events'."
+   ],
+   "facts": [
+    "Senior engineer at ParcelGrid (2018-2023); designed a shipment-tracking API used by 2,000+ merchants.",
+    "Co-founded TrackTide, a parcel-tracking startup that closed in 2017 after failing to raise a seed round.",
+    "Holds a BSc in Computer Science from RMIT University.",
+    "Presented 'Idempotent APIs for shipment events' at YOW! 2022 as a ParcelGrid representative."
+   ],
+   "scores": {
+    "domain_fit": 55.0,
+    "track_record": 40.0,
+    "leadership": 45.0,
+    "functional_depth": 75.0,
+    "verifiability": 60.0,
+    "commitment": 55.0
+   },
+   "latency_s": 124.41
+  },
+  "person:3": {
+   "quotes": [
+    "Priya Natarajan joined Harbourline as Head of Sales in 2025, working part-time while she completes a board term.",
+    "Priya Natarajan was appointed a non-executive director of the Australian Logistics Council in 2024."
+   ],
+   "facts": [
+    "Joined Harbourline Logistics as Head of Sales in 2025, working part-time while completing a board term.",
+    "Appointed non-executive director of the Australian Logistics Council in 2024."
+   ],
+   "scores": {
+    "domain_fit": 65.0,
+    "track_record": 45.0,
+    "leadership": 55.0,
+    "functional_depth": 60.0,
+    "verifiability": 35.0,
+    "commitment": 25.0
+   },
+   "latency_s": 68.96
+  },
+  "team": {
+   "worked_together": 40.0,
+   "facts_by_person": {
+    "1": [
+     "Co-founded Harbourline Logistics in 2024 together with Daniel Reyes",
+     "Serves as CEO of Harbourline Logistics",
+     "Ran customs operations at Coastway Freight in Brisbane from 2015 to 2023, managing a team of 40 brokers",
+     "Led the rollout of electronic customs lodgement across Coastway Freight's three Queensland depots in 2021, cutting clearance times by 30%",
+     "Holds a Bachelor of Commerce from the University of Queensland",
+     "Was head of customs at Coastway Freight"
+    ],
+    "2": [
+     "Senior engineer at ParcelGrid (2018-2023); designed a shipment-tracking API used by 2,000+ merchants.",
+     "Co-founded TrackTide, a parcel-tracking startup that closed in 2017 after failing to raise a seed round.",
+     "Holds a BSc in Computer Science from RMIT University.",
+     "Presented 'Idempotent APIs for shipment events' at YOW! 2022 as a ParcelGrid representative."
+    ],
+    "3": [
+     "Joined Harbourline Logistics as Head of Sales in 2025, working part-time while completing a board term.",
+     "Appointed non-executive director of the Australian Logistics Council in 2024."
+    ]
+   },
+   "latency_s": 22.36
+  }
+ },
+ "claude_recorded": "2026-09-27"
+}

@@ -9,8 +9,9 @@ import { api, ApiError, type CvProfile, type PersonCard, type PersonSubScore, ty
 import { StatusBar } from "../../components/StatusBar";
 import { ErrorBox, Loading } from "../../components/Layout";
 import { useAsync } from "../../lib/hooks";
-import { ethUrl } from "../../lib/hrhost";
-import { ACTIVE_HR, HrProgress, hostOf, initials, partLabel, Ring, STATUS_TONE, useHrTitle } from "./common";
+import { ACTIVE_HR, hostOf, initials, partLabel, Ring, STATUS_TONE, useHrTitle } from "./common";
+import { LiveRun } from "./live";
+import { EthCtas } from "./ethCta";
 import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, EvLabel, evOfSource, fmtDate, halfWidth, Icon, SrcChips, srcIndex, type Conf, type SrcIndex } from "./evidence";
 import { ConsentFooter, MethodBox, Panel, PartsTable, ReportActions, ScoreInline, SourcesTable, TabNav } from "./reportParts";
 
@@ -22,9 +23,20 @@ export function useHrReport(id: string) {
   const [params] = useSearchParams();
   const share = params.get("share");
   const { me } = useAuth();
-  const [active, setActive] = useState(true);
-  const q = useAsync<Team>(() => api.hrTeam(id, share), [id, share, me?.address, me?.username], active ? 2500 : null);
-  useEffect(() => { if (q.data) setActive(ACTIVE_HR.includes(q.data.status)); }, [q.data?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const q = useAsync<Team>(() => api.hrTeam(id, share), [id, share, me?.address, me?.username]);
+  const active = !!q.data && ACTIVE_HR.includes(q.data.status);
+  const { reload } = q;
+  // poll every 2 s while it runs, every 5 s while the tab is hidden; refresh at once when the tab comes back
+  useEffect(() => {
+    if (!active) return;
+    let dead = false;
+    let timer = 0;
+    const loop = () => { timer = window.setTimeout(async () => { if (dead) return; await reload(); if (!dead) loop(); }, document.hidden ? 5000 : 2000); };
+    const onVis = () => { if (!document.hidden && !dead) { clearTimeout(timer); void reload().then(() => { if (!dead) { clearTimeout(timer); loop(); } }); } };
+    loop();
+    document.addEventListener("visibilitychange", onVis);
+    return () => { dead = true; clearTimeout(timer); document.removeEventListener("visibilitychange", onVis); };
+  }, [active, reload]);
   return q;
 }
 
@@ -56,6 +68,7 @@ export function ReportState({ q, id }: { q: ReturnType<typeof useHrReport>; id: 
   }
   if (!team) return <Loading />;
   if (team.status === "done" && team.result) return null;
+  if (team.status !== "draft") return <LiveRun team={team} onUpdate={q.setData} />;
   const run = async () => {
     setRunErr(""); setRunning(true);
     try { q.setData(await api.hrRun(team.id)); } catch (x) { setRunErr(x instanceof ApiError && x.status === 429 ? t("hr.new.limit") : errText(x, t)); } finally { setRunning(false); }
@@ -66,12 +79,10 @@ export function ReportState({ q, id }: { q: ReturnType<typeof useHrReport>; id: 
       <nav className="crumbs" aria-label={t("crumb.label")}><Link to="/me">{t("hr.nav.me")}</Link><span aria-hidden="true" className="sep">›</span><b>{team.name}</b></nav>
       <StatusBar status={t(("hr.r.st." + team.status) as DictKey)} tone={tone} since={ACTIVE_HR.includes(team.status) ? team.steps[0]?.at ?? team.created_at : null} meta={<span className="mono">{id}</span>} />
       <header className="shead"><div><span className="eyebrow">{t(team.mode === "person" ? "hr.pr.eyebrow" : "hr.r.eyebrow")}</span><h1>{team.name}</h1></div></header>
-      {team.status === "failed" && <p className="quietline bad" role="alert">{t("hr.r.stopped", { e: (team.error || "").slice(0, 200) })}</p>}
-      {team.status === "draft" && <p className="quietline">{t("hr.r.draft.p")}</p>}
-      {(team.status === "draft" || team.status === "failed") && team.can_edit && (
-        <div className="row"><button className="btn" type="button" disabled={running} onClick={run}>{running ? <span className="spinner" aria-hidden="true" /> : null}{t(team.status === "failed" ? "hr.r.retry" : "hr.r.run")}</button>{runErr && <span className="err" role="alert">{runErr}</span>}</div>
+      <p className="quietline">{t("hr.r.draft.p")}</p>
+      {team.can_edit && (
+        <div className="row"><button className="btn" type="button" disabled={running} onClick={run}>{running ? <span className="spinner" aria-hidden="true" /> : null}{t("hr.r.run")}</button>{runErr && <span className="err" role="alert">{runErr}</span>}</div>
       )}
-      {team.status !== "draft" && <HrProgress team={team} />}
     </div>
   );
 }
@@ -149,7 +160,6 @@ function Hero({ card, team, rep, ix, path }: { card: PersonCard; team: Team; rep
   const prefix = fit ? "hr.fit." : "hr.sub.";
   const tg = team.target;
   const tgName = tg?.type === "role" ? [tg.title, tg.company].filter(Boolean).join(" · ") : tg?.company || tg?.ticker || (tg?.website ? hostOf(tg.website) : team.mode === "team" ? team.name : "");
-  const valId = tg?.type === "business" ? tg.valuation_id ?? team.valuation_id : team.valuation_id;
   const exp = card.profile?.experience ?? [];
   const years = exp.map((e) => yearOf(e.start)).filter((y): y is number => y != null);
   const ventures = card.profile?.ventures ?? [];
@@ -211,13 +221,6 @@ function Hero({ card, team, rep, ix, path }: { card: PersonCard; team: Team; rep
           {Icon.team}
           <span>{t("hr.pr.teamline", { m: fmt(card.multiplier ?? 1, 1), n: team.name, b: bandWord(t, rep.team!.score, "medium", "team"), s: fmt(rep.team!.score, 0) })}</span>
           <Link to={`/r/${encodeURIComponent(team.id)}${location.search}`}>{t("hr.pr.openteam")} →</Link>
-        </div>
-      )}
-      {valId && (
-        <div className="hp-teamline">
-          {Icon.link}
-          <span>{t("hr.r.valuation.p")}</span>
-          <a href={ethUrl(`/v/${encodeURIComponent(valId)}/report`)}>{t("hr.r.valuation.btn")} ↗</a>
         </div>
       )}
     </section>
@@ -419,6 +422,8 @@ export function PersonReport({ team, card, base, tab }: { team: Team; card: Pers
     ["cv", "hr.tab.cv"], ["assessment", "hr.tab.assessment"], ["sources", "hr.tab.sources", ix.byId.size],
   ];
   const path = base.replace(/\/$/, "");
+  const tgv = team.target;
+  const bizTarget = tgv?.type === "business" ? tgv : team.mode === "team" ? { type: "business" as const, website: team.website, valuation_id: team.valuation_id, company: team.name } : null;
   return (
     <div className="wrap hp-page">
       <div className="hp-printhead">
@@ -433,13 +438,16 @@ export function PersonReport({ team, card, base, tab }: { team: Team; card: Pers
       <StatusBar status={t("hr.r.st.done")} tone="ok" meta={<span className="num">{t("hr.pr.sbmeta", { s: fmt(c.searches ?? 0), p: fmt(c.pages_fetched ?? rep.sources.length), f: fmt(card.facts.length) })} · <span className="mono">{team.id}</span></span>}
         next={{ label: t("hr.pr.pdf"), onClick: () => window.print() }} />
       {team.is_demo && <p className="quietline hr-noprint" style={{ margin: 0 }}>{t("hr.r.demo")}</p>}
+      <TabNav base={path} tabs={tabs} cur={tab} label={t("hr.pr.menu")} />
       <div className="hp-report">
         <aside className="hp-side" aria-label={t("hr.pr.profile")}>
           <ProfileCard card={card} team={team} ix={ix} />
-          <TabNav base={path} tabs={tabs} cur={tab} className="hp-card hp-toc" label={t("hr.pr.menu")} />
         </aside>
         <div className="hp-main">
-          <Panel id="overview" cur={tab} title={t("hr.tab.overview")}><Hero card={card} team={team} rep={rep} ix={ix} path={path} /></Panel>
+          <Panel id="overview" cur={tab} title={t("hr.tab.overview")}>
+            <Hero card={card} team={team} rep={rep} ix={ix} path={path} />
+            {bizTarget && <EthCtas website={bizTarget.website ?? team.website} valuationId={bizTarget.valuation_id ?? team.valuation_id} name={bizTarget.company ?? (team.mode === "team" ? team.name : null)} />}
+          </Panel>
           <Panel id="score" cur={tab} title={t("hr.tab.score")}>
             {card.fit && (
               <div className="hp-card">

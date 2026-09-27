@@ -562,6 +562,27 @@ export const SUBSCORE_KEYS = ["domain_fit", "track_record", "leadership", "funct
 export const FIT_KEYS = ["skills_match", "domain_match", "stage_scale_match", "seniority_match", "track_record_relevance", "gaps"] as const;
 export const TEAM_COMPONENTS = ["complementarity", "key_roles", "worked_together", "advisors_board", "concentration"] as const;
 export interface TeamStep { at: string; step: string; person?: string | null; msg: string }
+/** Live progress (docs/PLAN-HR-V2.md §1). Present on GET /v1/hr/teams/{id} and /v1/hr/people-reports/{id}. */
+export type HrPhase = "queued" | "reading" | "searching" | "extracting" | "scoring" | "done" | "failed" | "stalled";
+export interface HrFeedItem { at: string; level: "info" | "found" | "warn"; msg: string; person?: string | null; source?: string | null }
+export interface HrPartialPerson {
+  id: number; name: string; status: "waiting" | "working" | "done" | "failed";
+  facts: PersonFact[]; score?: number | null; fit?: number | null; grade?: string | null;
+}
+export interface HrProgress {
+  phase: HrPhase;
+  pct: number; // 0..100, monotonic
+  eta_s: number | null;
+  started_at: string | null;
+  updated_at: string | null; // heartbeat
+  current: { person: string | null; step: string; detail: string };
+  feed: HrFeedItem[]; // newest last, <= 60
+  counters: { pages_read: number; searches: number; facts_verified: number; facts_unconfirmed: number; people_done: number; people_total: number };
+  partial: { people: HrPartialPerson[] };
+}
+/** GET /v1/hr/suggest-people?valuation_id=… | ?website=… */
+export interface HrSuggestedPerson { full_name: string; role: string; kind?: PersonKind; source_url: string | null }
+export interface HrSuggestions { website: string | null; source: "site_intake" | "fetched" | "none"; people: HrSuggestedPerson[] }
 export interface TeamPerson extends PersonIn { id: number; position: number; has_cv?: boolean }
 export interface PersonSubScore { score: number; suggested?: number; capped?: boolean; weight: number; rationale?: string; fact_ids?: string[]; self_reported?: boolean }
 export interface PersonFact { id: string; text: string; quote?: string; source_id?: string; url?: string; category?: string }
@@ -664,6 +685,7 @@ export interface Team {
   steps: TeamStep[];
   people: TeamPerson[];
   result?: TeamReport | null;
+  progress?: HrProgress | null;
 }
 export interface TeamSummary {
   id: string;
@@ -673,10 +695,20 @@ export interface TeamSummary {
   valuation_id?: string | null;
   score: number | null;
   grade: string | null;
-  people: { full_name: string; role: string; kind: PersonKind; score: number | null; fit?: number | null }[];
+  people: {
+    id?: number; full_name: string; role: string; kind: PersonKind; score: number | null; fit?: number | null;
+    /** fit to THIS business: label, matched/missing requirements (top 3) */
+    fit_label?: string | null; fit_matched?: string[]; fit_missing?: string[];
+    status?: HrPartialPerson["status"]; url?: string | null; // url = hr link to the person inside the team report (/r/<team>/p/<pid>)
+  }[];
   strengths: string[];
   gaps: string[];
   url?: string;
+  progress?: { phase: HrPhase; pct: number; eta_s: number | null; updated_at?: string | null } | null;
+  confidence?: "high" | "medium" | "low" | null; // share of weighted points backed by verified facts
+  error?: string | null; // failure reason when status is "failed"
+  /** on a valuation's `team` only */
+  applied?: boolean; reason?: string | null; applied_at?: string | null;
 }
 export interface TeamListItem {
   id: string;
@@ -708,6 +740,8 @@ const hrApi = {
   hrDeleteReport: (id: string) => request<{ ok: boolean }>("DELETE", `/v1/hr/teams/${enc(id)}`),
   hrShare: (id: string) => request<{ share_token: string }>("POST", `/v1/hr/teams/${enc(id)}/share`),
   hrUnshare: (id: string) => request<{ ok: boolean }>("DELETE", `/v1/hr/teams/${enc(id)}/share`),
+  hrSuggestPeople: (q: { valuation_id?: string | null; website?: string | null }) =>
+    request<HrSuggestions>("GET", `/v1/hr/suggest-people?${q.valuation_id ? "valuation_id=" + encodeURIComponent(q.valuation_id) : "website=" + encodeURIComponent(q.website ?? "")}`),
   hrApplyToValuation: (id: string) => request<{ applied: boolean; reason: string | null }>("POST", `/v1/hr/teams/${enc(id)}/apply-to-valuation`),
 };
 

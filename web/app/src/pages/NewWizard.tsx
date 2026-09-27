@@ -2,28 +2,84 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
-import { api, ApiError, type SelfReported } from "../api";
+import { api, ApiError, type HrSuggestedPerson, type HrSuggestions, type SelfReported } from "../api";
 import { Crumbs, FlowRail, Pager, SideLayout, StepHead } from "../components/Shell";
 import { useAsync, useTitle } from "../lib/hooks";
 import { en, type DictKey } from "../dict";
 import { cleanInput, parseSelfReported, SR_FIELDS, type SrField } from "../lib/selfReported";
 import { checkUrlClient } from "../lib/urlcheck";
 import { ConsentBox, PeopleEditor } from "../components/PeopleEditor";
-import { emptyRow, rowUsed, toPersonIn, validateRows, type PersonRow } from "../lib/people";
+import "../components/teamlink.css";
+import { emptyRow, MAX_PEOPLE, rowUsed, toPersonIn, validateRows, type PersonRow } from "../lib/people";
 
-/** Optional founding team (hr.blockid.au review): sent with the valuation as `team`. */
-function TeamPanel({ rows, setRows, consent, setConsent, tried }: { rows: PersonRow[]; setRows: (f: (r: PersonRow[]) => PersonRow[]) => void; consent: boolean; setConsent: (v: boolean) => void; tried: boolean }) {
+/** Optional founding team (hr.blockid.au review): sent with the valuation as `team`. After the website is checked,
+ * people named on it are offered as one-click chips (GET /v1/hr/suggest-people?website=). */
+function TeamPanel({ rows, setRows, consent, setConsent, tried, site }: { rows: PersonRow[]; setRows: (f: (r: PersonRow[]) => PersonRow[]) => void; consent: boolean; setConsent: (v: boolean) => void; tried: boolean; site: string | null }) {
   const { t } = useI18n();
   const used = rows.filter(rowUsed).length;
   const errs = used ? validateRows(rows, { requireOne: false }) : {};
   const box = useRef<HTMLDetailsElement>(null);
   useEffect(() => { if (tried && used && (Object.keys(errs).length || !consent) && box.current) box.current.open = true; }, [tried]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sug = useAsync<HrSuggestions | null>(() => (site ? api.hrSuggestPeople({ website: site }).catch(() => null) : Promise.resolve(null)), [site]);
+  const host = site ? site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "") : "";
+  const found = site && sug.data?.website ? sug.data.people.slice(0, 8) : [];
+  const has = (n: string) => rows.some((r) => r.full_name.trim().toLowerCase() === n.trim().toLowerCase());
+  const add = (list: HrSuggestedPerson[]) => {
+    setRows((rs) => {
+      let out = [...rs];
+      for (const p of list) {
+        if (out.some((r) => r.full_name.trim().toLowerCase() === p.full_name.trim().toLowerCase())) continue;
+        const kind = p.kind ?? (out.some(rowUsed) ? "cofounder" : "founder");
+        const patch = { full_name: p.full_name, role: p.role.slice(0, 80), kind, links: p.source_url ?? "" };
+        const i = out.findIndex((r) => !rowUsed(r));
+        if (i >= 0) out[i] = { ...out[i], ...patch };
+        else if (out.length < MAX_PEOPLE) out = [...out, { ...emptyRow(kind), ...patch }];
+      }
+      return out;
+    });
+    if (box.current) box.current.open = true;
+  };
+  const left = found.filter((p) => !has(p.full_name));
   return (
-    <details className="hr-teambox" ref={box}>
-      <summary>{t("hr.wiz.toggle")}{used > 0 && <span className="pill gold" style={{ marginLeft: 8 }}>{used}</span>}</summary>
-      <p className="note" style={{ margin: 0 }}>{t("hr.wiz.p")}</p>
-      <PeopleEditor rows={rows} setRows={setRows} errs={errs} showAll={tried && used > 0} idPrefix="wz" />
-      {used > 0 && <ConsentBox checked={consent} onChange={setConsent} showErr={tried} />}
+    <details className="tl-teambox" ref={box} open={used > 0 || undefined}>
+      <summary>
+        <h3>{t("hl.wz.h")} <span className="pill gold">{t("hl.wz.badge")}</span>{used > 0 && <span className="pill ok">{t("hl.wz.people", { n: used })}</span>}</h3>
+        <p>{t("hl.wz.sub")}</p>
+        <span className="tl-chev" aria-hidden="true">⌄</span>
+      </summary>
+      <div className="tl-teambody">
+        <p className="note">{t("hl.wz.p")}</p>
+        {site && (sug.loading || found.length > 0 || sug.data) && (
+          <div className="tl-sugbox" aria-live="polite">
+            {sug.loading && !sug.data ? (
+              <span className="row muted-sm"><span className="spinner" aria-hidden="true" />{t("hl.wz.looking", { h: host })}</span>
+            ) : found.length ? (
+              <>
+                <div className="between">
+                  <span className="muted-sm">{t("hl.wz.found", { h: host })}</span>
+                  {left.length > 1 && <button type="button" className="btn ghost sm" onClick={() => add(left)}>{t("hl.wz.addall")}</button>}
+                </div>
+                <ul className="tl-chips">
+                  {found.map((p, i) => {
+                    const done = has(p.full_name);
+                    return (
+                      <li key={p.full_name + i}>
+                        <button type="button" className="tl-chip" disabled={done} onClick={() => add([p])} aria-label={t("hl.found.addp", { n: p.full_name })}>
+                          <span><b>{p.full_name}</b>{p.role ? " · " + p.role : ""}</span><em>{done ? "✓ " + t("hl.wz.added") : "+ " + t("hl.wz.add")}</em>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : (
+              <span className="muted-sm">{t("hl.wz.none", { h: host })}</span>
+            )}
+          </div>
+        )}
+        <PeopleEditor rows={rows} setRows={setRows} errs={errs} showAll={tried && used > 0} idPrefix="wz" />
+        {used > 0 && <ConsentBox checked={consent} onChange={setConsent} showErr={tried} />}
+      </div>
     </details>
   );
 }
@@ -126,6 +182,9 @@ export default function NewWizard() {
   const [team, setTeam] = useState<PersonRow[]>(() => [emptyRow("founder")]);
   const [teamOk, setTeamOk] = useState(false);
   const [teamTried, setTeamTried] = useState(false);
+  const [site, setSite] = useState<string | null>(null);  // website checked (client rules) → people suggestions
+  const checkSite = (v: string) => { const c = checkUrlClient(v); if (c.ok && c.url) setSite(c.url.replace(/\/$/, "")); };
+  useEffect(() => { if (url) checkSite(url); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const input = useRef<HTMLInputElement>(null);
   useTitle(t(listing ? "new.eyebrow.list" : "new.eyebrow"));
 
@@ -144,7 +203,7 @@ export default function NewWizard() {
     if (teamRows.length) {
       setTeamTried(true);
       const n = Object.keys(validateRows(team, { requireOne: false })).length + (teamOk ? 0 : 1);
-      if (n) { setErr(t("hr.wiz.bad", { n })); return; }
+      if (n) { setErr(t("hl.wz.bad", { n })); return; }
     }
     let target = c.url;
     setBusy("check");
@@ -157,7 +216,7 @@ export default function NewWizard() {
         setBusy("");
         return;
       }
-      if (r.url) target = r.url.replace(/\/$/, "");
+      if (r.url) { target = r.url.replace(/\/$/, ""); setSite(target); }
     } catch (x) {
       // 429: stop here; an older API without the check (404/405) or a network blip: let the valuation decide
       if (x instanceof ApiError && x.status === 429) { fail({ msg: t("url.rate") }); setBusy(""); return; }
@@ -184,7 +243,7 @@ export default function NewWizard() {
         <div className="ptitle"><div><h3>{t("s1.h")}</h3><p>{t("s1.p")}</p></div></div>
         <div className="field">
           <input ref={input} type="url" inputMode="url" autoComplete="url" spellCheck={false} placeholder="yourcompany.com.au" aria-label={t("c.website")} value={url}
-            onChange={(e) => { setUrl(e.target.value); if (bad) setBad0(null); }} aria-invalid={!!bad} aria-describedby="url-err" autoFocus />
+            onChange={(e) => { setUrl(e.target.value); if (bad) setBad0(null); }} onBlur={(e) => checkSite(e.target.value)} aria-invalid={!!bad} aria-describedby="url-err" autoFocus />
           <button className="btn" type="submit" disabled={!!busy} aria-busy={!!busy}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{busy === "check" ? t("url.checking") : busy === "start" ? t("new.starting") : me ? t("s1.btn") : t("nav.connect") + " · " + t("s1.btn")}</button>
         </div>
         <div id="url-err" role="alert" className="urlhint">
@@ -192,7 +251,7 @@ export default function NewWizard() {
           {bad?.suggestion && <button type="button" className="btn ghost sm" onClick={() => applySuggestion(bad.suggestion!)}>{t("url.use", { h: bad.suggestion })}</button>}
         </div>
         {err && <p className="err" role="alert">{err}</p>}
-        <TeamPanel rows={team} setRows={setTeam} consent={teamOk} setConsent={setTeamOk} tried={teamTried} />
+        <TeamPanel rows={team} setRows={setTeam} consent={teamOk} setConsent={setTeamOk} tried={teamTried} site={site} />
         <SelfReportedFields raw={raw} setRaw={setRaw} bad={badSr} />
         {!me && <p className="quietline">{t("new.signin")}</p>}
         <div className="cols3">

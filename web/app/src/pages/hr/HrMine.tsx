@@ -46,7 +46,7 @@ export function HrMine() {
                   <tr key={x.id}>
                     <td><Link to={to} style={{ fontWeight: 600 }}>{x.name}</Link>{x.valuation_id && <span className="muted-sm"> · {t("hr.me.linked")}</span>}</td>
                     <td>{t(x.mode === "person" ? "hr.me.kind.person" : "hr.me.kind.team")}{x.target_type ? <span className="muted-sm"> · {t(x.target_type === "role" ? "hr.pr.fit.role" : "hr.pr.fit.business")}</span> : null}</td>
-                    <td><span className={"pill" + statusPill(x.status)}>{t(("hr.r.st." + x.status) as DictKey)}</span></td>
+                    <td><span className={"pill" + statusPill(x.status)}>{ACTIVE_HR.includes(x.status) && <span className="hx-livedot" aria-hidden="true" />}{t(("hr.r.st." + x.status) as DictKey)}</span></td>
                     <td className="r">{x.score != null ? <><b className="num">{fmt(x.score, 0)}</b> <span className="muted-sm">{t(("hr.bandshort." + bandOf(x.score)) as DictKey)}</span></> : "–"}</td>
                     <td className="r num">{fmt(x.people_count)}</td>
                     <td className="r muted">{x.updated_at ? date(x.updated_at) : ""}</td>

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useI18n } from "../../i18n";
 import type { DictKey } from "../../dict";
 import { SUBSCORE_KEYS } from "../../api";
-import { ethUrl } from "../../lib/hrhost";
+import { EthCtas } from "./ethCta";
 import { Avatar, useHrTitle } from "./common";
 
 const WEIGHTS: Record<(typeof SUBSCORE_KEYS)[number], number> = { domain_fit: 25, track_record: 25, leadership: 15, functional_depth: 15, verifiability: 10, commitment: 10 };
@@ -113,14 +113,8 @@ export function HrHome() {
 
       <section className="block" style={{ borderTop: 0, paddingTop: 0 }}>
         <div className="wrap">
-          <div className="final">
-            <h2>{t("hr.home.final.h")}</h2>
-            <p>{t("hr.home.final.p")}</p>
-            <div className="hv-ctas"><div className="ctas">
-              <a className="btn" href={ethUrl("/start")}>{t("hr.home.final.btn")}</a>
-              <Link className="btn ghost hv-onDark" to="/new">{t("hr.home.cta")}</Link>
-            </div></div>
-          </div>
+          <EthCtas variant="band" />
+          <p className="hx-bandnote"><Link to="/new">{t("hr.home.cta")} →</Link></p>
         </div>
       </section>
     </>

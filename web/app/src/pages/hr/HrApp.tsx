@@ -4,7 +4,7 @@ import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { useI18n } from "../../i18n";
 import { errText, useAuth } from "../../auth";
 import { isMock } from "../../api";
-import { BlockIDLogo, FlagEN, FlagVI, ScrollManager } from "../../components/Layout";
+import { BlockIDLogo, FlagEN, FlagVI } from "../../components/Layout";
 import { ErrorBoundary } from "../../components/Boundary";
 import { shortAddr } from "../../lib/addr";
 import { ethUrl } from "../../lib/hrhost";
@@ -17,6 +17,36 @@ import { HrPersonPage } from "./HrPerson";
 import { HrMine } from "./HrMine";
 import { HrMethod } from "./HrMethod";
 import "../../components/hr.css";
+
+// The HR palette ("talent & innovation") is scoped to this class; eth.blockid.au never loads this module.
+if (typeof document !== "undefined") document.documentElement.classList.add("hr-app");
+
+/** Report base path: switching tabs inside the same report keeps the reader at the tab bar instead of jumping to the top. */
+const reportBase = (p: string) => /^\/(?:r\/[^/]+\/p\/[^/]+|r\/[^/]+|p\/[^/]+)/.exec(p)?.[0] ?? null;
+function HrScroll() {
+  const { pathname, hash } = useLocation();
+  const prev = useRef(pathname);
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = pathname;
+    if (hash) {
+      const id = hash.slice(1);
+      const tryScroll = (n: number) => { const el = document.getElementById(id); if (el) el.scrollIntoView({ block: "start" }); else if (n > 0) setTimeout(() => tryScroll(n - 1), 60); };
+      tryScroll(10);
+      return;
+    }
+    const b = reportBase(pathname);
+    const anchor = document.querySelector<HTMLElement>(".hx-tabanchor");
+    if (b && anchor && b === reportBase(was) && was !== pathname) {
+      const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hr-nav-h")) || 61;
+      const natural = anchor.getBoundingClientRect().top + window.scrollY - navH;
+      if (window.scrollY > natural) window.scrollTo(0, Math.max(0, natural)); // the bar was pinned: keep it there, show the new panel from its start
+      return;
+    }
+    window.scrollTo(0, 0);
+  }, [pathname, hash]);
+  return null;
+}
 
 function HrAccount() {
   const { t } = useI18n();
@@ -67,9 +97,21 @@ function HrNav() {
   const { t, lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const ref = useRef<HTMLElement>(null);
   useEffect(() => setOpen(false), [pathname]);
+  // publish the nav height: the report tab bar and sticky cards sit right under it
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const put = () => document.documentElement.style.setProperty("--hr-nav-h", el.offsetHeight + "px");
+    put();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(put);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <header className="nav hr-nav">
+    <header className="nav hr-nav" ref={ref}>
       <a className="skip" href="#main">{t("nav.skip")}</a>
       <div className="wrap wide">
         <Link className="brand" to="/" aria-label="BlockID HR">
@@ -116,7 +158,7 @@ export default function HrApp() {
   const { pathname } = useLocation();
   return (
     <>
-      <ScrollManager />
+      <HrScroll />
       <HrNav />
       <main id="main" tabIndex={-1}>
         <ErrorBoundary resetKey={pathname}>

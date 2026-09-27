@@ -1,6 +1,6 @@
 /* Building blocks shared by the person report (/p/:id) and the team report (/r/:id). */
-import { useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useI18n } from "../../i18n";
 import type { DictKey } from "../../dict";
 import { api, type PersonSubScore, type Team, type TeamReport } from "../../api";
@@ -8,25 +8,74 @@ import { errText } from "../../auth";
 import { EvLabel, evOfPart, Icon, SrcChips, bandOf, bandWord, fmtDate, type Conf, type SrcIndex } from "./evidence";
 import { partLabel } from "./common";
 
-/** Tab strip / side menu. Links keep ?share=. */
-export function TabNav({ base, tabs, cur, className, label }: { base: string; tabs: [string, DictKey, number?][]; cur: string; className: string; label: string }) {
-  const { t } = useI18n();
+/** Bold segmented tab bar, sticky under the top nav. Each tab is a URL (links keep ?share=); arrow keys move between tabs. */
+export function TabNav({ base, tabs, cur, label }: { base: string; tabs: [string, DictKey, number?][]; cur: string; label: string; className?: string }) {
+  const { t, fmt } = useI18n();
   const { search } = useLocation();
+  const nav = useNavigate();
+  const box = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  const focusNext = useRef(false);
+  const [fade, setFade] = useState("");
+  const upd = useCallback(() => {
+    const el = box.current;
+    if (!el) return;
+    const l = el.scrollLeft > 4, r = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setFade((l ? " fl" : "") + (r ? " fr" : ""));
+  }, []);
+  // keep the active tab in view and focused after keyboard moves
+  useEffect(() => {
+    const el = box.current;
+    const a = el?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (el && a) {
+      const left = a.offsetLeft - (el.clientWidth - a.offsetWidth) / 2;
+      el.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+      if (focusNext.current) { a.focus({ preventScroll: true }); focusNext.current = false; }
+    }
+    upd();
+  }, [cur, upd]);
+  // publish the bar height so sticky side cards sit under it
+  useEffect(() => {
+    const el = bar.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => { document.documentElement.style.setProperty("--hr-tabs-h", el.offsetHeight + "px"); upd(); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [upd]);
+  const go = (k: string) => nav(`${base}/${k}${search}`, { replace: true });
+  const onKey = (e: React.KeyboardEvent) => {
+    const i = tabs.findIndex(([k]) => k === cur);
+    let j = -1;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") j = (i + 1) % tabs.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") j = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") j = 0;
+    else if (e.key === "End") j = tabs.length - 1;
+    if (j < 0) return;
+    e.preventDefault();
+    focusNext.current = true;
+    go(tabs[j][0]);
+  };
   return (
-    <nav className={className} aria-label={label}>
-      {tabs.map(([k, lk, n]) => (
-        <Link key={k} to={`${base}/${k}${search}`} aria-current={k === cur ? "page" : undefined} replace>
-          {t(lk)}{n != null && n > 0 ? <span className="n">{n}</span> : null}
-        </Link>
-      ))}
-    </nav>
+    <>
+    <div className="hx-tabanchor" aria-hidden="true" />
+    <div className="hx-tabbar" ref={bar}>
+      <div className={"hx-tabs" + fade} role="tablist" aria-label={label} ref={box} onScroll={upd} onKeyDown={onKey}>
+        {tabs.map(([k, lk, n]) => (
+          <Link key={k} id={"tabbtn-" + k} role="tab" aria-selected={k === cur} aria-controls={"tab-" + k} tabIndex={k === cur ? 0 : -1}
+            to={`${base}/${k}${search}`} replace>
+            <span>{t(lk)}</span>{n != null && n > 0 ? <span className="n">{fmt(n)}</span> : null}
+          </Link>
+        ))}
+      </div>
+    </div>
+    </>
   );
 }
 
 /** One tab panel. Every panel is rendered; inactive ones are hidden on screen and printed in order. */
 export function Panel({ id, cur, title, children, className = "" }: { id: string; cur: string; title: string; children: ReactNode; className?: string }) {
   return (
-    <section className={"hp-panel " + id + (id === cur ? "" : " hp-off") + (className ? " " + className : "")} aria-label={title} id={"tab-" + id}>
+    <section className={"hp-panel " + id + (id === cur ? "" : " hp-off") + (className ? " " + className : "")} role="tabpanel" aria-labelledby={"tabbtn-" + id} id={"tab-" + id}>
       <h2 className="hp-ptitle">{title}</h2>
       {children}
     </section>

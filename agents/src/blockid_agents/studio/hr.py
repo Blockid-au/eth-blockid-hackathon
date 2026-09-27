@@ -1,4 +1,5 @@
-"""Founding-team and person review API (hr.blockid.au) — docs/PLAN-HR.md, Phase H1.
+"""Founding-team and person review API (hr.blockid.au) — docs/PLAN-HR.md, Phase H1; live progress, people
+suggestions and the valuation link: docs/PLAN-HR-V2.md §1 and §3.
 
 Two kinds of report share one table and one report shape:
   * team report  (mode "team")   — the founding team of a business: every person + team-level scoring.
@@ -11,6 +12,29 @@ every score from LLM-suggested, cited sub-scores.
 All routes use the studio cookie session (`bid_session`). JSON bodies; ISO-8601 timestamps. Errors are
 `{"detail": "..."}` (400/422 bad input, 401 not signed in, 403 not allowed, 404 unknown id, 409 wrong state,
 429 daily limit).
+
+Limitations (docs/PLAN-AI-GATEWAY.md §2)
+  * Failed runs: users see a short code + one plain English sentence, never an exception. `error_code` is one of
+      sources_unreachable  websites / search services could not be reached and nothing else was readable
+      models_busy          every AI model was busy, rate-limited, over quota or answered invalid output
+      no_public_info       searches ran but found nothing, no link was readable, nobody has a bio / CV / headline
+      timeout              a call or the run took too long
+      stalled              no heartbeat twice (watchdog re-queued once, then failed it)
+      no_people            the report has nobody to analyse
+      internal             anything else
+    `error` = the sentence for that code (hr_store.ERROR_TEXT; same field the UIs already show), `error_detail` =
+    the internal exception text — ONLY in ReportOut for platform admins, and in the audit log ("hr_run_failed").
+    Rows written before codes existed are classified from their stored text on read.
+  * People suggestions: when the name + role parser finds nobody, ONE budgeted model call (gateway profile
+    `extract_json`) reads the team / about text already stored or fetched — no new search or fetch. Budget:
+    SUGGEST_MODEL_PER_USER_HOUR per wallet and SUGGEST_MODEL_PER_DAY in total (per API process). Names not literally
+    on the cited page are dropped; results carry "note": "suggested from <host/path>" and source "model".
+  * ETA: percentile model (hr_store.step_stats): `eta_s` = remaining planned steps x p50 of each step kind over
+    its last 30 samples, `eta_range_s` = [p25-based, p75-based]; planned steps scale with the number of people
+    (the team step is timed per person). Defaults per step kind (DEFAULT_STEP_S, range 0.6x..1.8x) until a kind has
+    3 samples.
+  * Stalled detection: one step longer than STEP_MAX_S (180 s) stops the heartbeat, so a hung call shows as
+    "stalled" after at most ~4.5 min; the gateway's per-call deadlines normally end it well before.
 
 PersonIn (create / replace people / valuation start / person report):
     {
@@ -50,14 +74,26 @@ POST   /v1/hr/teams/{id}/share                        -> {"share_token": str}  (
 DELETE /v1/hr/teams/{id}/share                        -> {"ok": true}          (revokes the link)
 DELETE /v1/hr/people/{pid}                            -> {"ok": true, "team_id": str}  (requester/admin; removal)
 DELETE /v1/hr/teams/{id}                              -> {"ok": true}  (requester/admin; deletes report + evidence)
+GET    /v1/hr/suggest-people?valuation_id=<id>  |  ?website=<url>
+       -> {"website": str|null, "source": "site_intake|fetched|model|none",
+           "people": [{"full_name", "role", "kind": "founder|cofounder|executive|employee|advisor",
+                       "source_url": str|null,
+                       "note"?: "suggested from agritrace.example/about"}]}   # note: model-suggested only
+                                                  # <= 12, for the "Assess the founders" flow
+       Signed in. valuation_id (readable by you): the founders the valuation's site intake found plus names + roles
+       on the team / about / leadership pages it already read (evidence store) — no web search. Nothing found there,
+       or only a website: at most ONE SSRF-safe fetch of <site>/team (source "fetched"). Still nobody: one budgeted
+       model call over that stored / fetched text (source "model", see Limitations). 403/404 as for valuations.
 POST   /v1/hr/teams/{id}/apply-to-valuation           -> {"applied": bool, "reason": str|null, "svi": {...}|null}
        (requester/admin; re-scores the linked valuation from the done team report — also automatic on completion)
 Valuation start: POST /v1/studio/valuations also accepts
        {"url": ..., "metrics": ..., "team": {"people": [PersonIn, 1..20], "consent": true}}
        -> {"id": <valuation id>, "team_id": str}; the team runs after the valuation's research and its score becomes
        founder_quality (basis "team_report"). GET /v1/studio/valuations/{id} then has
-       "team": (Summary + {"applied": bool, "reason": str|null}) | null. The report's name starts as the site's host
-       and becomes the company name found by the valuation when the team runs.
+       "team": (Summary + {"applied": bool, "reason": str|null, "applied_at": str|null}) | null — LIVE: read from the latest team report
+       linked to the valuation on every GET, so it carries "progress" {phase, pct, eta_s, updated_at} while queued /
+       running, the person ids + hr links and each founder's fit to THIS business (Summary below). The report's name
+       starts as the site's host and becomes the company name found by the valuation when the team runs.
 
 Readers of a report: the requester, platform admins, active company admins of the linked company, any signed-in
 viewer for demo reports (requested by DEMO_WALLET), anyone with ?share=<token> (no sign-in). The Summary is also
@@ -67,7 +103,9 @@ ReportOut
     {
       "id": "t_ab12cd34ef56", "mode": "team|person", "name": str, "website": str|null,
       "valuation_id": str|null, "company_id": int|null, "target": TargetView|null,
-      "status": "draft|queued|running|done|failed", "error": str|null,
+      "status": "draft|queued|running|done|failed", "error": str|null,   # plain sentence (see Limitations)
+      "error_code": "sources_unreachable|models_busy|no_public_info|timeout|stalled|no_people|internal"|null,
+      "error_detail"?: str|null,                  # platform admins only: the internal exception text
       "consent": bool, "consented_at": str|null, "is_demo": bool, "mine": bool, "can_edit": bool,
       "share_token": str|null,                    # requester/admin only
       "report_url": "https://hr.blockid.au/r/<id>",
@@ -76,8 +114,33 @@ ReportOut
                  "msg": str}],
       "people": [{"id": int, "full_name", "role", "kind", "headline", "full_time", "start_year", "equity_pct",
                   "urls": [str], "bio": str|null, "has_cv": bool, "position": int}],
-      "result": Report|null                       # when status == "done"
+      "result": Report|null,                      # when status == "done"
+      "progress": Progress|null                   # null for drafts
     }
+Progress (live; docs/PLAN-HR-V2.md §1 — FIXED contract, the hr and eth UIs build on it)
+    {
+      "phase": "queued|reading|searching|extracting|scoring|done|failed|stalled",
+      "pct": 0..100,                              # monotonic within a run (also across a watchdog restart)
+      "eta_s": int|null,                          # remaining planned steps x p50 step time (see Limitations)
+      "eta_range_s": [lo, hi]|null,               # p25 / p75 based range, seconds (additive; [0, 0] when done)
+      "started_at": str|null, "updated_at": str|null,   # updated_at = heartbeat, <= 10 s apart while running
+      "current": {"person": str|null, "step": str, "detail": str},   # e.g. "Search 2 of 3", "'Jane Doe' AgriTrace"
+      "feed": [{"at": str, "level": "info|found|warn", "msg": str, "person"?: str, "source"?: url}],
+                                                  # newest last, <= 60, plain words: "Read agritrace.example — 4,210
+                                                  # characters saved as evidence", "Search 1/3 · … — 5 results",
+                                                  # "Claude is reading 6 pages about Jane Doe", "Claude busy → using
+                                                  # DeepSeek", "Checked the facts…: 3 verified facts, 1 unconfirmed",
+                                                  # "Scored Jane Doe: Partial fit 62 · quality 58"
+      "counters": {"pages_read", "searches", "facts_verified", "facts_unconfirmed", "people_done",
+                   "people_total"},               # ints
+      "partial": {"people": [{"id": int, "name": str, "role": str, "kind": str,
+                              "status": "waiting|working|done|failed",
+                              "facts": [{"id", "text", "quote", "url", "category", "source_id"}],  # verified so far
+                              "score": num|null, "fit": num|null, "grade": str|null}]}
+    }
+    Saved as each person finishes, so their facts and scores show before the whole report is done. "stalled" =
+    running with no heartbeat for 90 s (API view); the watchdog (worker drain + API loop) re-queues a stalled run
+    once (warn line in the feed), then fails it with a clear reason in `error` and the feed.
 TargetView = {"type": "business", "valuation_id", "ticker", "website", "company", "sector", "stage",
               "description"} | {"type": "role", "company", "title", "description", "requirements": [str]}
 
@@ -140,8 +203,17 @@ CVProfile (every item has "source": {"type": "verified|self_reported", "fact_ids
      "awards": [{"title", "year", "source"}], "links": [{"url", "label"}], "completeness_pct": 0..100}
 Summary                                        # score: team score; person report: fit score (quality if no target)
     {"id", "mode", "name", "status", "valuation_id", "score": num|null, "grade": str|null,
-     "people": [{"full_name", "role", "kind", "score", "fit": num|null}],   # names + roles + numbers only
-     "strengths": [str] (<=3), "gaps": [str] (<=3), "url": "https://hr.blockid.au/r/<id>"}
+     "people": [{"id": int, "full_name", "role", "kind", "score": num|null, "fit": num|null,   # names + roles +
+                 "fit_label": str|null, "fit_matched": [str] (<=3), "fit_missing": [str] (<=3),  # numbers only;
+                 "status": "waiting|working|done|failed",                                      # fit = fit to the
+                 "url": "https://hr.blockid.au/r/<id>/p/<pid>" | ".../p/<id>" (person report)}],  # linked business
+     "strengths": [str] (<=3), "gaps": [str] (<=3), "url": "https://hr.blockid.au/r/<id>",
+     "confidence": "high|medium|low"|null,       # share of weighted points backed by verified facts (>=.75/.45)
+     "error": str|null,                          # plain failure sentence when status == "failed"
+     "error_code": str|null,                     # its code (see Limitations)
+     "progress": {"phase", "pct", "eta_s", "eta_range_s", "updated_at"}|null}   # before "done": people from the live progress
+    On the valuation (GET /v1/studio/valuations/{id} -> "team") also: "applied": bool, "reason": str|null,
+    "applied_at": str|null (when the team score was applied to the valuation's founder_quality).
 ListItem
     {"id", "mode", "name", "status", "valuation_id", "company_id", "score", "grade", "people_count",
      "target_type", "created_at", "updated_at"}
@@ -160,12 +232,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..agents.people import redact
+from . import urlcheck
 from .auth import COOKIE, Session
 from .company_admins import CompanyAuthz
 from .db import ONCHAIN_STATUSES, LimitError, jsonable
-from .hr_store import HrStore, apply_to_valuation, summary
+from .hr_store import HrStore, apply_to_valuation, error_detail, progress_view, public_error, summary
 
 log = logging.getLogger(__name__)
+SUGGEST_MODEL_PER_USER_HOUR = 5  # model-assisted people suggestions per wallet per hour (per API process)
+SUGGEST_MODEL_PER_DAY = 200  # and in total per day (per API process)
 
 
 # ------------------------------------------------------------------ bodies
@@ -381,7 +456,9 @@ def build_hr_router(ctx) -> APIRouter:
         return jsonable({
             "id": t["id"], "mode": t.get("mode") or "team", "name": t["name"], "website": t.get("website"),
             "valuation_id": t.get("valuation_id"), "company_id": store().linked_company(t),
-            "target": t.get("target"), "status": t["status"], "error": t.get("error"),
+            "target": t.get("target"), "status": t["status"], "error": public_error(t)[1],
+            "error_code": public_error(t)[0],
+            **({"error_detail": error_detail(t)} if is_admin(sess) else {}),
             "consent": bool(t.get("consent")), "consented_at": t.get("consented_at"), "is_demo": is_demo(t),
             "mine": is_owner(sess, t), "can_edit": edit, "share_token": t.get("share_token") if edit else None,
             "report_url": f"{s.hr_public_url}/r/{t['id']}", "created_at": t.get("created_at"),
@@ -392,6 +469,7 @@ def build_hr_router(ctx) -> APIRouter:
                         "urls": p.get("urls") or [], "bio": p.get("bio"),
                         "has_cv": bool((p.get("cv") or "").strip()), "position": p["position"]} for p in ppl],
             "result": _public_result(t.get("result")),
+            "progress": progress_view(t),
         })
 
     def audit(sess: Session, action: str, target: str, **detail) -> None:
@@ -556,6 +634,142 @@ def build_hr_router(ctx) -> APIRouter:
             raise HTTPException(401 if sess is None else 403, "sign in required" if sess is None
                                 else "not allowed to read this report")
         return jsonable(summary(t, s.hr_public_url))
+
+    # -------------------------------------------------------------- people suggestions (eth "Assess the founders")
+    def evidence_store():
+        if ctx.evidence is not None:
+            return ctx.evidence
+        runner = getattr(ctx, "_runner", None)
+        if runner is not None and getattr(runner, "deps", None) is not None:
+            return runner.deps.evidence
+        from ..tools.brave import EvidenceStore
+
+        path = Path(s.data_dir) / "evidence.sqlite"
+        return EvidenceStore(path) if path.exists() else None
+
+    @r.get("/v1/hr/suggest-people")
+    def suggest_people(request: Request, valuation_id: str | None = Query(default=None, max_length=64),
+                       website: str | None = Query(default=None, max_length=500),
+                       sess: Session = Depends(require_user)):
+        from ..agents.people import names_person
+        from ..agents.site_intake import page_rank, people_from_text, person_kind, site_subject
+
+        db = ctx.need_db()
+        found: dict[str, dict] = {}
+        exclude: tuple[str, ...] = ()
+
+        def add(name: str, role: str, url: str | None) -> None:
+            name = " ".join((name or "").split())[:120]
+            if not name or any(ch.isdigit() for ch in name) or "@" in name or len(found) >= 12:
+                return
+            key = name.lower()
+            if key in found:
+                old = found[key]["role"]
+                if role and (not old or ("founder" in role.lower() and "founder" not in old.lower())):
+                    found[key].update(role=redact(role).strip()[:80], kind=person_kind(role))
+                return
+            role = redact(role or "").strip()[:80]
+            found[key] = {"full_name": name, "role": role, "kind": person_kind(role), "source_url": url}
+
+        site = None
+        pages: list = []  # (EvidenceItem, text) site intake already stored
+        if valuation_id:
+            v = db.get_valuation(valuation_id)
+            if not v:
+                raise HTTPException(404, "unknown valuation")
+            if not can_read_valuation(sess, valuation_id):
+                raise HTTPException(403, "valuation: not readable by you")
+            site = v.get("url")
+            prof = (v.get("result") or {}).get("profile") or {}
+            host_label = (urlparse(site or "").hostname or "").removeprefix("www.").split(".")[0]
+            exclude = tuple(x for x in (prof.get("company_name"), host_label) if x)
+            ev = evidence_store()
+            if ev is not None:
+                try:
+                    pages = sorted(ev.for_subject(site_subject(valuation_id), limit=12),
+                                   key=lambda x: (page_rank(x[0].url), x[0].url))
+                except Exception:  # noqa: BLE001 - suggestions are best effort
+                    log.exception("hr suggestions evidence")
+            docs = sorted(prof.get("documents_reviewed") or [], key=page_rank)
+            for f in prof.get("founders") or []:
+                where = next((e.url for e, text in pages if names_person(text or "", f.get("name") or "")), None)
+                add(f.get("name") or "", f.get("role") or "", where or (docs[0] if docs else site))
+            for e, text in pages:
+                if page_rank(e.url) <= 1 or not found:
+                    for p in people_from_text(text or "", exclude):
+                        add(p["full_name"], p["role"], e.url)
+        elif website:
+            try:
+                site = _check_url(website)
+            except ValueError as e:
+                raise HTTPException(422, f"website: {e}") from None
+            exclude = ((urlparse(site).hostname or "").removeprefix("www.").split(".")[0],)
+        else:
+            raise HTTPException(422, "give valuation_id or website")
+        source = "site_intake" if found else "none"
+        texts: list[tuple[str, str]] = [(e.url, text or "") for e, text in pages]
+        if not found and site:  # at most one fetch of the obvious team page, SSRF-safe
+            if not ctx.url_limiter.allow("hr-suggest:" + sess.actor.lower()):
+                raise HTTPException(429, "too many look-ups; wait a minute and try again")
+            pu = urlparse(site)
+            team_url = f"{pu.scheme}://{pu.netloc}/team"
+            text = ""
+            try:
+                from ..tools.brave import fetch_page
+
+                text = (ctx.page_fetcher or fetch_page)(team_url) or ""
+            except Exception as e:  # noqa: BLE001 - 404, blocked host, timeout: no suggestions
+                log.info("hr suggestions: %s not readable: %s", team_url, str(e)[:200])
+            for p in people_from_text(text, exclude):
+                add(p["full_name"], p["role"], team_url)
+            source = "fetched" if found else "none"
+            if text.strip():
+                texts.append((team_url, text))
+        if not found and texts:  # heuristic found nobody: ONE budgeted model call over the text we already have
+            for p in model_suggestions(sess, texts, exclude, valuation_id or site):
+                add(p["full_name"], p["role"], p["source_url"])
+                if p["full_name"].lower() in found:
+                    found[p["full_name"].lower()]["note"] = p["note"]
+            if found:
+                source = "model"
+        return {"website": site, "source": source, "people": list(found.values())[:12]}
+
+    suggest_user_limit = urlcheck.RateLimiter(limit=SUGGEST_MODEL_PER_USER_HOUR, window_s=3600)
+    suggest_day_limit = urlcheck.RateLimiter(limit=SUGGEST_MODEL_PER_DAY, window_s=86_400)
+
+    def suggest_llm():
+        """The People Analyst's model chain (tests set ctx.suggest_llm); None when no runner is configured."""
+        llm = getattr(ctx, "suggest_llm", None)
+        if llm is not None:
+            return llm
+        try:
+            deps = ctx.runner().deps
+        except Exception:  # noqa: BLE001 - 503 runner not configured: no model suggestions
+            return None
+        return deps.agent_llm.get("people_analyst", deps.llm)
+
+    def model_suggestions(sess: Session, texts: list[tuple[str, str]], exclude: tuple[str, ...],
+                          target: str | None) -> list[dict]:
+        from ..agents.site_intake import page_rank, suggest_people_with_model
+        from ..llm import last_provider
+
+        team_about = [(u, t) for u, t in texts if page_rank(u) <= 1]
+        texts = team_about or texts
+        llm = suggest_llm()
+        if llm is None or not suggest_user_limit.allow(sess.actor.lower()) or not suggest_day_limit.allow("all"):
+            return []
+        try:
+            got = suggest_people_with_model(llm, texts, exclude, tier=s.hr_tier)
+        except Exception as e:  # noqa: BLE001 - busy / invalid output: the user just gets no suggestions
+            log.info("hr model suggestions failed: %s", str(e)[:300])
+            ctx.need_db().audit(sess.actor, "hr_suggest_model", target, ok=False, error=str(e)[:300])
+            return []
+        ctx.need_db().audit(sess.actor, "hr_suggest_model", target, ok=True, people=len(got),
+                            pages=len(texts), provider=last_provider() or None)
+        for p in got:
+            u = urlparse(p["source_url"])
+            p["note"] = f"suggested from {(u.hostname or '').removeprefix('www.')}{u.path.rstrip('/')}"
+        return got
 
     # -------------------------------------------------------------- share, delete, blend
     @r.post("/v1/hr/teams/{tid}/share")

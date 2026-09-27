@@ -198,7 +198,13 @@ def test_team_at_valuation_start_feeds_founder_quality(studio_env):
     assert hr.drain() == 0  # waits for the valuation's research
     assert runner.drain() == 1
     v0 = u.get(f"/v1/studio/valuations/{vid}").json()
-    assert v0["status"] == "waiting_approval" and v0["team"] is None
+    assert v0["status"] == "waiting_approval"
+    # HR v2: the valuation's team is live — queued with progress, person ids + hr links before the run
+    tm0 = v0["team"]
+    assert tm0["id"] == tid and tm0["status"] == "queued" and tm0["applied"] is False and tm0["score"] is None
+    assert tm0["progress"]["phase"] == "queued" and tm0["progress"]["pct"] == 0 and tm0["progress"]["eta_s"] > 0
+    assert [p["full_name"] for p in tm0["people"]] == ["Jane Nguyen", "Tom Lee"]
+    assert all(p["status"] == "waiting" and p["url"].endswith(f"/r/{tid}/p/{p['id']}") for p in tm0["people"])
     assert hr.drain() == 1
     t = u.get(f"/v1/hr/teams/{tid}").json()
     assert t["status"] == "done" and t["name"] == "AgriTrace Pty Ltd" and t["valuation_id"] == vid
@@ -206,6 +212,13 @@ def test_team_at_valuation_start_feeds_founder_quality(studio_env):
     fq = v["svi"]["dimensions"]["founder_quality"]
     assert fq["basis"] == "team_report" and fq["score"] == t["result"]["team"]["score"]
     assert v["team"]["applied"] is True and v["team"]["id"] == tid and v["team"]["url"].endswith(f"/r/{tid}")
+    assert v["team"]["progress"] == {**v["team"]["progress"], "phase": "done", "pct": 100, "eta_s": 0}
+    assert v["team"]["applied_at"] and v["team"]["confidence"] in ("high", "medium", "low")
+    assert v["team"]["error"] is None and tm0["applied_at"] is None and tm0["confidence"] is None
+    ids = {p["id"] for p in t["people"]}
+    for p in v["team"]["people"]:  # each founder's fit to THIS business, with a link to their hr page
+        assert p["id"] in ids and p["url"].endswith(f"/r/{tid}/p/{p['id']}") and p["status"] == "done"
+        assert p["fit"] is not None and p["fit_label"] == "founder–business fit" and len(p["fit_matched"]) <= 3
     assert {k: d["score"] for k, d in v["svi"]["dimensions"].items() if k != "founder_quality"} == \
         {k: d["score"] for k, d in v0["svi"]["dimensions"].items() if k != "founder_quality"}
     assert v["svi"]["weights"]["founder_quality"] == 0.30

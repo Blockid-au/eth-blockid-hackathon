@@ -111,8 +111,11 @@ class Worker:
 
     def drain(self) -> int:
         n = 0
+        from .ai_gateway import user_scope
+
         while (job := self.queue.claim_next()) is not None:
-            log.info("job %s (%s/%s) -> %s", job["id"], job["kind"], job["graph"], self.process(job))
+            with user_scope(f"job:{job['graph']}"):  # legacy API-key jobs carry no user: one queue per graph
+                log.info("job %s (%s/%s) -> %s", job["id"], job["kind"], job["graph"], self.process(job))
             n += 1
         if self.valuations is not None:
             n += self.valuations.drain()

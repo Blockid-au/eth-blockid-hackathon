@@ -128,7 +128,7 @@ function AdminReview({ v, svi, onDone }: { v: Val; svi: Svi; onDone: (x: Val) =>
   );
 }
 
-function Report({ v, evidence, isAdmin, onDecided }: { v: Val; evidence: Evidence[] | undefined; isAdmin: boolean; onDecided: (x: Val) => void }) {
+function Report({ v, evidence, isAdmin, onDecided, onTeamDone }: { v: Val; evidence: Evidence[] | undefined; isAdmin: boolean; onDecided: (x: Val) => void; onTeamDone?: () => void }) {
   const { t, fmt, money, date } = useI18n();
   const svi = v.svi!;
   const rows = dimRows(svi, t);
@@ -143,7 +143,8 @@ function Report({ v, evidence, isAdmin, onDecided }: { v: Val; evidence: Evidenc
         <span className="bigno">{money(svi.valuation_mid_aud)}</span>
         <span className="muted">{t("v.score", { s: fmt(svi.index, 1) })} · {money(svi.valuation_low_aud)} – {money(svi.valuation_high_aud)}</span>
       </div>
-      <TeamCard valuationId={v.id} teamId={v.team_id} summary={v.team} weight={svi.weights?.founder_quality} sample={v.id === "sample"} />
+      <TeamCard valuationId={v.id} teamId={v.team_id} summary={v.team} weight={svi.weights?.founder_quality} sample={v.id === "sample"}
+        applied={svi.dimensions?.founder_quality?.basis === "team_report"} onDone={onTeamDone} />
       <div className="cols">
         <div className="card"><h4>{t("s3.radar")}</h4><Radar dims={rows} /></div>
         <div className="card">
@@ -661,7 +662,7 @@ export default function ValuationPage() {
 
       {cur === 2 && siteFail && <SiteFailed v={v} />}
       {cur === 2 && <AgentLog v={v} />}
-      {cur === 3 && v.svi && <Report v={v} evidence={ev.data} isAdmin={isAdmin} onDecided={(x) => q.setData(x)} />}
+      {cur === 3 && v.svi && <Report v={v} evidence={ev.data} isAdmin={isAdmin} onDecided={(x) => q.setData(x)} onTeamDone={() => void q.reload()} />}
       {cur === 4 && !sample && (
         <div className="panel"><TickerStep name={name} setName={setName} ticker={ticker} setTicker={setTicker} /></div>
       )}

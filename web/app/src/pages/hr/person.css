@@ -27,13 +27,6 @@
 .hp-lead { color: var(--muted); font-size: .88rem; margin: 0; }
 .hp-printhead { display: none; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--ink); padding-bottom: 6pt; margin-bottom: 8pt; font-size: 8.5pt; color: var(--muted); }
 
-/* tabs (URL addressable) */
-.hp-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
-.hp-tabs::-webkit-scrollbar { display: none; }
-.hp-tabs a { padding: 10px 14px; font: 600 .88rem/1.2 var(--body); color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
-.hp-tabs a:hover { color: var(--ink); }
-.hp-tabs a[aria-current="page"] { color: var(--accent-deep); border-bottom-color: var(--accent); }
-.hp-toc a .n, .hp-tabs a .n { font: 500 .72rem/1 var(--mono); color: var(--faint); margin-left: 6px; }
 .hp-panel { display: grid; gap: 20px; min-width: 0; }
 .hp-off { display: none; }
 .hp-ptitle { display: none; }
@@ -55,10 +48,6 @@
 .hp-complete { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); }
 .hp-complete b { font-size: .86rem; }
 .hp-complete p { font-size: .78rem; color: var(--muted); line-height: 1.4; margin: 2px 0 0; }
-.hp-toc { display: grid; gap: 2px; font-size: .86rem; padding: 10px; }
-.hp-toc a { color: var(--muted); text-decoration: none; padding: 7px 10px; border-radius: 8px; }
-.hp-toc a:hover { background: var(--sunken); color: var(--ink); }
-.hp-toc a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-deep); font-weight: 600; }
 
 /* hero */
 .hp-hero { box-shadow: var(--shadow); padding: 24px; gap: 18px; border-top: 4px solid var(--accent); }
@@ -324,8 +313,6 @@ table.hp-srct tr:target td { background: var(--accent-soft); }
   .hp-profile .hp-ptop, .hp-profile .hp-headline, .hp-profile .hp-rel, .hp-profile .hp-meta { grid-column: 1 / -1; }
   .hp-profile .hp-plinks { grid-column: 1; }
   .hp-profile .hp-complete { grid-column: 2; border-top: 1px solid var(--line); }
-  .hp-toc { position: sticky; top: 64px; z-index: 10; display: flex; overflow-x: auto; gap: 4px; padding: 6px; border-radius: 12px; scrollbar-width: none; box-shadow: var(--shadow); }
-  .hp-toc a { white-space: nowrap; font-size: .8rem; padding: 7px 10px; }
   .hp-ventures { grid-template-columns: 1fr 1fr; }
   .hp-formgrid { grid-template-columns: 1fr; }
   .hp-sumcard { position: sticky; top: auto; bottom: 0; border-radius: 16px 16px 0 0; margin-inline: -20px; box-shadow: 0 -8px 24px -12px rgb(0 0 0 / .25); padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; }
@@ -379,9 +366,12 @@ table.hp-srct tr:target td { background: var(--accent-soft); }
 @page { size: A4; margin: 14mm 14mm 16mm; }
 @media print {
   :root { --bg: #fff; --surface: #fff; --sunken: #F1F5F4; --ink: #0D1B1E; --muted: #4A5B5E; --faint: #5E706D; --line: #D9E3E0; --shadow: none; color-scheme: light; }
+  html:root.hr-app:not([data-theme="print"]) { --bg: #fff; --surface: #fff; --sunken: #F3F1FA; --ink: #1B1640; --muted: #4F4A70; --faint: #5E5985; --line: #DEDAEE;
+    --accent: #6D28D9; --accent-ink: #fff; --accent-soft: #EEE8FC; --accent-deep: #4C1D95; --ok: #0F766E; --up: #0F766E; --up-soft: #DDF3F0; --warn: #A94F07; --warn-soft: #FDF1E1;
+    --gold: #8A5A08; --gold-soft: #FCF2DC; --bad: #B42318; --down: #B8322A; --down-soft: #FBE6E3; --shadow: none; color-scheme: light; }
   html, body { background: #fff !important; font-size: 10pt; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .nav, footer, .hp-toc, .hp-tabs, .hp-acts, .skip, .sb-next, .hr-noprint, .simbadge { display: none !important; }
+  .nav, footer, .hx-tabbar, .hp-acts, .skip, .sb-next, .hr-noprint, .simbadge { display: none !important; }
   .hp-printhead { display: flex !important; }
   .hp-off { display: grid !important; }
   .hp-ptitle { display: block; font: 700 12pt/1.2 var(--display); border-bottom: 1px solid var(--line); padding-bottom: 4pt; margin: 6pt 0 0; }

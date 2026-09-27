@@ -7,6 +7,7 @@ import { ConsentBox, FieldError, PeopleEditor } from "../../components/PeopleEdi
 import { emptyRow, normUrl, parseValuationRef, rowUsed, toPersonIn, validateRows, type Errs, type PersonRow } from "../../lib/people";
 import { ethUrl } from "../../lib/hrhost";
 import { useHrTitle } from "./common";
+import { handedPeople } from "./parse";
 
 /** /new — review a founding team (standalone or for a business valuation). */
 export function HrNew() {
@@ -17,7 +18,10 @@ export function HrNew() {
   const [name, setName] = useState("");
   const [website, setWebsite] = useState("");
   const [valRef, setValRef] = useState(() => (params.get("valuation") ?? "").slice(0, 200));
-  const [rows, setRows] = useState<PersonRow[]>(() => [emptyRow("founder"), emptyRow("cofounder")]);
+  const [rows, setRows] = useState<PersonRow[]>(() => {
+    const handed = handedPeople(params);
+    return handed.length ? handed.map((p) => ({ ...emptyRow(p.kind), full_name: p.full_name, role: p.role })) : [emptyRow("founder"), emptyRow("cofounder")];
+  });
   const [consent, setConsent] = useState(false);
   const [tried, setTried] = useState(false);
   const [touched, setTouched] = useState<Set<string>>(new Set());

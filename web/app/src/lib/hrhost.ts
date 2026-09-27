@@ -37,3 +37,35 @@ export function hrUrl(path: string): string {
 export function ethUrl(path: string): string {
   return HR_HOST ? onHost("eth", path) : path;
 }
+
+/* ---------- eth → hr links (docs/PLAN-HR-V2.md §3) ---------- */
+
+/** A link returned by the API (absolute https://hr.blockid.au/…) mapped onto the current environment. */
+export function hrLink(u: string | null | undefined, fallbackPath: string): string {
+  if (!u) return hrUrl(fallbackPath);
+  try {
+    const x = new URL(u, "https://hr.blockid.au");
+    if (/^hr\./i.test(x.hostname)) return hrUrl(x.pathname + x.search + x.hash);
+  } catch { /* fall through */ }
+  return hrUrl(fallbackPath);
+}
+
+/** hr team report of a valuation's founding team. */
+export const hrTeamUrl = (teamId: string) => hrUrl(`/r/${encodeURIComponent(teamId)}`);
+
+/** One person inside a team report: by person id when known, else by position (n1, n2, …). */
+export const hrPersonUrl = (teamId: string, personId: number | null | undefined, index: number) =>
+  hrUrl(`/r/${encodeURIComponent(teamId)}/p/${personId != null ? personId : "n" + (index + 1)}`);
+
+/**
+ * "Assess the founders": hr /new with the business pre-selected (?valuation=) and, optionally, people to pre-fill
+ * as repeated `person=<full name>|<role>` parameters (hr ignores what it does not read).
+ */
+export function hrAssessUrl(opts: { valuationId?: string | null; website?: string | null; people?: { full_name: string; role?: string | null }[] }): string {
+  const q = new URLSearchParams();
+  if (opts.valuationId) q.set("valuation", opts.valuationId);
+  else if (opts.website) q.set("website", opts.website);
+  for (const p of (opts.people ?? []).slice(0, 20)) q.append("person", `${p.full_name}|${p.role ?? ""}`);
+  const s = q.toString();
+  return hrUrl("/new" + (s ? "?" + s : ""));
+}

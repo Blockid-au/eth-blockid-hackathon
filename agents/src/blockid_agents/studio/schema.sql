@@ -171,3 +171,34 @@ CREATE INDEX IF NOT EXISTS hr_people_team_idx ON studio.hr_people (team_id, posi
 CREATE TABLE IF NOT EXISTS studio.hr_runs (id serial PRIMARY KEY, team_id text NOT NULL, requested_by text NOT NULL,
   at timestamptz NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS hr_runs_requester_idx ON studio.hr_runs (lower(requested_by), at);
+-- HR v2 live progress (docs/PLAN-HR-V2.md §1): progress JSON (contract in studio/hr.py), heartbeat, run attempt
+-- (a requeued run's old worker can no longer write), watchdog requeues; step timings of finished runs -> ETA.
+ALTER TABLE studio.hr_teams ADD COLUMN IF NOT EXISTS progress jsonb;
+ALTER TABLE studio.hr_teams ADD COLUMN IF NOT EXISTS heartbeat_at timestamptz;
+ALTER TABLE studio.hr_teams ADD COLUMN IF NOT EXISTS attempt int NOT NULL DEFAULT 0;
+ALTER TABLE studio.hr_teams ADD COLUMN IF NOT EXISTS requeues int NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS studio.hr_step_timings (id serial PRIMARY KEY, kind text NOT NULL, seconds real NOT NULL,
+  team_id text, at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS hr_step_timings_kind_idx ON studio.hr_step_timings (kind, at DESC);
+-- HR limitations (docs/PLAN-AI-GATEWAY.md §2): user-facing error code (plain sentence stays in `error`), internal
+-- detail for platform admins / audit only; people count of the run a step timing came from (ETA scaling).
+ALTER TABLE studio.hr_teams ADD COLUMN IF NOT EXISTS error_code text;
+ALTER TABLE studio.hr_teams ADD COLUMN IF NOT EXISTS error_detail text;
+ALTER TABLE studio.hr_step_timings ADD COLUMN IF NOT EXISTS people int;
+-- AI gateway (ai_gateway.py, docs/PLAN-AI-GATEWAY.md §1): one row per model / search attempt, shared by the API and
+-- the worker (quota windows, error rate, latency, tokens, estimated spend, fallbacks); per-model state (admin pause,
+-- circuit breaker, last provider rate-limit headers); 24 h result cache keyed by (profile, prompt hash).
+CREATE TABLE IF NOT EXISTS studio.ai_usage (id bigserial PRIMARY KEY, at timestamptz NOT NULL DEFAULT now(),
+  model_id text NOT NULL, provider text NOT NULL, profile text, agent text, user_id text,
+  outcome text NOT NULL, sent boolean NOT NULL DEFAULT true, schema_ok boolean, latency_ms int, tokens_in int,
+  tokens_out int, cost_usd numeric(12,6), error text, fallback_to text, hedged boolean NOT NULL DEFAULT false);
+CREATE INDEX IF NOT EXISTS ai_usage_model_at_idx ON studio.ai_usage (model_id, at DESC);
+CREATE INDEX IF NOT EXISTS ai_usage_at_idx ON studio.ai_usage (at DESC);
+CREATE TABLE IF NOT EXISTS studio.ai_model_state (model_id text PRIMARY KEY, provider text NOT NULL,
+  paused boolean NOT NULL DEFAULT false, paused_by text, paused_reason text, paused_at timestamptz,
+  paused_until timestamptz, circuit text NOT NULL DEFAULT 'closed', open_until timestamptz,
+  consecutive_failures int NOT NULL DEFAULT 0, opens int NOT NULL DEFAULT 0, rl jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS studio.ai_cache (key text PRIMARY KEY, profile text NOT NULL, model_id text,
+  schema text, value jsonb NOT NULL, at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS ai_cache_at_idx ON studio.ai_cache (at);

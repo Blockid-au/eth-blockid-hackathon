@@ -1,9 +1,8 @@
 import { useEffect, type ReactNode } from "react";
 import { useI18n } from "../../i18n";
 import type { DictKey } from "../../dict";
-import type { PersonSubScore, Team, TeamStatus, TeamStep } from "../../api";
+import type { PersonSubScore, TeamStatus } from "../../api";
 import type { Tone } from "../../components/StatusBar";
-import { stepLabel } from "../../lib/svi";
 import "../../components/hr.css";
 
 export function useHrTitle(title: string) {
@@ -66,52 +65,6 @@ export function ListBlock({ title, items, q = false }: { title: ReactNode; items
     <div>
       <h5>{title}</h5>
       <ul className={"hr-ul" + (q ? " q" : "")}>{items.map((x, i) => <li key={i}>{x}</li>)}</ul>
-    </div>
-  );
-}
-
-/** Progress while the people are researched: the live step log + counters. */
-export function HrProgress({ team }: { team: Team }) {
-  const { t, fmt, date } = useI18n();
-  const t0 = team.steps[0]?.at ? +new Date(team.steps[0].at) : NaN;
-  const when = (at: string) => {
-    const x = +new Date(at);
-    if (Number.isFinite(t0) && Number.isFinite(x) && x >= t0) { const s = Math.round((x - t0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
-    return date(at, true);
-  };
-  const running = ACTIVE_HR.includes(team.status);
-  const label = (s: TeamStep) => {
-    const k = ("hr.r.step." + s.step) as DictKey;
-    const tr = t(k);
-    return tr === k ? (s.step === "queued" ? t("hr.r.st.queued") : s.step === "team" ? t("hr.r.radar") : stepLabel(s.step, t)) : tr;
-  };
-  const done = team.steps.length;
-  return (
-    <div className="panel" role="region" aria-label={t("hr.r.steps")}>
-      <div className="cols">
-        <div className="log hr-log" aria-live="polite">
-          {team.steps.length === 0 && <div><span className="dot run" /><span>{t("hr.r.waiting")}</span><em>…</em></div>}
-          {team.steps.map((s, i) => {
-            const last = i === team.steps.length - 1;
-            const st = s.step === "failed" ? "fail" : last && running ? "run" : "ok";
-            return (
-              <div key={i}>
-                <span className={"dot " + st} aria-hidden="true" />
-                <span>{label(s)}{s.person ? " · " + s.person : ""}{s.msg ? <small>{s.msg}</small> : null}</span>
-                <em>{st === "run" ? "…" : when(s.at)}</em>
-              </div>
-            );
-          })}
-        </div>
-        <div className="card">
-          <h4>{t("hr.r.found")}</h4>
-          <div className="counter">
-            <div><b>{fmt(team.people.length)}</b><small>{t("hr.r.people.n")}</small></div>
-            <div><b>{fmt(done)}</b><small>{t("hr.r.steps.n")}</small></div>
-          </div>
-          <p className="note">{t("hr.r.note")}</p>
-        </div>
-      </div>
     </div>
   );
 }
