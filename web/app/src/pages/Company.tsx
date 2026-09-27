@@ -14,7 +14,8 @@ import { CHAINS, chainOf, isAddressValid, shortAddr } from "../wallet";
 import type { DictKey } from "../dict";
 import { Tracker } from "../components/Tracker";
 import { TransferPanel } from "./Transfers";
-import { DemoApproveGuide } from "../components/DemoGuide";
+import { DemoApproveGuide, demoApproveLink } from "../components/DemoGuide";
+import { StatusBar, type StatusNext, type Tone } from "../components/StatusBar";
 import { CompanyAdminsPanel, CompanyApprovals } from "../components/CompanyAdmins";
 import { useMyCompanies } from "../lib/companyAdmins";
 import { Crumbs, FlowRail, Pager, RailGroup, RailItem, SideLayout, StepHead } from "../components/Shell";
@@ -365,7 +366,7 @@ export default function CompanyPage() {
   if (!c) {
     return (
       <div className="wrap page stack">
-        {flash && <p className="banner gold">{flash}</p>}
+        {flash && <p className="toast" role="status">{flash}</p>}
         {q.error instanceof ApiError && q.error.status === 404 ? (
           <PrivateCompany ticker={ticker} onSignedIn={() => void q.reload()} />
         ) : (
@@ -433,6 +434,18 @@ export default function CompanyPage() {
     return { k: "ws.next.live" as DictKey, to: "wallet" };
   })();
 
+  const SB: Record<string, [DictKey, Tone]> = {
+    draft: ["sb.st.draft", "idle"], pending_issue: ["sb.st.waiting", "wait"], issuing: ["sb.st.creating", "run"],
+    issued: ["sb.st.copying", "run"], pending_anchor: ["sb.st.copying", "run"], anchoring: ["sb.st.copying", "run"],
+    partially_anchored: ["sb.st.copying", "run"], anchored: ["sb.st.live", "ok"], rejected: ["sb.st.rejected", "bad"], failed: ["sb.st.failed", "bad"],
+  };
+  const [sbKey, sbTone] = SB[c.status] ?? (["sb.st.draft", "idle"] as [DictKey, Tone]);
+  const sbStep = c.status === "anchored" ? 8 : step;
+  const sbDone = c.status === "anchored" ? 8 : c.status === "draft" || c.status === "pending_issue" || c.status === "rejected" ? 5 : step - 1;
+  let sbNext: StatusNext | null = null;
+  if (c.status === "pending_issue" && me?.role !== "admin") sbNext = { label: t("sb.next.approve"), to: demoApproveLink(`/admin/issuance/${c.ticker}`, `/c/${c.ticker}/issue`) };
+  else if (sec !== nextAct.to) sbNext = { label: label(nextAct.to as Sec), to: `/c/${c.ticker}/${nextAct.to}` };
+
   return (
     <SideLayout rail={rail} label={t("flow.nav")}>
       <Crumbs items={[{ to: "/companies", label: t("nav.companies") }, { to: `/c/${c.ticker}/overview`, label: c.ticker }, { label: label(sec) }]} />
@@ -444,11 +457,12 @@ export default function CompanyPage() {
         </h1>
         <span className="row" style={{ gap: 8 }}>
           {c.website && <a href={c.website} target="_blank" rel="noopener noreferrer" className="muted-sm">{c.website.replace(/^https?:\/\//, "")}</a>}
-          {TRANSIENT.includes(c.status) ? <span className="live"><i />{t(("c.st." + c.status) as DictKey)}</span> : <span className={"pill" + (c.status === "anchored" ? " ok" : c.status === "rejected" || c.status === "failed" ? " bad" : "")}>{t(("c.st." + c.status) as DictKey)}</span>}
         </span>
       </div>
+      <StatusBar status={t(sbKey)} tone={sbTone} step={sbStep} done={sbDone} since={sbTone === "run" ? c.sync?.started_at ?? null : null}
+        meta={sbTone === "run" || sec === "overview" ? t(nextAct.k, { tk: c.ticker }) : null} next={sbNext} />
       <StepHead eyebrow={flowN ? t("flow.stepof", { n: flowN, p: t("flow.ph.c") }) : t("ws.h")} title={flowN ? t(("step." + flowN) as DictKey) : t(("ws." + sec) as DictKey)} desc={t((flowN ? "flow.d" + flowN : "ws.d." + sec) as DictKey)} />
-      {flash && <p className="banner gold" role="status">{flash}</p>}
+      {flash && <p className="toast" role="status">{flash}</p>}
       {c.error && c.status !== "rejected" && !(sec === "sync" && Object.keys(c.sync?.errors ?? {}).length) && !(sec === "issue" && c.status === "failed") && (
         <ErrorFix error={c.error} info={c.error_info} ticker={c.ticker} companyId={c.local?.token ? c.id : null}
           onDone={() => void q.reload()} hideLink={c.error_info?.target === sec} />
@@ -458,9 +472,9 @@ export default function CompanyPage() {
         <>
           {c.status === "draft" || c.status === "rejected" ? <div className="pane"><Timeline status={c.status} /></div> : null}
           {c.status !== "draft" && <Tracker c={c} onChanged={() => void q.reload()} only={["s1", "s2", "s3"]} feed={false} />}
-          {c.status === "rejected" && <p className="banner bad" role="alert">{t("c.st.rejected")}{c.error ? ": " + c.error : ""}</p>}
+          {c.status === "rejected" && <p className="quietline bad" role="alert">{t("c.st.rejected")}{c.error ? ": " + c.error : ""}</p>}
           {c.status === "draft" && (
-            <div className="banner gold"><span>{t("c.draftnote")}</span>{(c.id ?? companyId) != null && me && <button className="btn gold sm" type="button" onClick={submit}>{t("c.submit")}</button>}{submitMsg && <span>{submitMsg}</span>}</div>
+            <p className="quietline"><span>{t("c.draftnote")}</span>{(c.id ?? companyId) != null && me && <button className="btn gold sm" type="button" onClick={submit}>{t("c.submit")}</button>}{submitMsg && <span role="status">{submitMsg}</span>}</p>
           )}
         </>
       )}
@@ -489,10 +503,6 @@ export default function CompanyPage() {
 
       {sec === "overview" && (
         <>
-          <div className="nextact">
-            <div><span className="eyebrow">{t("ws.next")}</span><p>{t(nextAct.k, { tk: c.ticker })}</p></div>
-            <Link className="btn" to={`/c/${c.ticker}/${nextAct.to}`}>{label(nextAct.to as Sec)} <span aria-hidden="true">→</span></Link>
-          </div>
           <div className="kpis">
             <div className="kpi"><small>{t("c.k.val")}</small><b>{money(c.valuation_aud)}</b><span>{t("c.k.valsub", { s: c.svi != null ? fmt(Number(c.svi), 1) : "–", g })}</span></div>
             <div className="kpi"><small>{t("k.shares")}</small><b>{fmt(c.total_shares)}</b><span>{t("c.k.sharesub", { tk: c.ticker })}</span></div>

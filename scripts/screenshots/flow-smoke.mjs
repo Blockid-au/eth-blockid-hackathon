@@ -35,7 +35,7 @@ async function tour(ctx, list, tag) {
 }
 
 const pub = [
-  ["home", "/"], ["start", "/start"], ["new-redirect", "/new"], ["sample", "/v/sample"],
+  ["home", "/"], ["start", "/start"], ["start-list", "/start?goal=list"], ["start-url", "/start?url=canva.com"], ["new-redirect", "/new"], ["sample", "/v/sample"],
   ["val-auto", `/v/${VAL_ID}`], ["val-research", `/v/${VAL_ID}/research`], ["val-ticker", `/v/${VAL_ID}/ticker`],
   ["co-auto", `/c/${TK}`], ["co-issue", `/c/${TK}/issue`], ["co-sync", `/c/${TK}/sync`], ["co-wallet", `/c/${TK}/wallet`],
   ["co-updates", "/c/CNV/updates"], ["inv-demo", "/i/demo"], ["inv-demo-pos", "/i/demo/CNV"],
@@ -62,7 +62,7 @@ await tour(adm, [
 ], "a");
 
 const mob = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
-await tour(mob, [["m-inv-demo", "/i/demo"], ["m-inv-pos", "/i/demo/CNV"], ["m-start", "/start"], ["m-co", `/c/${TK}/overview`], ["m-val", `/v/${VAL_ID}/report`], ["m-home", "/"]], "m");
+await tour(mob, [["m-inv-demo", "/i/demo"], ["m-inv-pos", "/i/demo/CNV"], ["m-start", "/start"], ["m-start-list", "/start?goal=list"], ["m-co", `/c/${TK}/overview`], ["m-val", `/v/${VAL_ID}/report`], ["m-home", "/"]], "m");
 
 await browser.close();
 console.log(problems.length ? "\nPROBLEMS:\n" + problems.join("\n") : "\nno problems");

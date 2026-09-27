@@ -293,6 +293,11 @@ const routes: [string, RegExp, H][] = [
   ["POST", /^\/v1\/admin\/mints\/(\d+)\/reject$/, (m) => { needAdmin(); const r = mints.find((x) => x.id === +m[1] && x.status === "pending"); if (!r) throw new ApiError(409, "not pending"); r.status = "rejected"; log("mint_rejected", String(r.id)); return { id: r.id, status: "rejected" }; }],
   ["POST", /^\/v1\/admin\/dividends\/(\d+)\/reject$/, (m) => { needAdmin(); const r = dividends.find((x) => x.id === +m[1] && x.status === "pending"); if (!r) throw new ApiError(409, "not pending"); r.status = "rejected"; log("dividend_rejected", String(r.id)); return { id: r.id, status: "rejected" }; }],
 
+  ["POST", /^\/v1\/studio\/check-url$/, (_m, b) => {
+    const raw = String(b?.url ?? "").trim();
+    const url = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+    return { ok: true, url, title: "", reason: null, message: null, suggestion: null };
+  }],
   ["POST", /^\/v1\/studio\/valuations$/, (_m, b) => {
     needUser();
     const id = Math.random().toString(36).slice(2, 10);

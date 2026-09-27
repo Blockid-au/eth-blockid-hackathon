@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <defs>
+    <linearGradient id="starGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00A3FF" />
+      <stop offset="45%" stop-color="#0080FF" />
+      <stop offset="100%" stop-color="#0040D0" />
+    </linearGradient>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <!-- Octagon outer frame -->
+  <polygon points="76,16 164,16 224,76 224,164 164,224 76,224 16,164 16,76"
+           stroke="#002B7F" stroke-width="13" stroke-linejoin="round" fill="none" />
+  <!-- Luminous 4-point star astroid -->
+  <path d="M 120,48
+           C 120,90 150,120 192,120
+           C 150,120 120,150 120,192
+           C 120,150 90,120 48,120
+           C 90,120 120,90 120,48 Z"
+        stroke="url(#starGlow)" stroke-width="12" stroke-linejoin="round" fill="none" />
+</svg>

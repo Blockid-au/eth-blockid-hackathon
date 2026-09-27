@@ -121,7 +121,7 @@ export function MarkPanel(p: MarkPanelProps) {
       <div className="pane">
         <div className="detail-head">
           <div style={{ display: "grid", gap: 6 }}>
-            <span className="eyebrow">{p.ticker} · {p.name} · {t("ad.c.grade")} {p.grade}{p.svi != null ? ` · SVI ${fmt(Number(p.svi), 1)}` : ""}</span>
+            <span className="eyebrow">{p.ticker} · {p.name} · {t("ad.c.grade")} {p.grade}{p.svi != null ? ` · ${t("v.score", { s: fmt(Number(p.svi), 1) })}` : ""}</span>
             <span className="px">{aud(mNow, 3)}</span>
             <span className={"chg " + arrow(pR)}>{chg(pR)} · {t("ad.range")}{showCagr ? <> · {t("ad.cagr")} {fmt(cagr, 1)}%</> : null}</span>
           </div>

@@ -21,10 +21,16 @@ Public copy (landing page, meta tags, decks for investors) follows these rules: 
 sentences, one clear message per line, and buttons that say exactly what happens.
 
 - **Product:** BlockID Business Passport.
-- **Hero (H1):** Know the business before you invest. · VI: Hiểu rõ doanh nghiệp trước khi bạn đầu tư.
-- **Pitch:** See how a private business is really doing, in plain words. Get regular updates with a fair value
-  checked by people, proof of the shares you own, and dividends paid straight to your wallet.
-- **Audience:** investors of every size, big and small, who put money into private businesses.
+- **Hero (H1):** Know the business you invest in. · VI: Hiểu rõ doanh nghiệp bạn đầu tư.
+- **Pitch (elevator, owner's words):** BlockID Business Passport gives every shareholder, large or small, a live view
+  of the business they own: AI-analysed, human-approved updates and valuations, an on-chain share register as proof
+  of ownership, and dividends paid straight to their wallet. · VI: BlockID Business Passport cho mọi cổ đông, dù lớn
+  hay nhỏ, một góc nhìn trực tiếp vào doanh nghiệp họ sở hữu: bản cập nhật và định giá do AI phân tích, con người phê
+  duyệt, sổ cổ đông trên blockchain làm bằng chứng sở hữu, và cổ tức trả thẳng vào ví.
+- **Say "business"**, never "private business", in public copy.
+- **Two audiences:** (1) **investors** of every size who check a business before they invest and follow it after;
+  (2) **businesses** that want to list and turn their shares into tokens on blockchain. Every investor gets the same
+  updates at the same time, in step with how the business grows.
 - **The problem (investor pains):** (1) they don't really understand the business; (2) they can't follow it after
   they invest: growth, profit, how their stake grows or gets diluted; (3) they have no clear proof of what they own;
   (4) dividends are slow or never arrive.
@@ -34,11 +40,22 @@ sentences, one clear message per line, and buttons that say exactly what happens
   - **Own it** — shares recorded in an online share register on blockchain; that record is your proof of ownership.
   - **Get paid** — dividends go straight into your wallet, automatically.
   - **Check it** — anyone can check the numbers and the share register for themselves.
-- **For businesses:** list your business to offer shares with all the information investors need.
+- **For businesses:** list your business on blockchain, with all the information investors need.
+- **Home paths (4 steps each):** *For investors* — pick a business or paste its website → read a plain report with a
+  fair value approved by a person → hold your shares in your own wallet → get the same updates and dividends as
+  every other investor. *For businesses* — paste your website (and, optionally, your numbers) → get a fair value
+  approved by a person → set up your shares and shareholders → list on blockchain and update every investor at once.
 - **How it works (public, 4 steps):** the business shares its numbers → independent analysis sets a fair value,
   approved by a person → shares are recorded on blockchain and held in your wallet → regular updates and dividends
   to your wallet.
-- **CTAs:** "Try it now — no sign-up" (instant demo, a private key is created in the browser) · "List your business" (`/start`).
+- **CTAs:** primary **"Evaluate a business"** (`/start`) · secondary **"List on blockchain"** (`/start?goal=list`, same
+  flow, copy tuned to listing shares). VI: "Đánh giá doanh nghiệp" · "Niêm yết trên blockchain". No "Try it now"
+  button: the shared demo account opens by itself on the first visit, shown as a small "You're in the demo account" chip.
+- **Founder flow in plain words:** phases **Evaluate** (1 Website · 2 Research · 3 Valuation) → **Set up shares**
+  (4 Share code · 5 Shareholders) → **List on blockchain** (6 Create shares · 7 Copy to public chains · 8 Add to
+  wallet). The report says "Business score" (not SVI). Technical names stay on `/verify`, `/hsk` and admin.
+- **Status, not warnings:** one slim status bar (status · step n of 8 · elapsed · next action) at the top of the
+  valuation, company and portfolio screens; research notes sit in a collapsed "Notes (n)" at the end of the report.
 - **Who buys:** investors (retail and professional) in private businesses; founders & SMEs raising from them
   (Australia, Vietnam); accelerators & VCs; licensed crowd-sourced-funding intermediaries and transfer agents;
   RWA ecosystems (HashKey Chain).
@@ -50,7 +67,8 @@ sentences, one clear message per line, and buttons that say exactly what happens
 
 ## How it works (canonical flow)
 
-1. **Founder** pastes a website (optional self-reported revenue figures) and later enters shareholders
+1. **Founder** pastes a website (checked first: syntax, look-alike `xn--` hosts with a "Did you mean …?" hint,
+   DNS and the homepage via `POST /v1/studio/check-url`; optional self-reported revenue figures) and later enters shareholders
    (name, wallet, %). Default issue price **A$1.00 per share** → shares = approved valuation ÷ 1.
 2. **AI agents (no keys):** read the public site (≤ 6 pages, SSRF-safe) → competitor discovery (≤ **3 web searches**
    per valuation: competitors, market, company financials; Brave → Claude web-search bridge; model-suggested
@@ -82,7 +100,7 @@ Every feature is its own screen with its own URL, a left rail and a previous / n
 
 | Area | Screens (URL) | Order |
 |---|---|---|
-| Founder flow | 1 Website `/start` · 2 AI research `/v/:id/research` · 3 Valuation `/v/:id/report` · ◆ gate 1 · 4 Ticker `/v/:id/ticker` · 5 Shareholders `/v/:id/holders` · ◆ gate 2 · 6 Issue `/c/:tk/issue` · 7 Sync chains `/c/:tk/sync` · 8 Wallet `/c/:tk/wallet` | Phases: **Value** (1–3), **Structure** (4–5), **Go live** (6–8) |
+| Founder flow | 1 Website `/start` (`?goal=list`, `?url=`) · 2 Research `/v/:id/research` · 3 Valuation `/v/:id/report` · ◆ gate 1 · 4 Share code `/v/:id/ticker` · 5 Shareholders `/v/:id/holders` · ◆ gate 2 · 6 Create shares `/c/:tk/issue` · 7 Copy to public chains `/c/:tk/sync` · 8 Add to wallet `/c/:tk/wallet` | Phases: **Evaluate** (1–3), **Set up shares** (4–5), **List on blockchain** (6–8) |
 | Company workspace | `/c/:tk/overview` · `cap-table` · `transfers` · `mint` ◆ · `dividends` ◆ · `activity` · `team` · `/verify/:tk` | After step 8 |
 | Admin console | `/admin` inbox · `/admin/dashboard` · queues in flow order: 1 `valuations` ◆ · 2 `issuance` ◆ · 3 `sync` · 4 `mints` ◆ · 5 `dividends` ◆ · 6 `transfers` · registry `companies`, `wallets` · `audit` | One item per screen: `/admin/<queue>/<item>` |
 
@@ -132,5 +150,5 @@ When numbers change, update this table first, then README "Results", the decks a
 | "Issuance Studio" or "Startup Passport" in user-facing copy | **BlockID Business Passport** |
 | "returns", "yield", "guaranteed", "earn", any promise of gains | plain facts: fair value, updates, dividends paid; always the legal line. "invest" / "investor" are allowed |
 | "offer" of shares to the public (except "not an offer" in the legal line) | "list your business", "businesses can offer shares with all the information investors need" (demo context) |
-| "AI", "agent", "LLM", "model" in public marketing copy | independent analysis, checked, regular updates |
+| "AI", "agent", "LLM", "model" in public marketing copy (exception: "AI-analysed" is allowed in the elevator pitch only) | independent analysis, checked, regular updates |
 | Jargon on public pages: SVI, Merkle, issuer, mirror, anchor, relayer, "agents propose", four-eyes, ERC-3643, Hoodi, HashKey, SIWE, mAUD, gate, provenance | plain words: fair value, share register, recorded on blockchain, approved by a person, check the records. Technical names stay in docs, `/verify` and `/hsk` |

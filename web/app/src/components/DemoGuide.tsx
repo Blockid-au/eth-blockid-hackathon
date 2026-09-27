@@ -11,26 +11,25 @@ export function safeNext(raw: string | null | undefined): string | null {
 }
 
 /**
- * Testnet-demo convenience for judges: how to approve a pending item with the demo admin account.
+ * Testnet-demo convenience for judges: a small chip saying how to approve a pending item with the demo admin account.
  * Shown to non-admins wherever an admin approval is pending. `action` is the button label they will press.
- * With `admin`, the button opens that exact admin queue item and returns to `next` after the decision.
+ * With `admin`, the link opens that exact admin queue item and returns to `next` after the decision.
+ * (`tail` is kept for callers; the chip is one line, so it is not shown.)
  */
-export function DemoApproveGuide({ action, tail, next, admin }: { action: string; tail: DictKey; next?: string; admin?: string }) {
+export function DemoApproveGuide({ action, next, admin }: { action: string; tail?: DictKey; next?: string; admin?: string }) {
   const { t } = useI18n();
   const loc = useLocation();
   const back = safeNext(next ?? loc.pathname + loc.search) ?? "/";
   return (
-    <aside className="demoguide" aria-labelledby="demo-h">
-      <span className="demotag">{t("demo.tag")}</span>
-      <b id="demo-h">{t("demo.h")}</b>
-      <ol>
-        <li>{t("demo.s1")}</li>
-        <li>{t("demo.s2")}</li>
-        <li>{t("demo.s3")}</li>
-        <li>{t("demo.s4", { a: action })}</li>
-      </ol>
-      <p>{t(tail)}</p>
-      <Link className="btn gold" to={admin ? `${admin}?return=${encodeURIComponent(back)}` : `/admin?next=${encodeURIComponent(back)}`}>{admin ? t("gate.open") : t("demo.btn")}</Link>
-    </aside>
+    <p className="demochip">
+      <span className="demotag">{t("demo.chip")}</span>
+      <span>{t("demo.chip.p", { a: action })}</span>
+      <Link to={admin ? `${admin}?return=${encodeURIComponent(back)}` : `/admin?next=${encodeURIComponent(back)}`}>{t("demo.chip.btn")} →</Link>
+    </p>
   );
+}
+
+/** Deep link used by status bars: the admin item to approve, returning to `next`. */
+export function demoApproveLink(admin: string, next: string): string {
+  return `${admin}?return=${encodeURIComponent(safeNext(next) ?? "/")}`;
 }

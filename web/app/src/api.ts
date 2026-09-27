@@ -405,6 +405,9 @@ export interface AdminWallets {
 export type AdminCompany = ApprovalCompany & { local_token?: string | null; hoodi_token?: string | null; hsk_token?: string | null; error?: string | null; error_info?: ErrorInfo | null; created_at?: string; updated_at?: string };
 type Val = Valuation;
 
+/** POST /v1/studio/check-url (studio/urlcheck.py). `reason` maps to the url.<reason> dictionary keys. */
+export interface UrlCheckResult { ok: boolean; url: string | null; title: string | null; reason: string | null; message: string | null; suggestion: string | null }
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -482,6 +485,7 @@ export const api = {
   demoHoldings: () => request<Holdings>("GET", "/v1/demo/holdings"),
   mailTest: (to: string) => request<{ ok: boolean }>("POST", "/v1/admin/mail/test", { to }),
   // studio
+  checkUrl: (url: string) => request<UrlCheckResult>("POST", "/v1/studio/check-url", { url }),
   createValuation: (url: string, metrics?: SelfReported) =>
     request<{ id: string }>("POST", "/v1/studio/valuations", metrics && Object.keys(metrics).length ? { url, metrics } : { url }),
   valuation: (id: string) => request<Valuation>("GET", `/v1/studio/valuations/${enc(id)}`),

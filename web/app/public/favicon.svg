@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="starGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00C0FF" />
+      <stop offset="50%" stop-color="#0077FE" />
+      <stop offset="100%" stop-color="#0040D0" />
+    </linearGradient>
+    <style>
+      .oct { stroke: #002B7F; }
+      @media (prefers-color-scheme: dark) {
+        .oct { stroke: #4F80E2; }
+      }
+    </style>
+  </defs>
+  <!-- Background disc for perfect contrast in all environments -->
+  <rect width="256" height="256" rx="56" fill="#FFFFFF" fill-opacity="0.08" />
+  <!-- Octagon outer frame -->
+  <polygon class="oct" points="80,24 176,24 232,80 232,176 176,232 80,232 24,176 24,80"
+           stroke-width="16" stroke-linejoin="round" fill="none" />
+  <!-- Star -->
+  <path d="M 128,54
+           C 128,98 158,128 202,128
+           C 158,128 128,158 128,202
+           C 128,158 98,128 54,128
+           C 98,128 128,98 128,54 Z"
+        stroke="url(#starGrad)" stroke-width="15" stroke-linejoin="round" fill="none" />
+</svg>

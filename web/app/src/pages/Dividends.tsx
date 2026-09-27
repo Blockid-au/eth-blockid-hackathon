@@ -114,7 +114,7 @@ function PolicyCard({ v, onChanged }: { v: DividendPolicyView; onChanged: (v: Di
         {p && <PolicyPill s={p.status} />}
       </div>
       <p className="sub">{t("dvp.p")}</p>
-      {!v.live && <p className="banner gold">{t("dvp.onlylive")}</p>}
+      {!v.live && <p className="quietline">{t("dvp.onlylive")}</p>}
       {!p && v.live && <span className="muted-sm">{t("dvp.none")}</span>}
       {p && !showForm && <div className="pane"><PolicySummary p={p} /></div>}
       {p?.status === "rejected" && <p className="banner bad" role="note">{t("dvp.rejected", { r: p.reason || "–" })}</p>}

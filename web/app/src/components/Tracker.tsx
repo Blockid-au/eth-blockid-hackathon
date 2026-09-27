@@ -149,7 +149,7 @@ export function Tracker({ c, onChanged, only, feed = true }: { c: CompanyDetail;
                   ))}
                 </ul>
               )}
-              {s.error && s.state === "rejected" && <p className="banner bad" role="alert" style={{ margin: "6px 0 0" }}>{s.error}</p>}
+              {s.error && s.state === "rejected" && <p className="quietline bad" role="alert">{s.error}</p>}
               {s.error && (s.state === "failed" || s.state === "skipped") && (
                 <div style={{ margin: "6px 0 0" }}>
                   <ErrorFix error={s.error} info={c.error_info?.chains?.[STAGE_CHAIN[s.key]] ?? null} ticker={c.ticker}

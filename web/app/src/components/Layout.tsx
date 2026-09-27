@@ -113,6 +113,24 @@ function AdminCount({ label }: { label: string }) {
   return <NavLink to="/admin">{label}{n > 0 && <span className="badge-n" aria-label={`${n}`}>{n}</span>}</NavLink>;
 }
 
+export function BlockIDLogo({ className = "brand-mark", size = 28 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 240 240" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="brandStar" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00C0FF" />
+          <stop offset="50%" stopColor="#0077FE" />
+          <stop offset="100%" stopColor="#0040D0" />
+        </linearGradient>
+      </defs>
+      <polygon className="brand-oct" points="76,16 164,16 224,76 224,164 164,224 76,224 16,164 16,76"
+               stroke="#002B7F" strokeWidth="16" strokeLinejoin="round" fill="none" />
+      <path d="M 120,48 C 120,90 150,120 192,120 C 150,120 120,150 120,192 C 120,150 90,120 48,120 C 90,120 120,90 120,48 Z"
+            stroke="url(#brandStar)" strokeWidth="15" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
 export function Nav() {
   const { t, lang, setLang } = useI18n();
   const mine = useMyCompanies().list;
@@ -123,7 +141,10 @@ export function Nav() {
     <header className="nav">
       <a className="skip" href="#main">{t("nav.skip")}</a>
       <div className="wrap wide">
-        <Link className="brand" to="/"><span className="mark" aria-hidden="true" />BlockID</Link>
+        <Link className="brand" to="/" aria-label="BlockID.au">
+          <BlockIDLogo size={28} />
+          <span className="brand-name">BlockID<span className="brand-tld">.au</span></span>
+        </Link>
         <button className="menubtn" type="button" aria-expanded={open} aria-controls="primary-links" onClick={() => setOpen((o) => !o)}>{open ? "✕" : "☰"}<span className="sr-only">{t("nav.menu")}</span></button>
         <nav id="primary-links" className={"links" + (open ? " open" : "")} aria-label={t("nav.primary")}>
           <NavLink to="/i" end={false}>{t("nav.investors")}</NavLink>

@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { api } from "../api";
-import { useAuth, errText } from "../auth";
+import { useAuth } from "../auth";
 import { useAsync, useTitle } from "../lib/hooks";
 import { Spark } from "../components/charts";
 import { GRADE_C } from "../lib/math";
@@ -11,33 +10,52 @@ import type { DictKey } from "../dict";
 
 const Check = () => <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 8.5l3 3 7-7" /></svg>;
 
-/** Primary + secondary call to action, shared by the hero and the final band. */
-function Ctas({ note = false, dark = false }: { note?: boolean; dark?: boolean }) {
+/** Primary + secondary call to action, shared by the hero and the final band. The demo account opens by itself. */
+function Ctas({ dark = false, chip = false }: { dark?: boolean; chip?: boolean }) {
   const { t } = useI18n();
-  const { tryDemo, busy } = useAuth();
-  const navigate = useNavigate();
-  const [err, setErr] = useState("");
-  const go = async () => {
-    setErr("");
-    try {
-      await tryDemo();
-      navigate("/i");
-    } catch (e) {
-      setErr(errText(e, t));
-    }
-  };
+  const { me } = useAuth();
   return (
     <div className="hv-ctas">
       <div className="ctas">
-        <button className="btn" type="button" onClick={() => void go()} disabled={busy} aria-busy={busy}>
-          {busy && <span className="spinner" aria-hidden="true" />}
-          {busy ? t("hv.trying") : t("hv.try")}
-        </button>
-        <Link className={"btn ghost" + (dark ? " hv-onDark" : "")} to="/start">{t("cta.primary")}</Link>
+        <Link className="btn" to="/start">{t("cta.primary")}</Link>
+        <Link className={"btn ghost" + (dark ? " hv-onDark" : "")} to="/start?goal=list">{t("cta.list")}</Link>
       </div>
-      {note && <p className="hv-note">{t("hv.tryNote")}</p>}
-      {err && <p className="err" role="alert">{err}</p>}
+      {chip && me?.auth_method === "demo" && (
+        <span className="hv-chip" title={t("hv.demoChip.tip")}><i aria-hidden="true" />{t("hv.demoChip")} · <Link to="/i">{t("in.title")}</Link></span>
+      )}
     </div>
+  );
+}
+
+/** Two audiences, one simple visual each. */
+function Paths() {
+  const { t } = useI18n();
+  const INV: DictKey[] = ["hv.pi.1", "hv.pi.2", "hv.pi.3", "hv.pi.4"];
+  const BIZ: DictKey[] = ["hv.pb.1", "hv.pb.2", "hv.pb.3", "hv.pb.4"];
+  return (
+    <section className="block" id="how" aria-labelledby="paths-h">
+      <div className="wrap">
+        <div className="head">
+          <span className="eyebrow">{t("hv.paths.eyebrow")}</span>
+          <h2 id="paths-h">{t("hv.paths.h2")}</h2>
+          <p>{t("hv.paths.p")}</p>
+        </div>
+        <div className="hv-paths">
+          <div className="hv-path" aria-labelledby="pi-h">
+            <h3 id="pi-h">{t("hv.pi.h")}</h3>
+            <p>{t("hv.pi.p")}</p>
+            <ol>{INV.map((k) => <li key={k}>{t(k)}</li>)}</ol>
+            <Link className="btn" to="/start">{t("hv.pi.cta")} <span aria-hidden="true">→</span></Link>
+          </div>
+          <div className="hv-path biz" aria-labelledby="pb-h">
+            <h3 id="pb-h">{t("hv.pb.h")}</h3>
+            <p>{t("hv.pb.p")}</p>
+            <ol>{BIZ.map((k) => <li key={k}>{t(k)}</li>)}</ol>
+            <Link className="btn ghost" to="/start?goal=list">{t("hv.pb.cta")} <span aria-hidden="true">→</span></Link>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -84,12 +102,6 @@ function HoldingCard() {
 
 const PAINS = [1, 2, 3, 4] as const;
 const PILLARS = [1, 2, 3, 4, 5] as const;
-const STEPS = [1, 2, 3, 4] as const;
-const AUDIENCE: { h: DictKey; items: DictKey[] }[] = [
-  { h: "hv.inv.all.h", items: ["hv.inv.all.1", "hv.inv.all.2", "hv.inv.all.3", "hv.inv.all.4"] },
-  { h: "hv.inv.small.h", items: ["hv.inv.small.1", "hv.inv.small.2", "hv.inv.small.3"] },
-  { h: "hv.inv.large.h", items: ["hv.inv.large.1", "hv.inv.large.2", "hv.inv.large.3"] },
-];
 const PILLAR_ICONS = [
   <path key="1" d="M4 5h16v14H4zM8 9h8M8 13h5" />,
   <path key="2" d="M4 18l5-6 4 3 7-9M15 6h5v5" />,
@@ -174,12 +186,14 @@ export function Home() {
             <span className="eyebrow">{t("hero.eyebrow")}</span>
             <h1 style={{ marginTop: 16 }}>{t("hero.h1a")} <em>{t("hero.h1b")}</em></h1>
             <p className="pitch hv-pitch">{t("hero.pitch")}</p>
-            <Ctas note />
+            <Ctas chip />
             <p className="legal">{t("hero.legal")}</p>
           </div>
           <HoldingCard />
         </div>
       </section>
+
+      <Paths />
 
       <section className="block" id="problem" aria-labelledby="prob-h">
         <div className="wrap">
@@ -216,44 +230,6 @@ export function Home() {
               </li>
             ))}
           </ul>
-        </div>
-      </section>
-
-      <section className="block" id="investors" aria-labelledby="inv-h">
-        <div className="wrap">
-          <div className="head">
-            <span className="eyebrow">{t("hv.inv.eyebrow")}</span>
-            <h2 id="inv-h">{t("hv.inv.h2")}</h2>
-          </div>
-          <div className="hv-aud">
-            {AUDIENCE.map((g) => (
-              <div key={g.h} className="hv-audcol">
-                <h3>{t(g.h)}</h3>
-                <ul>
-                  {g.items.map((k) => <li key={k}><Check /><span>{t(k)}</span></li>)}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="block" id="how" aria-labelledby="how-h">
-        <div className="wrap">
-          <div className="head">
-            <span className="eyebrow">{t("nav.how")}</span>
-            <h2 id="how-h">{t("hv.how.h2")}</h2>
-            <p>{t("hv.how.p")}</p>
-          </div>
-          <ol className="hv-steps">
-            {STEPS.map((i) => (
-              <li key={i}>
-                <span className="hv-num" aria-hidden="true">{i}</span>
-                <h3>{t(`hv.how.${i}h` as DictKey)}</h3>
-                <p>{t(`hv.how.${i}p` as DictKey)}</p>
-              </li>
-            ))}
-          </ol>
         </div>
       </section>
 

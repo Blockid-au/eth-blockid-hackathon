@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useI18n } from "../i18n";
 import { api, type AdminWallets } from "../api";
 import { useAsync } from "../lib/hooks";
@@ -68,8 +69,17 @@ export function LowBalanceBanner({ wallets, compact = false }: { wallets?: Admin
   );
 }
 
-/** Self-fetching variant for places outside the admin console (e.g. the tracker's approve button). */
+/** Self-fetching quiet line for places outside the admin console (the step with the approve / re-sync button). */
 export function LowBalanceInline() {
+  const { t } = useI18n();
   const w = useAsync(() => api.adminWallets(), [], 60000);
-  return <LowBalanceBanner wallets={w.data} compact />;
+  const low = lowBalances(w.data);
+  if (!low.length) return null;
+  return (
+    <p className="quietline" role="note">
+      <span aria-hidden="true">⚠</span>
+      <span>{t("lb.quiet", { n: low.length })}</span>
+      <Link to="/admin/wallets">{t("lb.quiet.link")} →</Link>
+    </p>
+  );
 }

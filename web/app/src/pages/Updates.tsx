@@ -383,7 +383,7 @@ export function CompanyUpdates({ c, canManage, live }: { c: CompanyDetail; canMa
   return (
     <div className="stack">
       {manage && live && <PrepareForm c={c} onDone={(u) => { setOpenId(u.id); void q.reload(); }} />}
-      {manage && !live && <p className="banner gold">{t("upd.f.onlylive")}</p>}
+      {manage && !live && <p className="quietline">{t("upd.f.onlylive")}</p>}
       {!manage && <p className="note">{t("upd.f.viewer")}</p>}
       <div className="pane">
         <h4>{t("upd.list.h")}</h4>

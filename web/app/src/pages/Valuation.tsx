@@ -6,7 +6,8 @@ import { errText, useAuth } from "../auth";
 import { api, ApiError, type Evidence, type Svi, type TickerCandidate, type Valuation as Val } from "../api";
 import { Crumbs, FlowRail, Pager, SideLayout, StepHead, type PagerLink } from "../components/Shell";
 import { phaseOf, valAuto, valGate, valPath, valReach, VAL_STEP } from "../lib/flow";
-import { DemoApproveGuide } from "../components/DemoGuide";
+import { demoApproveLink } from "../components/DemoGuide";
+import { StatusBar, type StatusNext, type Tone } from "../components/StatusBar";
 import { Contrib, Donut, HBars, Legend, Radar, RangeChart } from "../components/charts";
 import { ErrorBox, Loading } from "../components/Layout";
 import { useAsync, useTitle } from "../lib/hooks";
@@ -134,14 +135,11 @@ function Report({ v, evidence, isAdmin, onDecided }: { v: Val; evidence: Evidenc
   const nSrc = (s: unknown) => (Array.isArray(s) ? s.length : typeof s === "number" ? s : 0);
   return (
     <div className="panel" role="region" aria-label={t("s3.h")}>
-      {v.status === "waiting_approval" && <p className="banner gold" role="status"><span className="spinner" aria-hidden="true" />{t("v.waiting")}</p>}
-      {v.status === "rejected" && <p className="banner bad" role="status">{t("v.rejected")}</p>}
-      {!isAdmin && v.status === "waiting_approval" && <DemoApproveGuide action={t("s3.approve")} tail="demo.tail.val" admin={`/admin/valuations/${encodeURIComponent(v.id)}`} next={valPath(v.id, 4)} />}
       {isAdmin && v.status === "waiting_approval" && <AdminReview v={v} svi={svi} onDone={onDecided} />}
       <div className="row" style={{ gap: 14 }}>
         <span className="gradebadge" aria-label={`${t("ad.c.grade")} ${g}`}>{g}</span>
         <span className="bigno">{money(svi.valuation_mid_aud)}</span>
-        <span className="muted">SVI {fmt(svi.index, 1)} · {money(svi.valuation_low_aud)} – {money(svi.valuation_high_aud)}</span>
+        <span className="muted">{t("v.score", { s: fmt(svi.index, 1) })} · {money(svi.valuation_low_aud)} – {money(svi.valuation_high_aud)}</span>
       </div>
       <div className="cols">
         <div className="card"><h4>{t("s3.radar")}</h4><Radar dims={rows} /></div>
@@ -209,6 +207,38 @@ function Report({ v, evidence, isAdmin, onDecided }: { v: Val; evidence: Evidenc
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ================= notes: research warnings, collapsed at the end ================= */
+function Notes({ items }: { items: string[] }) {
+  const { t } = useI18n();
+  if (!items.length) return null;
+  return (
+    <details className="notes">
+      <summary>{t("v.notes", { n: items.length })}</summary>
+      <ul>{items.map((w, i) => <li key={i}>{w}</li>)}</ul>
+      <p>{t("v.notes.p")}</p>
+    </details>
+  );
+}
+
+/** The job stopped while reading the website (bad link, site down or blocking us). */
+export function siteReadFailed(v: Val): boolean {
+  if (v.status !== "failed") return false;
+  const step = v.steps.find((s) => s.key === "read_site");
+  return (!!step && /fail|error/i.test(step.status)) || /SiteError|could not read|not a website url|does not resolve|not a public/i.test(v.error ?? "");
+}
+
+function SiteFailed({ v }: { v: Val }) {
+  const { t } = useI18n();
+  return (
+    <div className="pane stateCard soft" role="alert">
+      <h2>{t("v.site.h")}</h2>
+      <p className="mono muted-sm" style={{ overflowWrap: "anywhere" }}>{v.url.replace(/^https?:\/\//, "")}</p>
+      <p>{t("v.site.p")}</p>
+      <div className="row"><Link className="btn" to={`/start?url=${encodeURIComponent(v.url.replace(/^https?:\/\//, "").replace(/\/$/, ""))}`}>{t("v.site.btn")}</Link></div>
     </div>
   );
 }
@@ -477,11 +507,25 @@ export default function ValuationPage() {
     return (
       <SideLayout rail={rail} label={t("flow.nav")}>
         <div className="stack">
-          {e instanceof ApiError && e.status === 404 ? <p className="banner warn">{t("v.notfound")}</p> :
-            e instanceof ApiError && (e.status === 401 || e.status === 403) ? (
-              <div className="banner gold"><span>{t("v.signin")}</span>{!me && !authLoading && <button className="btn sm" type="button" onClick={() => void connect().catch(() => undefined)}>{t("nav.connect")}</button>}</div>
-            ) : <ErrorBox error={e} retry={q.reload} />}
-          <Link to="/start" className="btn ghost" style={{ justifySelf: "start" }}>{t("v.newval")}</Link>
+          {e instanceof ApiError && (e.status === 401 || e.status === 403) ? (
+            <>
+              <StatusBar status={t("sb.st.private")} tone="idle" step={3} done={0} />
+              <div className="pane stateCard soft">
+                <h2>{t("v.private.h")}</h2>
+                <p>{t("v.private.p")}</p>
+                <div className="row">
+                  <Link to="/start" className="btn">{t("v.private.btn")}</Link>
+                  <Link to="/companies" className="btn ghost">{t("nav.companies")}</Link>
+                  {!me && !authLoading && <button className="btn ghost" type="button" onClick={() => void connect().catch(() => undefined)}>{t("nav.connect")}</button>}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {e instanceof ApiError && e.status === 404 ? <p className="quietline bad">{t("v.notfound")}</p> : <ErrorBox error={e} retry={q.reload} />}
+              <Link to="/start" className="btn ghost" style={{ justifySelf: "start" }}>{t("v.newval")}</Link>
+            </>
+          )}
         </div>
       </SideLayout>
     );
@@ -490,10 +534,20 @@ export default function ValuationPage() {
 
   const running = ACTIVE.includes(v.status) && v.status !== "waiting_approval";
   const HEAD: Record<number, [DictKey, DictKey]> = { 2: ["s2.h", "s2.p"], 3: ["s3.h", "s3.p"], 4: ["s4.h", "s4.p"], 5: ["s5.h", "s5.p"] };
-  const statusPill =
-    cur === 2 ? <span className="live" aria-live="polite">{running ? <i /> : null}{t(("v.st." + v.status) as DictKey)}</span>
-    : cur === 3 ? <span className={"pill " + (v.status === "approved" ? "ok" : v.status === "waiting_approval" ? "gold" : v.status === "rejected" || v.status === "failed" ? "bad" : "")}>{v.status === "approved" ? "✓ " : v.status === "waiting_approval" ? "◆ " : ""}{t(("v.st." + v.status) as DictKey)}</span>
-    : cur === 5 ? <span className="gatepill mono">{ticker}</span> : null;
+  const statusPill = cur === 5 ? <span className="gatepill mono">{ticker}</span> : null;
+  const isAdmin = me?.role === "admin" && !sample;
+  const SB: Record<string, [DictKey, Tone]> = {
+    queued: ["sb.st.queued", "run"], running: ["sb.st.researching", "run"], waiting_approval: ["sb.st.waiting", "wait"],
+    approved: ["sb.st.approved", "ok"], rejected: ["sb.st.rejected", "bad"], failed: ["sb.st.failed", "bad"],
+  };
+  const [sbKey, sbTone] = sample ? (["sb.st.sample", "idle"] as [DictKey, Tone]) : SB[v.status] ?? (["sb.st.queued", "idle"] as [DictKey, Tone]);
+  const retryTo = `/start?url=${encodeURIComponent(v.url.replace(/^https?:\/\//, "").replace(/\/$/, ""))}`;
+  let sbNext: StatusNext | null = null;
+  if (!sample && v.status === "waiting_approval" && !isAdmin) sbNext = { label: t("sb.next.approve"), to: demoApproveLink(`/admin/valuations/${encodeURIComponent(v.id)}`, valPath(v.id, 4)) };
+  else if (!sample && (v.status === "failed" || v.status === "rejected")) sbNext = { label: t("sb.next.retry"), to: retryTo };
+  else if (!sample && v.status === "approved" && cur < 4) sbNext = { label: t("step.4"), to: valPath(id, 4) };
+  const sbDone = sample ? 3 : v.status === "approved" ? 3 : v.svi ? 2 : 1;
+  const siteFail = siteReadFailed(v);
 
   // pager
   const prev = cur > 2 ? { to: valPath(id, cur - 1), label: t(("step." + (cur - 1)) as DictKey) } : { to: "/start", label: t("step.1") };
@@ -515,21 +569,25 @@ export default function ValuationPage() {
   return (
     <SideLayout rail={rail} label={t("flow.nav")}>
       <Crumbs items={[{ to: "/start", label: t("nav.studio") }, { label: host }, { label: `${String(cur).padStart(2, "0")} ${t(("step." + cur) as DictKey)}` }]} />
+      <StatusBar status={t(sbKey)} tone={sbTone} step={cur} done={sbDone} since={running ? v.created_at : null} next={sbNext} />
       <StepHead eyebrow={t("flow.stepof", { n: cur, p: t(("flow.ph." + phaseOf(cur)) as DictKey) }) + (sample ? " · " + t("cta.secondary") : "")}
         title={t(HEAD[cur][0])} desc={t(HEAD[cur][1])} right={statusPill} />
-      {toast && <p className="banner ok" role="status">{toast}</p>}
-      {v.status === "failed" && <p className="banner bad" role="alert">{t("v.failed", { e: v.error || "" })}</p>}
-      {(v.warnings ?? []).length > 0 && <div className="banner warn" role="status"><b>{t("v.warn")}</b>{(v.warnings ?? []).map((w, i) => <span key={i}>· {w}</span>)}</div>}
+      {toast && <p className="toast" role="status">{toast}</p>}
+      {v.status === "failed" && !siteFail && (
+        <p className="quietline bad" role="alert"><span>{t("v.stopped", { e: (v.error || "").slice(0, 160) })}</span><Link to={retryTo}>{t("sb.next.retry")} →</Link></p>
+      )}
       {q.error ? <ErrorBox error={q.error} retry={q.reload} /> : null}
 
+      {cur === 2 && siteFail && <SiteFailed v={v} />}
       {cur === 2 && <AgentLog v={v} />}
-      {cur === 3 && v.svi && <Report v={v} evidence={ev.data} isAdmin={me?.role === "admin" && !sample} onDecided={(x) => q.setData(x)} />}
+      {cur === 3 && v.svi && <Report v={v} evidence={ev.data} isAdmin={isAdmin} onDecided={(x) => q.setData(x)} />}
       {cur === 4 && !sample && (
         <div className="panel"><TickerStep name={name} setName={setName} ticker={ticker} setTicker={setTicker} /></div>
       )}
       {cur === 5 && !sample && (
         <div className="panel"><HoldersStep v={v} name={name} ticker={ticker} defaultWallet={me?.address} /></div>
       )}
+      {(cur === 2 || cur === 3) && <Notes items={v.warnings ?? []} />}
       {cur !== 5 && <Pager prev={prev} next={next} reason={reason} />}
     </SideLayout>
   );

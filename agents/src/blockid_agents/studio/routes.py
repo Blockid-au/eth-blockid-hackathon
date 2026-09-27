@@ -31,6 +31,7 @@ from ..tools import captable
 from ..tools import ticker as tickers
 from ..tools.merkle import build_distribution
 from . import metrics
+from . import urlcheck
 from .errors import company_error_info
 from .company_admins import CompanyAuthz, seed_owner
 from .gas import GasDripper
@@ -86,6 +87,10 @@ class LoginBody(Body):
 class ChangePasswordBody(Body):
     current: str = Field(max_length=200)
     new: str = Field(max_length=200)
+
+
+class CheckUrlBody(Body):
+    url: str = Field(max_length=2048)
 
 
 class ValuationBody(Body):
@@ -148,6 +153,8 @@ class StudioContext:
     issuer: IssuerClient | None = None
     runner_factory: Callable[[], Any] | None = None
     throttle: LoginThrottle = field(default_factory=LoginThrottle)
+    url_limiter: urlcheck.RateLimiter = field(default_factory=urlcheck.RateLimiter)
+    url_checker: Callable[[str], dict] = urlcheck.check_url  # tests swap in a fake
     rpc_transport: httpx.AsyncBaseTransport | None = None  # tests
     automation: Any = None  # dividend_policy.DividendAutomation, set by build_router
     _runner: Any = None
@@ -407,12 +414,27 @@ def build_router(ctx: StudioContext) -> APIRouter:
         return out
 
     def load_valuation(vid: str, sess: Session) -> dict:
-        row = ctx.need_db().get_valuation(vid)
+        """Readable by admins, the requester (the shared demo account is one address), and any signed-in viewer
+        once the valuation backs a listed business (a company with an on-chain status). Drafts stay private."""
+        db = ctx.need_db()
+        row = db.get_valuation(vid)
         if not row:
             raise HTTPException(404, "unknown valuation")
-        if not (sess.is_admin or is_owner(sess, row["requested_by"])):
+        if sess.is_admin or is_owner(sess, row["requested_by"]):
+            return row
+        listed = db.one("SELECT 1 AS x FROM studio.companies WHERE valuation_id=%s AND status = ANY(%s) LIMIT 1",
+                        (vid, list(ONCHAIN_STATUSES)))
+        if not listed:
             raise HTTPException(403, "not your valuation")
         return row
+
+    @r.post("/v1/studio/check-url")
+    def check_url(body: CheckUrlBody, request: Request):
+        """Link check before a valuation starts: normalise, DNS, homepage (SSRF-safe). No sign-in needed;
+        rate-limited per client IP. Always 200 with {ok, reason, ...} unless rate-limited."""
+        if not ctx.url_limiter.allow(_client_ip(request)):
+            raise HTTPException(429, "too many link checks; wait a minute and try again")
+        return ctx.url_checker(body.url)
 
     @r.post("/v1/studio/valuations", status_code=202)
     def create_valuation(body: ValuationBody, sess: Session = Depends(require_user)):

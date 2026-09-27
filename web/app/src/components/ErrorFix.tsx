@@ -72,25 +72,22 @@ export function ErrorFix({ error, info, ticker, companyId, onDone, hideLink }: {
   };
 
   return (
-    <div className="banner bad fixbox" role="alert">
-      <div className="grow">
+    <div className="fixline" role="alert">
+      <div className="fixrow">
+        <span aria-hidden="true" className="fixdot">!</span>
         <b>{t(`fix.${code}.h` as DictKey, { c: where })}</b>
-        <p className="fix-p">{t(`fix.${code}.p` as DictKey, { n: missing != null ? fmt(missing) : "?" })}</p>
-        {!admin && (i.action === "refresh" || i.action === "resync") && <p className="muted-sm fix-p">{t("fix.adminonly")}</p>}
-        <div className="row fix-actions">
-          {canRefresh && <button className="btn gold sm" type="button" disabled={busy} onClick={refresh}>{t("fix.refresh")}</button>}
-          {!hideLink && (admin || i.target === "cap-table" || i.target === "sync" || i.target === "tracker") && (
-            <Link className="btn ghost sm" to={targetPath(i, ticker)}>{t(`fix.go.${i.target}` as DictKey)}</Link>
-          )}
-        </div>
-        {msg && <p className={msg.ok ? "toast" : "err"} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
-        {error && (
-          <details className="fix-raw">
-            <summary className="muted-sm">{t("fix.raw")}</summary>
-            <code className="mono">{error}</code>
-          </details>
+        {canRefresh && <button className="btn gold sm" type="button" disabled={busy} onClick={refresh}>{t("fix.refresh")}</button>}
+        {!hideLink && (admin || i.target === "cap-table" || i.target === "sync" || i.target === "tracker") && (
+          <Link className="fixlink" to={targetPath(i, ticker)}>{t(`fix.go.${i.target}` as DictKey)} →</Link>
         )}
       </div>
+      {msg && <p className={msg.ok ? "toast" : "err"} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
+      <details className="fix-raw">
+        <summary className="muted-sm">{t("fix.raw")}</summary>
+        <p className="fix-p">{t(`fix.${code}.p` as DictKey, { n: missing != null ? fmt(missing) : "?" })}</p>
+        {!admin && (i.action === "refresh" || i.action === "resync") && <p className="muted-sm fix-p">{t("fix.adminonly")}</p>}
+        {error && <code className="mono">{error}</code>}
+      </details>
     </div>
   );
 }

@@ -2,14 +2,18 @@
 
 ![BlockID Business Passport](docs/images/banner.png)
 
-## Know the business before you invest.
+## Know the business you invest in.
 
-**Understand it. Follow it. Own it. Get paid. Check it.**
+**Evaluate a business. List on blockchain.**
 
-See how a private business is really doing, in plain words. BlockID gives investors of every size regular updates
-with a fair value checked by people, an online share register on blockchain as proof of the shares they own, and
-dividends paid straight to their wallet. Businesses list with us to offer shares with all the information investors
-need, and anyone can check every number.
+BlockID Business Passport gives every shareholder, large or small, a live view of the business they own:
+AI-analysed, human-approved updates and valuations, an on-chain share register as proof of ownership, and dividends
+paid straight to their wallet.
+
+- **For investors:** a plain-language report and a fair value approved by a person, shares held in your own wallet,
+  and the same updates and dividends as every other investor.
+- **For businesses:** paste your website, get a fair value, set up your shares and shareholders, and list on
+  blockchain. Anyone can check every number.
 
 | | |
 |---|---|

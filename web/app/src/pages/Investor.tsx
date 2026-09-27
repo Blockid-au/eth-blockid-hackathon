@@ -12,6 +12,7 @@ import { GRADE_C } from "../lib/math";
 import { shortAddr } from "../lib/addr";
 import { CompanyUpdateList, UpdateFeed, UpdatePage } from "./Updates";
 import { DividendLedgerCard, UpcomingDividends } from "./Dividends";
+import { StatusBar } from "../components/StatusBar";
 
 /**
  * Investor portal: what you own, what it is worth at the latest approved price, and the dividends you received.
@@ -54,15 +55,26 @@ function Portfolio({ demo = false, tk }: { demo?: boolean; tk?: string }) {
         <h2>{mine ? t("in.h.mine") : t("in.h.demo")}</h2>
         <p>{mine ? t("in.p.mine") : t("in.p.demo")}</p>
       </div>
+      <PortfolioStatus h={h} mine={mine} />
       {!me && <SignInCard />}
-      {!mine && <div className="banner gold" role="note">{t("in.demo.banner")}</div>}
-      {mine && me?.auth_method === "demo" && <div className="banner gold" role="note">{t("in.demo.acct")} <Link to="/i/account">{t("nav.signin")}</Link></div>}
       {empty ? <Empty /> : <Summary h={h} base={base} />}
       {!empty && h.positions.length > 0 && <DividendLedgerCard demo={!mine} />}
       {!empty && h.positions.length > 0 && <UpdateFeed demo={!mine} />}
       {empty && <SampleBelow />}
       <p className="muted-sm">{t("in.legal")}</p>
     </div>
+  );
+}
+
+/** Slim status line for the portfolio: whose holdings these are, how many, what they are worth. */
+function PortfolioStatus({ h, mine }: { h: Holdings; mine: boolean }) {
+  const { t, money } = useI18n();
+  const { me } = useAuth();
+  const demoAcct = mine && me?.auth_method === "demo";
+  return (
+    <StatusBar status={t(!mine ? "sb.st.sample" : demoAcct ? "sb.st.demo" : "sb.st.mine")} tone={mine && !demoAcct ? "ok" : "idle"}
+      meta={t("sb.pf.meta", { n: h.positions.length, v: money(h.total_value_aud) }) + (demoAcct ? " · " + t("in.chip.demo") : !mine ? " · " + t("in.chip.sample") : "")}
+      next={demoAcct || !me ? { label: t("sb.pf.signin"), to: "/i/account" } : null} />
   );
 }
 
@@ -115,7 +127,7 @@ function PositionView({ p, demo, back }: { p: Position; demo: boolean; back: str
         <h2>{p.name}</h2>
         <p>{t("in.pos.sentence", { n: fmt(p.shares), s: fmt(p.supply), p: pct(p.pct, p.pct < 1 ? 3 : 2), price: aud(p.mark_aud, 3), v: money(p.value_aud) })}</p>
       </div>
-      {demo && <div className="banner gold" role="note">{t("in.demo.banner")}</div>}
+      {demo && <p className="chipline"><span className="infochip"><i aria-hidden="true" />{t("in.chip.sample")}</span></p>}
       <div className="kpis">
         <div className="kpi"><small>{t("in.k.value")}</small><b>{money(p.value_aud)}</b><span>{t("in.pos.price", { p: aud(p.mark_aud, 3) })}</span></div>
         <div className="kpi"><small>{t("in.pos.own")}</small><b>{pct(p.pct, p.pct < 1 ? 3 : 2)}</b><span>{t("in.pos.ownSub", { n: fmt(p.shares) })}</span></div>
