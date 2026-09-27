@@ -249,8 +249,8 @@ class Sessions:
             (session_key(self.secret, sid), address, username, role, timedelta(hours=hours or self.hours),
              account_id, auth_method),
         )
-        if secrets.randbelow(20) == 0:
-            self.db.exec("DELETE FROM studio.sessions WHERE expires_at < now()")
+        if secrets.randbelow(20) == 0:  # expired rows are kept 45 days: sign-in statistics (ops/stats.py)
+            self.db.exec("DELETE FROM studio.sessions WHERE expires_at < now() - interval '45 days'")
         return sid
 
     def get(self, sid: str | None) -> Session | None:
@@ -264,6 +264,12 @@ class Sessions:
         )
         if not row:
             return None
+        try:
+            from ..ops.errors import note_user
+
+            note_user(row["address"] or row["username"])  # hashed user id on the access-log line
+        except Exception:  # noqa: BLE001
+            pass
         return Session(role=row["role"], address=row["address"], username=row["username"],
                        account_id=row.get("account_id"), auth_method=row.get("auth_method"),
                        must_change=bool(row["must_change"]) and not password_locked() if row["username"] else False)

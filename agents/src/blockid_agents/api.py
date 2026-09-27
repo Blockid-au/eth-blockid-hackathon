@@ -120,12 +120,25 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
         auto.start(interval_from_env())
         offers.start(offering_interval())  # closes offerings whose closing date has passed (OFFERING_AUTOMATION_SECONDS)
         hrw.start(watchdog_interval_from_env())  # stalled HR runs: re-queue once, then fail (HR_WATCHDOG_SECONDS)
+        # ops (docs/PLAN-OPS.md): ERROR+ logs -> studio.ops_errors; monitor loop (leader-elected) for incidents,
+        # traffic, weekly report. OPS_ENABLED=0 disables the monitor (error capture stays on).
+        from .ops.errors import install_error_capture
+        from .ops.monitor import build_monitor
+
+        install_error_capture(app.state.studio.db, "api")
+        rt = app.state.ops
+        if rt.cfg.enabled:
+            rt.monitor = build_monitor(app.state.studio, rt.cfg)
+            if rt.monitor is not None:
+                rt.monitor.start()
         try:
             yield
         finally:
             auto.stop()
             offers.stop()
             hrw.stop()
+            if rt.monitor is not None:
+                rt.monitor.stop()
 
     app = FastAPI(title="BlockID Agents API", version="0.2.0", docs_url="/docs" if dev else None,
                   redoc_url="/redoc" if dev else None, openapi_url="/openapi.json" if dev else None, lifespan=lifespan)
@@ -153,6 +166,10 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
                 return JSONResponse({"detail": "missing Origin header"}, status_code=403)
         return await call_next(request)
 
+    from .ops.errors import install_access_log
+
+    install_access_log(app)  # outermost: X-Request-ID + one JSON access line per request (ops/errors.py)
+
     ctx = _studio_context(s, studio, chain, issuer, runner_factory)
     app.state.studio = ctx
     app.include_router(build_router(ctx))
@@ -166,6 +183,10 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     from .studio.ai_admin import build_ai_admin_router
 
     app.include_router(build_ai_admin_router(ctx))  # admin AI health: /v1/admin/ai/* (ai_gateway.py)
+    from .ops.api import OpsRuntime, build_ops_router
+
+    app.state.ops = OpsRuntime()
+    app.include_router(build_ops_router(ctx, app.state.ops))  # admin ops: /v1/admin/ops/* (ops/__init__.py)
 
 
     def auth(x_api_key: str = Header(default="")) -> None:

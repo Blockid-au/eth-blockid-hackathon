@@ -8,6 +8,7 @@ import type {
 import { allocate, median } from "./lib/math";
 import { hrApplyToVal, hrForValuation, hrHandle, hrInit, NO_MATCH } from "./mock.hr";
 import { aiHealth, aiPause, aiResume } from "./mock.ai";
+import { opsRoutes } from "./mock.ops";
 
 const DAY = 864e5;
 const NOW = Date.now();
@@ -494,6 +495,7 @@ const routes: [string, RegExp, H][] = [
     if (!out) throw new ApiError(404, "unknown model");
     return { ok: true, model: out };
   }],
+  ...opsRoutes(needAdmin, actor),
   ["GET", /^\/v1\/admin\/wallets$/, (): AdminWallets => { needAdmin(); return { admins: ADMIN_WALLETS, issuer: { address: ISSUER, local_balance: "9981.42", hoodi_balance: "3.214" }, relayer: { address: RELAYER, local_balance: "498.77", hoodi_balance: "0.412" } }; }],
 ];
 

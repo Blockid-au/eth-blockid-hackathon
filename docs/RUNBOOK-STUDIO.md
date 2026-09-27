@@ -82,3 +82,57 @@ Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid
   `POST /api/v1/admin/mail/test {"to": "..."}`. A welcome email is sent on the first Google sign-in.
 - CSP allows `https://accounts.google.com/gsi/*` (copy of the live snippet: `deploy/nginx/blockid-security-headers.conf`).
 - First-visit check: `scripts/screenshots/try-demo.mjs` (home → Try it now → portfolio → account → /start).
+
+## Operations: incidents, logs, usage statistics, weekly report (27 Sep 2026)
+
+Plan: [PLAN-OPS.md](PLAN-OPS.md) · per-incident fixes: [RUNBOOK-INCIDENTS.md](RUNBOOK-INCIDENTS.md) · code
+`agents/src/blockid_agents/ops/` (API contract in `ops/__init__.py`) · admin page `/admin/ops`.
+
+- **Monitor:** a thread in `agents-api` runs the check registry (`ops/checks.py`) every 60 s. Only one API process
+  runs it (Postgres advisory lock `blockid.ops.monitor`). Failing checks open incidents (`studio.ops_incidents`,
+  one per fingerprint), recovery resolves them. Emails go to `OPS_ALERT_TO`: critical immediately, warnings batched
+  every 15 min, a reminder after 2 h if not acknowledged, one on resolve, at most 10 an hour.
+- **Without SMTP** everything is stored and shown in Admin > Ops with "not emailed — SMTP not configured". Once
+  `SMTP_*` is set (see "Email from info@blockid.au" above) and `agents-api` is recreated, open incidents and the
+  latest report (< 8 days) are sent on the next round. Test: Admin > Ops > Send test email, or
+  `POST /api/v1/admin/ops/test-email`.
+- **Worker heartbeat:** `agents-worker` writes `studio.ops_checks_state` row `_hb:worker` every 30 s.
+- **Logs:** api / worker / issuer log JSON lines (`LOG_FORMAT=text` for the old format); each API response carries
+  `X-Request-ID`, and one `blockid.access` line per request has route template, status, latency and a hashed user
+  (never the IP or address). Docker rotates app-container logs (json-file 20 MB x 10). ERROR+ records (with
+  traceback) are also stored in `studio.ops_errors` for 30 days, deduplicated by fingerprint with a count
+  (Admin > Ops > Logs).
+- **nginx logs → traffic:** compose mounts the host's `/var/log/nginx` read-only at `/host-logs/nginx` in
+  `agents-api` and adds group `adm` (gid 4; the live logs are `www-data:adm 0640`). Hourly, the leader re-reads
+  `<host>.access.log`, `.1` and `.2.gz` for eth / hr / scan and upserts `studio.ops_traffic_daily` (UTC days; a
+  day is only replaced by a parse that saw at least as many requests). Unique visitors = daily-salted HMAC of
+  IP + user agent, computed in memory only; no raw IP is stored; bots / scanners / HeadlessChrome are filtered.
+  Host logrotate keeps 14 days (`/etc/logrotate.d/nginx`). Countries appear only if nginx logs `$http_cf_ipcountry`
+  as an extra quoted field (see `ops/traffic.py`).
+- **Weekly report:** Monday 08:00 Australia/Sydney to `OPS_REPORT_TO`, stored in `studio.ops_reports` (Admin > Ops
+  > Reports: preview, history, send now). Deploys section: run `scripts/record-deploy.sh "<what>"` after each
+  deploy (appends to `/mnt/app-data/agents/deploys.log` = `/data/deploys.log` in the container); optional
+  `OPS_GIT_DIR` (read-only repo mount) adds the week's `git log`.
+- **First deploy of ops** (compose changed: nginx log mount, `group_add`, `extra_hosts`, log rotation):
+  rebuild + `up -d --no-build agents-api agents-worker issuer` (the containers are recreated), then
+  `scripts/record-deploy.sh "ops monitor"`.
+
+| Env (app.env) | Default | Meaning |
+|---|---|---|
+| `OPS_ENABLED` | `1` | `0` stops the monitor (checks, mail, reports); error capture stays on |
+| `OPS_ALERT_TO` / `OPS_REPORT_TO` | `admin@blockid.au` | incident emails / reports (comma list allowed; report defaults to alert) |
+| `OPS_DAILY_DIGEST` | `0` | `1` = daily digest at 08:00 Sydney as well |
+| `OPS_INTERVAL_SECONDS` | `60` | monitor round |
+| `OPS_MAX_EMAILS_PER_HOUR` / `OPS_WARN_BATCH_MINUTES` / `OPS_REMINDER_HOURS` | `10` / `15` / `2` | email policy |
+| `OPS_HSK_WARN` / `OPS_ETH_WARN` / `OPS_BLKD_WARN` | `0.02` / `0.05` / `10` | issuer balance warn (critical: `*_CRIT` 0.005 / 0.01 / 1) |
+| `OPS_DISK_WARN_PCT` / `OPS_DISK_CRIT_PCT` | `80` / `90` | disk |
+| `OPS_TLS_WARN_DAYS` / `OPS_TLS_CRIT_DAYS` | `14` / `3` | certificates (edge + origin via `OPS_TLS_ORIGIN`, compose `host.docker.internal`) |
+| `OPS_5XX_WARN_PCT` / `OPS_5XX_CRIT_PCT` / `OPS_5XX_MIN_COUNT` | `2` / `10` / `5` | API 5xx share over 15 min |
+| `OPS_WORKER_STALE_SECONDS` / `OPS_QUEUE_WARN_MINUTES` / `OPS_QUEUE_CRIT_MINUTES` | `300` / `15` / `60` | worker / queue |
+| `OPS_ERRORS_WARN` / `OPS_ERROR_RETENTION_DAYS` | `20` / `30` | error-log burst / retention |
+| `OPS_DB_SIZE_WARN_GB` | `20` | Postgres size |
+| `OPS_PROBE_URLS` | eth `/api/healthz`, eth `/`, hr `/`, scan `/` | `site.up` probes |
+| `OPS_DEPLOY_LOG` / `OPS_GIT_DIR` | `/data/deploys.log` / empty | deploys in the weekly report |
+| `OPS_IP_SALT_SECRET` | `SESSION_SECRET` | secret of the daily visitor-hash salt |
+
+All thresholds and paths: `agents/src/blockid_agents/ops/config.py`.

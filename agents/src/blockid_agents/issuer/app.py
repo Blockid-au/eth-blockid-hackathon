@@ -216,9 +216,15 @@ def run() -> None:
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     from .service import Service
 
+    try:  # ERROR+ records -> studio.ops_errors (admin Ops > Logs); best effort
+        from ..ops.errors import install_error_capture_url
+
+        install_error_capture_url(os.environ.get("DATABASE_URL", ""), "issuer")
+    except Exception:  # noqa: BLE001
+        log.warning("ops error capture unavailable", exc_info=True)
     cfg = IssuerConfig()
     app = create_app(Service.from_env(cfg), cfg)  # decrypt keystores at startup: fail fast, not on first job
-    uvicorn.run(app, host="0.0.0.0", port=cfg.port)
+    uvicorn.run(app, host="0.0.0.0", port=cfg.port, log_config=None)  # root (JSON) logging, see ops/errors.py
 
 
 if __name__ == "__main__":

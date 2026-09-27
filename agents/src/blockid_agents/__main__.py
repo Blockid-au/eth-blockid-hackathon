@@ -130,7 +130,12 @@ def main() -> None:
     sp.add_argument("--no-research", action="store_true", help="skip Brave search")
     args = ap.parse_args()
     _load_dotenv()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    if args.cmd in ("api", "worker", "issuer"):
+        from .ops.errors import configure_logging
+
+        configure_logging(args.cmd)  # JSON lines (LOG_FORMAT=text for the classic format), docs/PLAN-OPS.md §2
+    else:
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     if args.cmd == "demo":
         logging.getLogger().setLevel(logging.WARNING)
@@ -140,13 +145,20 @@ def main() -> None:
 
         from .api import create_app
 
-        uvicorn.run(create_app(), host="0.0.0.0", port=8080)
+        uvicorn.run(create_app(), host="0.0.0.0", port=8080, log_config=None, access_log=False)  # JSON root logging;
+        # access lines come from ops/errors.py (route template, status, latency, hashed user; never the client IP)
     elif args.cmd == "worker":
         from .deps import Deps
         from .llm import build_llm
         from .worker import Worker
 
         w = Worker.from_settings(Deps.default(build_llm()))
+        if w.hr is not None:  # Postgres: store errors in studio.ops_errors + heartbeat for the ops monitor
+            from .ops.errors import install_error_capture
+            from .ops.monitor import start_heartbeat
+
+            install_error_capture(w.hr.db, "worker")
+            start_heartbeat(w.hr.db, "worker")
         w.drain() if args.once else w.forever()
     elif args.cmd == "issuer":
         try:

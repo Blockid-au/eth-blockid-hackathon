@@ -25,6 +25,17 @@ def _env(k: str, d: str = "") -> str:
     return os.environ.get(k, d).strip()
 
 
+# last outcomes of real send attempts in this process (any mail: welcome, test, ops) -> ops "email.delivery" check
+RECENT: list[tuple[float, bool, str | None]] = []
+
+
+def _record(ok: bool, error: str | None) -> None:
+    import time
+
+    RECENT.append((time.time(), ok, error))
+    del RECENT[:-20]
+
+
 class Mailer:
     def __init__(self) -> None:
         self.host = _env("SMTP_HOST")
@@ -33,6 +44,7 @@ class Mailer:
         self.password = _env("SMTP_PASSWORD")
         self.sender = _env("MAIL_FROM", formataddr(("BlockID Business Passport", "info@blockid.au")))
         self.reply_to = _env("MAIL_REPLY_TO", "info@blockid.au")
+        self.last_error: str | None = None  # why the last send() returned False (ops email-delivery check)
 
     @property
     def configured(self) -> bool:
@@ -50,6 +62,7 @@ class Mailer:
     def send(self, to: str, subject: str, text: str, html: str | None = None) -> bool:
         if not self.configured:
             log.info("mail not configured; skipped %r to %s", subject, to)
+            self.last_error = "SMTP not configured"
             return False
         msg = self.build(to, subject, text, html)
         ctx = ssl.create_default_context()
@@ -63,9 +76,13 @@ class Mailer:
                     smtp.starttls(context=ctx)
                     smtp.ehlo("eth.blockid.au")
                     self._deliver(smtp, msg)
+            self.last_error = None
+            _record(True, None)
             return True
         except Exception as e:  # noqa: BLE001 - best effort, logged
             log.warning("mail to %s failed: %s", to, e)
+            self.last_error = f"{type(e).__name__}: {e}"[:300]
+            _record(False, self.last_error)
             return False
 
     def _deliver(self, smtp: smtplib.SMTP, msg: EmailMessage) -> None:

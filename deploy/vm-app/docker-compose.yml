@@ -25,6 +25,13 @@ x-agents-env: &agents-env
   AI_VM_ZONE: ${AI_VM_ZONE:-asia-southeast1-c}
   AI_VM_NAME: blockid-ai
 
+# Docker log rotation for the app services (JSON lines from api / worker / issuer, docs/PLAN-OPS.md §2)
+x-app-logging: &app-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "10"
+
 services:
   caddy:
     image: caddy:2
@@ -50,8 +57,18 @@ services:
     command: ["python", "-m", "blockid_agents", "api"]
     env_file: [/opt/blockid/app.env, /opt/blockid/issuer.env]
     networks: [default, issuer]
-    environment: *agents-env
-    volumes: ["/mnt/app-data/agents:/data"]
+    environment:
+      <<: *agents-env
+      OPS_NGINX_LOG_DIR: /host-logs/nginx
+      OPS_TLS_ORIGIN: ${OPS_TLS_ORIGIN:-host.docker.internal}   # origin certificate check via the host nginx
+    # ops (docs/PLAN-OPS.md): host nginx logs read-only for traffic stats + 5xx rate; the live logs are
+    # www-data:adm 0640, so the container user joins group adm (gid 4). host-gateway = the host's nginx for TLS.
+    volumes:
+      - /mnt/app-data/agents:/data
+      - /var/log/nginx:/host-logs/nginx:ro
+    group_add: ["4"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    logging: *app-logging
     expose: ["8080"]
     depends_on: [postgres]
 
@@ -66,6 +83,7 @@ services:
       <<: *agents-env
       GPU_AUTOSTART: "false"  # no GPU VM on this single-host setup; cloud tiers run on DeepInfra
     volumes: ["/mnt/app-data/agents:/data"]
+    logging: *app-logging
     depends_on: [postgres]
 
   issuer:
@@ -83,6 +101,7 @@ services:
     volumes:
       - /opt/blockid/keys:/keys:ro
       - /mnt/app-data/agents:/data
+    logging: *app-logging
     expose: ["8090"]
     depends_on: [postgres, evmd]
 

@@ -27,6 +27,7 @@ import { StatusPill, UpdateView } from "./Updates";
 import { PolicyPill, PolicySummary } from "./Dividends";
 import { OfferingQueueItem } from "./Offerings";
 import { AiHealthTab } from "./AiHealth";
+import { OpsTab } from "./Ops";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
@@ -787,7 +788,7 @@ function AuditTab() {
 }
 
 /* ================= console ================= */
-const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "policies", "updates", "offerings", "transfers", "companies", "wallets", "audit", "ai"] as const;
+const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "policies", "updates", "offerings", "transfers", "companies", "wallets", "audit", "ai", "ops"] as const;
 type Section = (typeof SECTIONS)[number];
 
 function Console({ onPwRequired }: { onPwRequired: () => void }) {
@@ -813,7 +814,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const refreshAll = () => { void stats.reload(); void cos.reload(); void ap.reload(); void tr.reload(); };
   const title: Record<Section, string> = {
     inbox: t("ad.nav.inbox"), dashboard: t("ad.t.ov"), valuations: t("ad.q.valuations"), issuance: t("ad.q.issuance"), sync: t("ad.q.sync"),
-    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), policies: t("ad.q.policies"), updates: t("ad.q.updates"), offerings: t("ad.q.offerings"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"), ai: t("ad.t.ai"),
+    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), policies: t("ad.q.policies"), updates: t("ad.q.updates"), offerings: t("ad.q.offerings"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"), ai: t("ad.t.ai"), ops: t("ad.t.ops"),
   };
   const isQueue = (QUEUES.map((x) => x.key) as string[]).includes(section);
   const rail = (
@@ -833,6 +834,9 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
       <RailGroup title={t("ad.nav.trust")}>
         <RailItem to="/admin/audit" current={section === "audit"}>{t("ad.t.au")}</RailItem>
         <RailItem to="/admin/ai" current={section === "ai"}>{t("ad.t.ai")}</RailItem>
+      </RailGroup>
+      <RailGroup title={t("ad.nav.ops")}>
+        <RailItem to="/admin/ops" current={section === "ops"}>{t("ad.t.ops")}</RailItem>
       </RailGroup>
     </>
   );
@@ -859,6 +863,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
       {section === "wallets" && <WalletsTab />}
       {section === "audit" && <AuditTab />}
       {section === "ai" && <AiHealthTab />}
+      {section === "ops" && <OpsTab />}
     </SideLayout>
   );
 }

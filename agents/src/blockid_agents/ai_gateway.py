@@ -80,21 +80,23 @@ SCHEMA_PROFILES: dict[str, str] = {
 # Claude reference / grounded answers), typical p90 latency in s. Keys: model id, or the model part after the
 # provider (same weights on either provider unless listed). Refresh with scripts/ai-benchmark.py.
 PRIORS: dict[str, dict[str, tuple[float, float]]] = {
+    # (quality 0-1, p90 latency s) from scripts/ai-benchmark.py --run, 27 Sep 2026
+    # (scripts/fixtures/ai-benchmark-results.json: schema-valid, grounded facts, fin extraction, score MAE vs Claude)
     "extract_json": {
-        "claude-bridge": (0.95, 35), "claude-cli": (0.95, 35),
-        "sambanova:DeepSeek-V3.1": (0.84, 9), "sambanova:gpt-oss-120b": (0.82, 8),
-        "sambanova:DeepSeek-V3.2": (0.8, 12), "sambanova:Meta-Llama-3.3-70B-Instruct": (0.7, 5),
-        "sambanova:gemma-4-31B-it": (0.68, 12),
-        "deepinfra:deepseek-ai/DeepSeek-V4-Flash": (0.86, 20), "deepinfra:openai/gpt-oss-120b": (0.76, 16),
-        "deepinfra:Qwen/Qwen3-235B-A22B-Instruct-2507": (0.78, 40),
+        "claude-bridge": (0.95, 124), "claude-cli": (0.95, 124),
+        "sambanova:DeepSeek-V3.2": (0.92, 18), "sambanova:DeepSeek-V3.1": (0.86, 25),
+        "sambanova:gpt-oss-120b": (0.84, 9), "sambanova:Meta-Llama-3.3-70B-Instruct": (0.8, 11),
+        "sambanova:gemma-4-31B-it": (0.78, 20),
+        "deepinfra:deepseek-ai/DeepSeek-V4-Flash": (0.92, 28), "deepinfra:openai/gpt-oss-120b": (0.6, 62),
+        "deepinfra:Qwen/Qwen3-235B-A22B-Instruct-2507": (0.84, 65),
     },
     "reason_score": {
-        "claude-bridge": (0.97, 40), "claude-cli": (0.97, 40),
-        "sambanova:gpt-oss-120b": (0.77, 8), "sambanova:DeepSeek-V3.1": (0.72, 9),
-        "sambanova:DeepSeek-V3.2": (0.69, 13), "sambanova:Meta-Llama-3.3-70B-Instruct": (0.65, 5),
-        "sambanova:gemma-4-31B-it": (0.55, 12),  # inflates product / market scores
-        "deepinfra:deepseek-ai/DeepSeek-V4-Flash": (0.78, 22), "deepinfra:openai/gpt-oss-120b": (0.7, 18),
-        "deepinfra:Qwen/Qwen3-235B-A22B-Instruct-2507": (0.6, 45),
+        "claude-bridge": (0.97, 124), "claude-cli": (0.97, 124),
+        "sambanova:DeepSeek-V3.2": (0.8, 18), "sambanova:DeepSeek-V3.1": (0.76, 25),
+        "sambanova:gpt-oss-120b": (0.74, 9), "sambanova:Meta-Llama-3.3-70B-Instruct": (0.62, 11),
+        "sambanova:gemma-4-31B-it": (0.55, 20),  # score MAE 23 vs Claude
+        "deepinfra:deepseek-ai/DeepSeek-V4-Flash": (0.8, 28), "deepinfra:openai/gpt-oss-120b": (0.55, 62),
+        "deepinfra:Qwen/Qwen3-235B-A22B-Instruct-2507": (0.78, 65),
     },
 }
 PRIORS["long_context"] = dict(PRIORS["extract_json"])

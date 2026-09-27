@@ -830,3 +830,13 @@ form.panel > .field .btn { flex: 0 1 auto; }
 .of-badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .of-ack { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; cursor: pointer; }
 .of-ack input { width: 18px; height: 18px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+
+/* VI labels are longer: switch the top nav to the menu button earlier so the page never scrolls sideways */
+@media (max-width: 1480px) {
+  html[lang="vi"] .menubtn { display: inline-grid; place-items: center; order: 3; }
+  html[lang="vi"] .nav .wrap { position: relative; }
+  html[lang="vi"] .nav .links:not(.open) { display: none; }
+  html[lang="vi"] .links.open { display: flex; flex-direction: column; gap: 4px; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 20px 14px; box-shadow: var(--shadow); z-index: 30; }
+  html[lang="vi"] .links.open a { padding: 8px 0; display: block !important; }
+  html[lang="vi"] .links.open .navsep { height: 1px; width: auto; }
+}

@@ -842,3 +842,174 @@ export const api = {
   demoDividends: () => request<DividendLedger>("GET", "/v1/demo/dividends"),
   ...hrApi,
 };
+
+
+/* ---------- operations: incidents, errors, usage, weekly report (docs/PLAN-OPS.md) ----------
+   Wire shapes = agents/src/blockid_agents/ops/__init__.py docstring (Raw*). opsApi maps them to the view types the
+   admin screen uses (pages/Ops.tsx), so backend field renames only touch this block. */
+export type OpsSeverity = "info" | "warn" | "critical";
+export type OpsIncidentStatus = "open" | "acknowledged" | "resolved";
+export type OpsMailStatus = "sent" | "failed" | "pending" | "not_configured";
+
+export interface RawOpsIncident {
+  id: number; check_id: string; fingerprint?: string | null; title: string; severity: OpsSeverity; status: OpsIncidentStatus;
+  detail?: string | null; impact?: string | null; fix_steps?: string[] | null; runbook_id?: string | null; runbook_url?: string | null;
+  opened_at: string; last_seen_at?: string | null; occurrences?: number | null;
+  acknowledged_at?: string | null; acknowledged_by?: string | null; resolved_at?: string | null; resolved_by?: string | null;
+  emailed?: boolean | null; email_reason?: string | null; last_emailed_at?: string | null; data?: Record<string, unknown> | null;
+  events?: { id?: number; at: string; kind: string; actor?: string | null; detail?: string | null }[];
+}
+export interface RawOpsCheck {
+  id: string; title: string; severity: OpsSeverity; status: "ok" | "warn" | "critical" | "info" | "unknown" | string; detail?: string | null;
+  last_run_at?: string | null; last_ok_at?: string | null; incident_id?: number | null; runbook_id?: string | null; runbook_url?: string | null;
+}
+export interface RawOpsReport {
+  id: number; kind: "weekly" | "daily" | string; period_start: string; period_end?: string | null; created_at: string; subject?: string | null;
+  to?: string | null; emailed?: boolean | null; email_reason?: string | null; sent_at?: string | null; trigger?: string | null;
+  html?: string | null; text?: string | null;
+}
+export interface RawOpsSummary {
+  generated_at: string; enabled?: boolean; leader?: boolean; last_run_at: string | null; smtp_configured: boolean;
+  alert_to?: string | null; report_to?: string | null; unsent_emails?: number | null;
+  open_incidents: Partial<Record<OpsSeverity | "total", number>>; checks?: RawOpsCheck[]; errors_24h?: number | null;
+  traffic_today?: { page_views: number; unique_visitors: number; requests: number; status_5xx: number } | null;
+  last_report?: { id: number; kind: string; created_at: string; emailed: boolean; email_reason?: string | null } | null;
+}
+export interface RawOpsTrafficDay {
+  day: string; host: string; page_views: number; unique_visitors: number; requests?: number; bot_requests?: number; api_requests?: number;
+  status_4xx?: number; status_5xx?: number; top_pages?: { path: string; views: number }[] | null;
+  top_referrers?: { referrer: string; count: number }[] | null; countries?: { country: string; count: number }[] | null;
+}
+export interface RawOpsTraffic {
+  days: number; source?: "nginx" | "unavailable" | string; last_parsed_at?: string | null; hosts?: string[]; daily: RawOpsTrafficDay[];
+  totals?: { page_views: number; unique_visitors: number; requests: number; bot_requests: number; status_5xx: number } | null;
+}
+export interface RawOpsError {
+  id?: number; fingerprint: string; source?: string | null; logger?: string | null; level?: string | null; message: string;
+  traceback?: string | null; count: number; first_seen: string; last_seen: string; request_id?: string | null; route?: string | null;
+}
+/** GET /stats is used as-is. */
+export interface OpsStats {
+  generated_at: string; days: number;
+  accounts: { total: number; new_7d: number; new_period: number };
+  wallets: { linked_total: number; signed_in_7d: number; signed_in_period: number };
+  sign_ins: { "7d": Record<string, number>; period: Record<string, number> };
+  active_users: { d1?: number; d7: number; d30: number };
+  registrations_daily: { day: string; accounts: number; wallets: number }[];
+  valuations: { started_7d: number; finished_7d: number; failed_7d: number; started_period: number; finished_period: number; failed_period: number; running: number };
+  hr: { teams_7d: number; done_7d: number; failed_7d: number; teams_period: number };
+  companies: { total: number; created_7d: number; by_status?: Record<string, number> };
+  offerings: { total: number; open: number; created_7d: number };
+  dividends: { total: number; created_7d: number; paid_7d: number };
+  admin_actions_7d?: number;
+}
+
+/* view types */
+export interface OpsTimelineItem { at: string; kind: string; text?: string | null; by?: string | null }
+export interface OpsEmailLog { at: string; kind: string; to?: string | null; status: OpsMailStatus; error?: string | null }
+export interface OpsIncident {
+  id: number; check_id: string; fingerprint?: string | null; title: string; severity: OpsSeverity; status: OpsIncidentStatus;
+  opened_at: string; last_seen_at: string | null; count: number; summary?: string | null; impact?: string | null;
+  acked_at?: string | null; acked_by?: string | null; resolved_at?: string | null; resolved_by?: string | null;
+  runbook_id?: string | null; runbook_url?: string | null; runbook_steps?: string[] | null;
+  email_status: OpsMailStatus | null; email_reason?: string | null;
+  details?: Record<string, unknown> | null; timeline?: OpsTimelineItem[] | null; emails?: OpsEmailLog[] | null;
+}
+export interface OpsSummary {
+  generated_at: string; enabled: boolean; leader: boolean | null; last_check_at: string | null; checks: RawOpsCheck[];
+  open_incidents: Record<OpsSeverity, number>; errors_24h: number | null; traffic_today: RawOpsSummary["traffic_today"];
+  email: { configured: boolean; to: string | null; report_to: string | null; pending: number | null };
+  last_report: RawOpsSummary["last_report"];
+}
+export interface OpsError {
+  fingerprint: string; count: number; first_seen: string; last_seen: string; route: string | null; method: string | null;
+  service: string | null; logger: string | null; level: string | null; message: string; stack: string | null; request_id: string | null;
+}
+export interface OpsTrafficDay { date: string; host: string; page_views: number; visitors: number }
+export interface OpsTraffic {
+  days: number; available: boolean; hosts: string[]; daily: OpsTrafficDay[]; updated_at: string | null; bots_filtered: number | null;
+  top_pages: { host: string; path: string; views: number }[]; referrers: { referrer: string; views: number }[]; countries: { country: string; views: number }[];
+}
+export interface OpsReport {
+  id: number; kind: string; week_start: string; week_end: string | null; created_at: string; sent_at: string | null; trigger: string | null;
+  status: OpsMailStatus; to: string | null; subject: string | null; error: string | null; html?: string | null; text?: string | null;
+}
+export interface OpsSendResult { sent: boolean; status: OpsMailStatus; id: number | null; to: string | null; error: string | null }
+
+const mailStatus = (emailed: boolean | null | undefined, reason: string | null | undefined): OpsMailStatus =>
+  emailed ? "sent" : !reason || reason === "pending" ? "pending" : /smtp not configured/i.test(reason) ? "not_configured" : "failed";
+const MAIL_EVENTS: Record<string, OpsMailStatus> = { emailed: "sent", email_failed: "failed", reminder: "sent" };
+function toIncident(r: RawOpsIncident): OpsIncident {
+  const ev = r.events ?? null;
+  const emails: OpsEmailLog[] = (ev ?? []).filter((e) => e.kind in MAIL_EVENTS).map((e) => ({ at: e.at, kind: e.kind === "reminder" ? "reminder" : "open", status: MAIL_EVENTS[e.kind], error: e.kind === "email_failed" ? e.detail ?? null : null }));
+  const st = mailStatus(r.emailed, r.email_reason);
+  // no mail event yet: show the opening e-mail's state (pending in a batch, SMTP not configured, failed)
+  if (!emails.length) emails.push({ at: r.last_emailed_at ?? r.opened_at, kind: "open", status: st, error: r.emailed ? null : r.email_reason ?? null });
+  return {
+    id: r.id, check_id: r.check_id, fingerprint: r.fingerprint, title: r.title, severity: r.severity, status: r.status,
+    opened_at: r.opened_at, last_seen_at: r.last_seen_at ?? null, count: r.occurrences ?? 1, summary: r.detail, impact: r.impact,
+    acked_at: r.acknowledged_at, acked_by: r.acknowledged_by, resolved_at: r.resolved_at, resolved_by: r.resolved_by,
+    runbook_id: r.runbook_id, runbook_url: r.runbook_url, runbook_steps: r.fix_steps, email_status: st, email_reason: r.email_reason,
+    details: r.data, timeline: ev ? ev.map((e) => ({ at: e.at, kind: e.kind, by: e.actor === "monitor" ? null : e.actor ?? null, text: e.detail ?? null })) : null,
+    emails: ev ? emails : null,
+  };
+}
+function toReport(r: RawOpsReport): OpsReport {
+  return {
+    id: r.id, kind: r.kind, week_start: r.period_start, week_end: r.period_end ?? null, created_at: r.created_at, sent_at: r.sent_at ?? null,
+    trigger: r.trigger ?? null, status: mailStatus(r.emailed, r.email_reason), to: r.to ?? null, subject: r.subject ?? null,
+    error: r.emailed ? null : r.email_reason ?? null, html: r.html, text: r.text,
+  };
+}
+function toTraffic(r: RawOpsTraffic): OpsTraffic {
+  const pages = new Map<string, { host: string; path: string; views: number }>(), refs = new Map<string, number>(), ctry = new Map<string, number>();
+  for (const d of r.daily) {
+    for (const p of d.top_pages ?? []) { const k = d.host + p.path; const x = pages.get(k) ?? { host: d.host, path: p.path, views: 0 }; x.views += p.views; pages.set(k, x); }
+    for (const x of d.top_referrers ?? []) refs.set(x.referrer, (refs.get(x.referrer) ?? 0) + x.count);
+    for (const x of d.countries ?? []) ctry.set(x.country, (ctry.get(x.country) ?? 0) + x.count);
+  }
+  const hosts = r.hosts?.length ? r.hosts : [...new Set(r.daily.map((d) => d.host))].sort();
+  return {
+    days: r.days, available: r.source !== "unavailable", updated_at: r.last_parsed_at ?? null, bots_filtered: r.totals?.bot_requests ?? null,
+    // hosts with no rows at all (e.g. scan.blockid.au before its log is mounted) are dropped from the charts
+    hosts: hosts.filter((h) => r.daily.some((d) => d.host === h)),
+    daily: r.daily.map((d) => ({ date: d.day, host: d.host, page_views: d.page_views, visitors: d.unique_visitors })),
+    top_pages: [...pages.values()].sort((a, b) => b.views - a.views),
+    referrers: [...refs].map(([referrer, views]) => ({ referrer, views })).sort((a, b) => b.views - a.views),
+    countries: [...ctry].map(([country, views]) => ({ country, views })).sort((a, b) => b.views - a.views),
+  };
+}
+function toError(r: RawOpsError): OpsError {
+  const m = /^([A-Z]+)\s+(\S.*)$/.exec(r.route ?? "");
+  return {
+    fingerprint: r.fingerprint, count: r.count, first_seen: r.first_seen, last_seen: r.last_seen, method: m ? m[1] : null, route: m ? m[2] : r.route ?? null,
+    service: r.source ?? null, logger: r.logger ?? null, level: r.level ?? null, message: r.message, stack: r.traceback ?? null, request_id: r.request_id ?? null,
+  };
+}
+function toSummary(r: RawOpsSummary): OpsSummary {
+  return {
+    generated_at: r.generated_at, enabled: r.enabled !== false, leader: r.leader ?? null, last_check_at: r.last_run_at, checks: r.checks ?? [],
+    open_incidents: { critical: r.open_incidents.critical ?? 0, warn: r.open_incidents.warn ?? 0, info: r.open_incidents.info ?? 0 },
+    errors_24h: r.errors_24h ?? null, traffic_today: r.traffic_today ?? null, last_report: r.last_report ?? null,
+    email: { configured: !!r.smtp_configured, to: r.alert_to ?? null, report_to: r.report_to ?? null, pending: r.unsent_emails ?? null },
+  };
+}
+
+const opsP = (id: number | string) => `/v1/admin/ops/incidents/${enc(String(id))}`;
+export const opsApi = {
+  summary: () => request<RawOpsSummary>("GET", "/v1/admin/ops/summary").then(toSummary),
+  /** "active" = open + acknowledged */
+  incidents: (status: "active" | "resolved" | "all" = "all") => request<{ incidents: RawOpsIncident[] }>("GET", `/v1/admin/ops/incidents?status=${status}&limit=200`).then((x) => x.incidents.map(toIncident)),
+  incident: (id: number | string) => request<RawOpsIncident>("GET", opsP(id)).then(toIncident),
+  ack: (id: number | string, note = "") => request<{ ok: boolean; incident: RawOpsIncident }>("POST", opsP(id) + "/ack", { note }).then((x) => toIncident(x.incident)),
+  resolve: (id: number | string, note = "") => request<{ ok: boolean; incident: RawOpsIncident }>("POST", opsP(id) + "/resolve", { note }).then((x) => toIncident(x.incident)),
+  errors: (days = 7) => request<{ errors: RawOpsError[]; total: number }>("GET", `/v1/admin/ops/errors?days=${days}&limit=200`).then((x) => ({ total: x.total, rows: x.errors.map(toError) })),
+  traffic: (days = 30) => request<RawOpsTraffic>("GET", `/v1/admin/ops/traffic?days=${days}`).then(toTraffic),
+  stats: (days = 30) => request<OpsStats>("GET", `/v1/admin/ops/stats?days=${days}`),
+  reports: () => request<{ reports: RawOpsReport[] }>("GET", "/v1/admin/ops/reports?limit=50").then((x) => x.reports.map(toReport)),
+  report: (id: number | string) => request<RawOpsReport>("GET", `/v1/admin/ops/reports/${enc(String(id))}`).then(toReport),
+  sendNow: () => request<{ ok: boolean; report: RawOpsReport; emailed: boolean; reason: string | null }>("POST", "/v1/admin/ops/reports/send-now", { kind: "weekly" })
+    .then((x): OpsSendResult => ({ sent: x.emailed, status: mailStatus(x.emailed, x.reason), id: x.report?.id ?? null, to: x.report?.to ?? null, error: x.reason })),
+  testEmail: (to?: string) => request<{ ok: boolean; to: string; reason: string | null }>("POST", "/v1/admin/ops/test-email", to ? { to } : {})
+    .then((x): OpsSendResult => ({ sent: x.ok, status: mailStatus(x.ok, x.reason), id: null, to: x.to, error: x.reason })),
+};

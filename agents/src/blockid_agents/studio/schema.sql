@@ -202,3 +202,47 @@ CREATE TABLE IF NOT EXISTS studio.ai_model_state (model_id text PRIMARY KEY, pro
 CREATE TABLE IF NOT EXISTS studio.ai_cache (key text PRIMARY KEY, profile text NOT NULL, model_id text,
   schema text, value jsonb NOT NULL, at timestamptz NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS ai_cache_at_idx ON studio.ai_cache (at);
+-- Operations (ops/, docs/PLAN-OPS.md, docs/RUNBOOK-INCIDENTS.md): incidents with fingerprint dedupe (one active
+-- incident per fingerprint), their event history, stored ERROR+ log records (30 days, fingerprint dedupe with counts),
+-- nginx traffic per day and host (no raw IPs: unique visitors counted in memory with a daily-salted hash), weekly /
+-- daily reports (HTML + text), per-check state (last status, fail streak, check data such as balance history; keys
+-- starting with "_" are internal: monitor round, worker heartbeat), and every ops email attempt (rate limit, failures).
+CREATE TABLE IF NOT EXISTS studio.ops_incidents (id serial PRIMARY KEY, fingerprint text NOT NULL,
+  check_id text NOT NULL, title text NOT NULL, severity text NOT NULL CHECK (severity IN ('info','warn','critical')),
+  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','acknowledged','resolved')),
+  detail text NOT NULL DEFAULT '', impact text NOT NULL DEFAULT '', runbook_id text NOT NULL DEFAULT '',
+  data jsonb NOT NULL DEFAULT '{}', occurrences int NOT NULL DEFAULT 1,
+  opened_at timestamptz NOT NULL DEFAULT now(), last_seen_at timestamptz NOT NULL DEFAULT now(),
+  acknowledged_at timestamptz, acknowledged_by text, resolved_at timestamptz, resolved_by text,
+  emailed boolean NOT NULL DEFAULT false, email_reason text, last_emailed_at timestamptz, reminded_at timestamptz,
+  resolve_emailed boolean NOT NULL DEFAULT false);
+CREATE UNIQUE INDEX IF NOT EXISTS ops_incidents_active_uidx ON studio.ops_incidents (fingerprint)
+  WHERE status <> 'resolved';
+CREATE INDEX IF NOT EXISTS ops_incidents_opened_idx ON studio.ops_incidents (opened_at DESC);
+CREATE TABLE IF NOT EXISTS studio.ops_incident_events (id bigserial PRIMARY KEY,
+  incident_id int NOT NULL REFERENCES studio.ops_incidents(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now(), kind text NOT NULL, actor text NOT NULL DEFAULT 'monitor',
+  detail text NOT NULL DEFAULT '');
+CREATE INDEX IF NOT EXISTS ops_incident_events_idx ON studio.ops_incident_events (incident_id, id);
+CREATE TABLE IF NOT EXISTS studio.ops_errors (id bigserial PRIMARY KEY, fingerprint text NOT NULL UNIQUE,
+  source text NOT NULL, logger text NOT NULL, level text NOT NULL, message text NOT NULL, traceback text,
+  count int NOT NULL DEFAULT 1, first_seen timestamptz NOT NULL DEFAULT now(),
+  last_seen timestamptz NOT NULL DEFAULT now(), request_id text, route text);
+CREATE INDEX IF NOT EXISTS ops_errors_last_seen_idx ON studio.ops_errors (last_seen DESC);
+CREATE TABLE IF NOT EXISTS studio.ops_traffic_daily (day date NOT NULL, host text NOT NULL,
+  page_views int NOT NULL DEFAULT 0, unique_visitors int NOT NULL DEFAULT 0, requests int NOT NULL DEFAULT 0,
+  bot_requests int NOT NULL DEFAULT 0, api_requests int NOT NULL DEFAULT 0, status_4xx int NOT NULL DEFAULT 0,
+  status_5xx int NOT NULL DEFAULT 0, top_pages jsonb NOT NULL DEFAULT '[]', top_referrers jsonb NOT NULL DEFAULT '[]',
+  countries jsonb NOT NULL DEFAULT '[]', updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (day, host));
+CREATE TABLE IF NOT EXISTS studio.ops_reports (id serial PRIMARY KEY, kind text NOT NULL,
+  period_start timestamptz NOT NULL, period_end timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
+  subject text NOT NULL, to_addr text NOT NULL, html text NOT NULL, text text NOT NULL,
+  data jsonb NOT NULL DEFAULT '{}', trigger text NOT NULL DEFAULT 'schedule', slot text,
+  emailed boolean NOT NULL DEFAULT false, email_reason text, sent_at timestamptz);
+CREATE UNIQUE INDEX IF NOT EXISTS ops_reports_slot_uidx ON studio.ops_reports (kind, slot) WHERE slot IS NOT NULL;
+CREATE TABLE IF NOT EXISTS studio.ops_checks_state (check_id text PRIMARY KEY, status text NOT NULL DEFAULT 'unknown',
+  detail text NOT NULL DEFAULT '', data jsonb NOT NULL DEFAULT '{}', fail_streak int NOT NULL DEFAULT 0,
+  last_run_at timestamptz, last_ok_at timestamptz, updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS studio.ops_mail_log (id bigserial PRIMARY KEY, at timestamptz NOT NULL DEFAULT now(),
+  kind text NOT NULL, to_addr text NOT NULL, subject text NOT NULL, ok boolean NOT NULL, error text);
+CREATE INDEX IF NOT EXISTS ops_mail_log_at_idx ON studio.ops_mail_log (at DESC);
