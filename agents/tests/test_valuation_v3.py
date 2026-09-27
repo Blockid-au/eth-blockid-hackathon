@@ -277,7 +277,7 @@ def test_svi_result_v3_matches_public_verifier_and_old_hash_is_stable():
     assert res.report_sha256 != old_hash and res.valuation_mid_aud == round(res.triangulation.value_aud, -3)
     rep = {"profile": p.model_dump(), "market": m.model_dump(), "svi": res.model_dump()}
     r = verify.recompute(rep)
-    assert r["formula_version"] == "v3" and all(r["matches_report"].values()), r
+    assert r["formula_version"] == "v4" and all(r["matches_report"].values()), r  # v3 rules + v4 weights
 
 
 # ================================================================== offline backtest (recorded fixtures)

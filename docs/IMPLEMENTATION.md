@@ -219,3 +219,41 @@ is audited. Tables `studio.offerings`, `studio.reservations`, `studio.mints.offe
 
 Admin queues are now: Valuations ◆, Issuance ◆, Chain sync, Mints ◆, Dividends ◆, Dividend rules ◆, Updates ◆, Offerings ◆, Transfers & KYC.
 Seed scripts: `scripts/seed-demo-account.py` (demo wallet holdings + dividend), `scripts/seed-updates.py CNV EBA` (3 monthly updates).
+
+## Founding-team review (hr.blockid.au)
+
+Plan: [PLAN-HR.md](PLAN-HR.md). Agent: [AGENTS.md — People Analyst](AGENTS.md#people-analyst-agentspeoplepy-founding-team--person-review--hrblockidau).
+Full JSON shapes (PersonIn, Target, ReportOut, Report, PersonCard, CVProfile, Summary): the top docstring of
+`agents/src/blockid_agents/studio/hr.py`. Code: `studio/hr.py` (API), `studio/hr_store.py` (DB, worker job,
+valuation blend), `agents/people.py` (agent + scoring). Tables `studio.hr_teams` (mode `team|person`, status
+`draft|queued|running|done|failed`, `steps`, `result`, `share_token`, `target`), `studio.hr_people`,
+`studio.hr_runs` (daily limit).
+
+| Endpoint | Who | Notes |
+|---|---|---|
+| POST `/v1/hr/teams` `{name, website?, valuation_id?, people[1..20], consent:true, run?}` | signed in | team report (draft; `run:true` also queues it). `valuation_id` must be readable by the caller |
+| POST `/v1/hr/people-reports` `{person, target?, consent:true, run?=true}` | signed in | one person vs a business (`{type:"business", valuation_id\|ticker\|website}` → founder–business fit) or a role (`{type:"role", company, title, description, requirements[]}` → role fit) |
+| PUT `/v1/hr/teams/{id}/people` `{people[]}`, PUT `/v1/hr/teams/{id}/target` `{target}` | requester / platform admin | replace; resets the report to draft (409 while queued/running) |
+| POST `/v1/hr/teams/{id}/run` | requester / platform admin | queue; `HR_RUNS_PER_DAY` (5) per wallet per day → 429, `HR_MAX_ACTIVE` (5) |
+| GET `/v1/hr/teams/{id}`, `/v1/hr/people-reports/{id}` `[?share=token]` | requester, platform admin, company admins of the linked company, any signed-in viewer for demo reports, share token | report + progress `steps` |
+| GET `/v1/hr/teams?mine=1` | signed in | own reports (`mine=0`: all, platform admins) |
+| GET `/v1/hr/teams/{id}/summary` | report readers + anyone who can read the linked valuation | public-safe: score, grade, names/roles/scores, top 3 strengths/gaps, `url` |
+| POST / DELETE `/v1/hr/teams/{id}/share` | requester / platform admin | create-rotate / revoke the share token |
+| DELETE `/v1/hr/people/{pid}` | requester / platform admin | removal request: person, card, facts, evidence; team score recomputed; valuation re-blended |
+| DELETE `/v1/hr/teams/{id}` | requester / platform admin | delete the report and its evidence |
+| POST `/v1/hr/teams/{id}/apply-to-valuation` | requester / platform admin | re-run the valuation blend (also automatic on completion) |
+| POST `/v1/studio/valuations` `{url, metrics?, team?:{people[], consent:true}}` | signed in | creates a team report linked to the valuation (returns `team_id`); it runs after the research |
+
+**Scoring integration (SVI formula v4)**: weights founder_quality 0.30, product 0.15, market 0.15, revenue 0.15,
+growth 0.10, readiness 0.10, trust 0.05 (`tools/svi.py` `WEIGHTS`; the v1–v3 set is `WEIGHTS_V3`, and
+`SVIResult.weights` records the set used, so `/verify` reproduces every older report — `recompute()` reports
+`weights_version` and `formula_version` `v4` = v3 valuation rules + v4 weights). When a team report linked to a
+valuation is done, the worker (or `apply-to-valuation`) sets founder_quality := team score with basis `team_report` and
+re-scores the **stored** valuation result deterministically (`agents/valuation.apply_team_score`: no LLM, no web; index
+and v3 triangulation recomputed, narrative kept) and stores the team summary as `result.team` (served as `team` by
+GET `/v1/studio/valuations/{id}`, with `applied` + `reason`). Rules: only while the valuation is `waiting_approval` or
+`approved` and no company exists for it yet (the report hash covers `svi`, and a company's hash may already be
+anchored); an admin override of founder_quality at the gate (`[set by …]`) wins; at the gate, a `team_report` score is
+kept (confirmed) unless the admin overrides it. Report hash semantics are unchanged: `keccak256(canonical report)`
+is computed from whatever `svi` is stored at issuance, and `/verify` recomputes the index with the recorded weights.
+

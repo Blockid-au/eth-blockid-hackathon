@@ -232,6 +232,15 @@ td input { width: 76px; border: 1px solid var(--line); border-radius: 7px; paddi
 .merkle { font: .78rem/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
 footer { border-top: 1px solid var(--line); padding-block: 36px 60px; font-size: .84rem; color: var(--muted); }
 footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.foot-contact { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.foot-qr-btn { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--accent); font: 600 .74rem/1 var(--mono); cursor: pointer; transition: all .15s ease; vertical-align: middle; }
+.foot-qr-btn:hover, .foot-qr-btn[aria-expanded="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); transform: translateY(-1px); }
+.foot-qr-popover { position: absolute; bottom: calc(100% + 12px); right: 0; z-index: 60; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; box-shadow: var(--shadow); display: grid; gap: 8px; justify-items: center; width: 248px; animation: footQrFade .15s ease; }
+@keyframes footQrFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.foot-qr-popover img { width: 220px; height: auto; border-radius: 10px; display: block; background: #fff; }
+.foot-qr-popover a { font: 600 .78rem/1 var(--mono); color: var(--accent); text-decoration: none; word-break: break-all; }
+.foot-qr-popover a:hover { text-decoration: underline; }
+@media (max-width: 600px) { .foot-qr-popover { right: auto; left: 50%; transform: translateX(-50%); } @keyframes footQrFade { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } } }
 .final { text-align: left; background: var(--ink); color: var(--bg); border-radius: 20px; padding: 40px; display: grid; gap: 16px; }
 .final h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); }
 .final p { opacity: .75; max-width: 60ch; }

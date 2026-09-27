@@ -219,6 +219,10 @@ def build_company_admins_router(ctx) -> APIRouter:
         audit(sess, role, "company_admin_added" if not prev or prev["status"] == "revoked" else "company_admin_updated",
               c, address=addr, admin_role=body.role, label=label, onchain=body.onchain)
         out = jsonable(row)
+        # re-adding a listed wallet changes it: say so, with what it was (the form shows "role changed from ...")
+        out["updated"] = bool(prev and prev["status"] != "revoked")
+        out["previous_role"] = prev["role"] if out["updated"] else None
+        out["previous_label"] = prev["label"] if out["updated"] else None
         background.add_task(gas.drip, addr, "company_admin", c["id"])
         if grant:
             err = ask_issuer(sess, role, c, addr, True)

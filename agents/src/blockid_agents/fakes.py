@@ -274,3 +274,127 @@ def fake_competitor_fetch(url: str) -> str:
         return "TE-FOOD raised US$10 million in its latest round, the company said."
     return (f"Page content for {url}. TE-FOOD and OpenSC are traceability platforms. "
             "Median EV/Revenue for traceability SaaS: 6x (range 3x-10x).")
+
+
+# ------------------------------------------------------------------ People Analyst fakes (agents/people.py)
+FAKE_PEOPLE_PAGES = {
+    "https://agritrace.example/team": (
+        "Our team. Jane Nguyen is the CEO and co-founder of AgriTrace. Jane Nguyen previously founded FarmLink, "
+        "which was acquired by Elders in 2019. Tom Lee is the CTO of AgriTrace and led engineering at FarmLink "
+        "from 2016 to 2019. Contact jane@agritrace.au or +61 481 993 178."),
+    "https://news.example.com/jane-nguyen": (
+        "Jane Nguyen, founder of AgriTrace, told the conference that traceability cuts export delays. "
+        "Nguyen is married with two children."),
+    "https://other.example/jane-nguyen-chef": "Jane Nguyen is a pastry chef in Hanoi who won a baking award in 2022.",
+    "https://news.example.com/tom-lee": "Tom Lee, CTO at AgriTrace, holds a PhD in computer science from UNSW.",
+}
+
+
+class FakePeopleSearch:
+    """Search provider stand-in: results keyed on the person's name in the query."""
+
+    name = "fake-search"
+    available = True
+
+    def __init__(self):
+        self.queries: list[str] = []
+
+    def search(self, query: str, *, count: int = 8, **_):
+        self.queries.append(query)
+        q = query.lower()
+        out = []
+        if "jane nguyen" in q:
+            out = [{"title": "Jane Nguyen — AgriTrace", "url": "https://news.example.com/jane-nguyen",
+                    "description": "Jane Nguyen, founder of AgriTrace", "query": query},
+                   {"title": "Jane Nguyen chef", "url": "https://other.example/jane-nguyen-chef",
+                    "description": "pastry chef", "query": query}]
+        elif "tom lee" in q:
+            out = [{"title": "Tom Lee CTO", "url": "https://news.example.com/tom-lee",
+                    "description": "Tom Lee, CTO at AgriTrace", "query": query}]
+        return out[:count]
+
+
+def fake_people_fetch(url: str) -> str:
+    if url in FAKE_PEOPLE_PAGES:
+        return FAKE_PEOPLE_PAGES[url]
+    raise httpx.ConnectError(f"no fake page for {url}")
+
+
+def fake_people_llm() -> FakeLLM:
+    """Deterministic PersonAnalysis / TeamAnalysis with verifiable, unverifiable and sensitive claims mixed in."""
+    from .agents import people as pa
+
+    def s(score, ids=(), self_reported=False, why="r"):
+        return pa.SubScore(score=score, rationale=why, fact_ids=list(ids), self_reported=self_reported)
+
+    def person(_s, u):
+        target = "TARGET (" in u
+        fit = pa.FitSuggestion(
+            skills_match=s(80, ["f1"]), domain_match=s(90, ["f1"]), stage_scale_match=s(70),
+            seniority_match=s(75, self_reported=True), track_record_relevance=s(85, ["f1"]),
+            requirements=[pa.RequirementMatch(requirement="agri-food supply chain expertise", status="matched",
+                                              fact_ids=["f1"]),
+                          pa.RequirementMatch(requirement="enterprise sales", status="matched"),
+                          pa.RequirementMatch(requirement="regulatory affairs", status="missing")],
+            risks=["single-market experience"], interview_questions=["How will you hire a sales lead?"])
+        if "PERSON: Tom Lee" in u:
+            return pa.PersonAnalysis(
+                facts=[pa.FactClaim(id="f1", text="CTO of AgriTrace; led engineering at FarmLink",
+                                    quote="Tom Lee is the CTO of AgriTrace and led engineering at FarmLink",
+                                    source_url="https://agritrace.example/team", category="role"),
+                       pa.FactClaim(id="f2", text="PhD in computer science from UNSW",
+                                    quote="holds a PhD in computer science from UNSW",
+                                    source_url="https://news.example.com/tom-lee", category="education")],
+                profile=pa.CVDraft(experience=[pa.ExperienceItem(org="FarmLink", title="Head of Engineering",
+                                                                 fact_ids=["f1"])],
+                                   education=[pa.EducationItem(institution="UNSW", degree="PhD", fact_ids=["f2"])]),
+                scores=pa.PersonScores(domain_fit=s(60, ["f1"]), track_record=s(70, ["f1"]),
+                                       leadership=s(60), functional_depth=s(85, ["f2"]),
+                                       verifiability=s(80, ["f1", "f2"]), commitment=s(70, self_reported=True)),
+                fit=fit if target else None, functions=["tech"], strengths=["deep engineering"],
+                gaps=["no commercial experience"], questions=["Who owns security?"])
+        return pa.PersonAnalysis(
+            facts=[
+                pa.FactClaim(id="f1", text="Founded FarmLink, acquired by Elders in 2019",
+                             quote="Jane Nguyen previously founded FarmLink, which was acquired by Elders in 2019",
+                             source_url="https://agritrace.example/team", category="exit"),
+                pa.FactClaim(id="f2", text="Raised A$50m", quote="raised A$50 million from Sequoia",
+                             source_url="https://news.example.com/jane-nguyen", category="venture"),  # not on page
+                pa.FactClaim(id="f3", text="Won a baking award", quote="won a baking award in 2022",
+                             source_url="https://other.example/jane-nguyen-chef",
+                             category="achievement"),  # other person: page names neither company nor orgs
+                pa.FactClaim(id="f4", text="Nguyen is married with two children",
+                             quote="Nguyen is married with two children",
+                             source_url="https://news.example.com/jane-nguyen"),  # sensitive: dropped
+                pa.FactClaim(id="f5", text="Spoke at a conference", quote="told the conference that traceability",
+                             source_url="https://invented.example/talk"),  # URL never stored
+            ],
+            profile=pa.CVDraft(
+                headline=pa.TextItem(text="Agri supply-chain founder", cv_quote="supply-chain founder"),
+                location=pa.TextItem(text="Melbourne, Australia", cv_quote="Based in Melbourne"),
+                summary="Second-time founder in agri supply chains.",
+                experience=[pa.ExperienceItem(org="FarmLink", title="Founder & CEO", start="2014", end="2019",
+                                              achievements=["sold to Elders"], fact_ids=["f1"]),
+                            pa.ExperienceItem(org="Sequoia", title="Partner", fact_ids=["f2"])],  # unverified
+                education=[pa.EducationItem(institution="University of Melbourne", degree="MBA",
+                                            cv_quote="MBA, University of Melbourne")],
+                skills=[pa.SkillGroup(group="Commercial", items=["enterprise sales"], cv_quote="enterprise sales"),
+                        pa.SkillGroup(group="Invented", items=["quantum"])],  # no source: unconfirmed
+                ventures=[pa.VentureItem(name="FarmLink", role="founder", outcome="acquired", year="2019",
+                                         fact_ids=["f1"])]),
+            scores=pa.PersonScores(domain_fit=s(80, ["f1"]), track_record=s(90), leadership=s(70, self_reported=True),
+                                   functional_depth=s(60, ["f2"]), verifiability=s(85, self_reported=True),
+                                   commitment=s(90, self_reported=True)),
+            fit=fit if target else None, functions=["commercial", "domain"], strengths=["prior exit"],
+            gaps=["no finance lead"], questions=["What was the FarmLink exit multiple?"])
+
+    def team(_s, u):
+        ids = re.findall(r"\[(p\d+f\d+)\]", u)
+        return pa.TeamAnalysis(
+            worked_together=pa.Component(score=85, rationale="both at FarmLink", fact_ids=ids[:1]),
+            strengths=["prior exit together"], gaps=["no CFO"], risks=["key-person risk on the CEO"],
+            questions=["Who leads finance?"],
+            red_flags=[pa.RedFlagClaim(text="unverified rumour", fact_ids=["p999f1"]),
+                       pa.RedFlagClaim(text="FarmLink was sold (verified fact)", fact_ids=ids[:1])])
+
+    return FakeLLM({pa.PersonAnalysis: person, pa.TeamAnalysis: team})

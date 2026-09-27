@@ -51,6 +51,8 @@ export interface TransferReq {
   mode: string;
   status: string;
   created_at?: string;
+  /** why the request would be refused right now (reason code), null when it may go */
+  blocker?: string | null;
 }
 export interface ScopedApprovals {
   scope?: "platform" | "company";
@@ -64,7 +66,7 @@ const enc = encodeURIComponent;
 export const coAdminApi = {
   list: (ticker: string) => request<CompanyAdminList>("GET", `/v1/companies/${enc(ticker)}/admins`),
   add: (ticker: string, body: { address: string; label: string; role: CoAdminRole; onchain: boolean }) =>
-    request<CompanyAdmin & { issuer?: string }>("POST", `/v1/companies/${enc(ticker)}/admins`, body),
+    request<CompanyAdmin & { issuer?: string; updated?: boolean; previous_role?: CoAdminRole | null }>("POST", `/v1/companies/${enc(ticker)}/admins`, body),
   revoke: (ticker: string, address: string) =>
     request<CompanyAdmin & { issuer?: string }>("POST", `/v1/companies/${enc(ticker)}/admins/${enc(address)}/revoke`),
   mine: () => request<MyCompany[]>("GET", "/v1/me/companies"),

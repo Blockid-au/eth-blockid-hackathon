@@ -101,7 +101,7 @@ def _ts(s: str) -> datetime:
 
 def allowed_domains(public_base_url: str) -> set[str]:
     host = urlparse(public_base_url).netloc or "eth.blockid.au"
-    return {host, "eth.blockid.au"}
+    return {host, "eth.blockid.au", "hr.blockid.au"}
 
 
 def domain_ok(domain: str, allowed: set[str], dev: bool = False) -> bool:
@@ -146,6 +146,22 @@ def new_nonce() -> str:
 
 
 # ------------------------------------------------------------------ passwords
+PASSWORD_MAX_BYTES = 72  # bcrypt only uses the first 72 bytes (and bcrypt 5 refuses longer input)
+
+
+def password_problem(new: str, current: str | None = None) -> str | None:
+    """Why a new admin password is refused, in plain words; None when it is fine. The browser form has the same rules."""
+    if not new.strip():
+        return "the new password cannot be only spaces"
+    if len(new) < 10:
+        return "new password must be at least 10 characters"
+    if len(new.encode()) > PASSWORD_MAX_BYTES:
+        return f"new password is too long: at most {PASSWORD_MAX_BYTES} bytes (about 72 plain letters or digits)"
+    if current is not None and new == current:
+        return "new password must differ from the current one"
+    return None
+
+
 def hash_password(pw: str) -> str:
     return bcrypt.hashpw(pw.encode(), bcrypt.gensalt(12)).decode()
 
@@ -156,7 +172,7 @@ _DUMMY_HASH = bcrypt.hashpw(b"blockid-dummy-password", bcrypt.gensalt(12)).decod
 def check_password(pw: str, hashed: str | None) -> bool:
     """Constant-work check: an unknown user still costs one bcrypt verification (no username oracle)."""
     if not hashed:
-        bcrypt.checkpw(pw.encode(), _DUMMY_HASH.encode())
+        bcrypt.checkpw(pw.encode()[:72], _DUMMY_HASH.encode())  # bcrypt 5 raises on > 72 bytes
         return False
     try:
         return bcrypt.checkpw(pw.encode(), hashed.encode())

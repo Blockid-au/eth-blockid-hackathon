@@ -96,6 +96,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     are injectable for tests; by default they are built from settings."""
     from .studio.company_admins import build_company_admins_router
     from .studio.dividend_policy import build_dividend_policy_router, interval_from_env
+    from .studio.hr import build_hr_router
     from .studio.offerings import build_offerings_router
     from .studio.routes import build_router
     from .studio.transfers import build_transfer_router
@@ -156,6 +157,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     app.include_router(build_updates_router(ctx))
     app.include_router(build_dividend_policy_router(ctx, ctx.automation))
     app.include_router(build_offerings_router(ctx, ctx.offerings))
+    app.include_router(build_hr_router(ctx))  # founding-team / person reviews (hr.blockid.au)
 
 
     def auth(x_api_key: str = Header(default="")) -> None:

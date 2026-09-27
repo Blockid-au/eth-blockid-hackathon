@@ -87,6 +87,15 @@ class EvidenceStore:
             )
         return item
 
+    def delete_subject(self, subject: str, *, prefix: bool = False) -> int:
+        """Remove stored evidence of one subject (or every subject starting with `subject` when prefix=True) —
+        used when a person asks to be removed from a team report (studio/hr.py)."""
+        with self._lock, self._conn() as c:
+            if prefix:
+                like = subject.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+                return c.execute("DELETE FROM evidence_v2 WHERE subject LIKE ? ESCAPE '\\'", (like,)).rowcount
+            return c.execute("DELETE FROM evidence_v2 WHERE subject=?", (subject,)).rowcount
+
     def count(self, subject: str) -> int:
         with self._conn() as c:
             return c.execute("SELECT COUNT(DISTINCT url) FROM evidence_v2 WHERE subject=?", (subject,)).fetchone()[0]

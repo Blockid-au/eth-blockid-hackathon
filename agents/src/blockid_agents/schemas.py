@@ -143,7 +143,7 @@ class MarketAnalysis(BaseModel):
 
 
 # ------------------------------------------------------------------ Valuation (SVI)
-Basis = Literal["computed", "ai_suggested", "human", "self_reported", "cited_source"]
+Basis = Literal["computed", "ai_suggested", "human", "self_reported", "cited_source", "team_report"]
 
 
 class DimensionScore(BaseModel):

@@ -50,6 +50,7 @@ from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -81,7 +82,8 @@ RES_COLS = ("id, offering_id, company_id, wallet, account_id, name, shares, amou
 
 
 def max_shareholders() -> int:
-    """The share token's holder cap (issuer MAX_SHAREHOLDERS, fixed when the token was created; default 500)."""
+    """Fallback holder cap (issuer MAX_SHAREHOLDERS; default 500), used only when BlockID Chain cannot be read. The
+    cap that counts is the token's own maxShareholders() (OfferingService.register)."""
     try:
         return max(1, int(os.environ.get("MAX_SHAREHOLDERS", "500")))
     except ValueError:
@@ -103,6 +105,15 @@ def _dec(v: Any) -> Decimal:
 def amount_for(shares: int, price: Any) -> Decimal:
     """A$ for a number of shares, to the cent."""
     return (Decimal(int(shares)) * _dec(price)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def shares_for_cent(price: Any) -> int:
+    """Fewest whole shares worth at least A$0.01 at this price."""
+    p = _dec(price)
+    n = int((Decimal("0.005") / p).to_integral_value(rounding=ROUND_DOWN)) if p > 0 else 1
+    while amount_for(n, p) < Decimal("0.01"):
+        n += 1
+    return max(1, n)
 
 
 def shares_for(amount_aud: Any, price: Any) -> int:
@@ -132,18 +143,22 @@ def open_offerings(db, company_ids: list[int] | None = None) -> dict[int, dict]:
             for r in rows}
 
 
-def pending_offerings(db, ids: list[int] | None = None) -> list[dict]:
+def pending_offerings(db, ids: list[int] | None = None, svc: "OfferingService | None" = None) -> list[dict]:
     """Offerings waiting for a platform admin (GET /v1/admin/approvals 'offerings'): to open (pending_approval) or to
-    settle (awaiting_settlement, or failed for a retry). Company admins see none."""
+    settle (awaiting_settlement, or failed for a retry). Company admins see none. With `svc`, an offering to settle
+    carries `register`: shareholders on BlockID Chain now, the token's cap and the count after settling."""
     if ids is not None:
         return []
-    rows = db.all(f"SELECT {', '.join('o.' + c for c in COLS.split(', '))}, c.ticker, c.name AS company_name "
-                  "FROM studio.offerings o JOIN studio.companies c ON c.id=o.company_id "
+    rows = db.all(f"SELECT {', '.join('o.' + c for c in COLS.split(', '))}, c.ticker, c.name AS company_name, "
+                  "c.local_token FROM studio.offerings o JOIN studio.companies c ON c.id=o.company_id "
                   "WHERE o.status IN ('pending_approval','awaiting_settlement','failed') ORDER BY o.updated_at, o.id")
     out = []
     for r in rows:
         v = view(r)
         v.update(ticker=r["ticker"], company_name=r["company_name"], progress=progress(db, r))
+        if svc is not None and r["status"] != "pending_approval":
+            v["register"] = svc.register_view({"id": r["company_id"], "ticker": r["ticker"],
+                                               "local_token": r["local_token"]}, r)
         out.append(v)
     return out
 
@@ -196,9 +211,64 @@ class OfferingService:
         rows = conn.execute(q, (company_id,)).fetchall() if conn is not None else self.ctx.need_db().all(q, (company_id,))
         return {r["w"] for r in rows}
 
-    def holder_limit(self, o: dict) -> int:
-        cap = max_shareholders()
-        return min(int(o["max_holders"]), cap) if o.get("max_holders") else cap
+    def holder_limit(self, o: dict, reg: dict | None = None) -> int | None:
+        """The most shareholders this offering may lead to: its own max_holders and the token's cap (from `reg`, the
+        chain register; the MAX_SHAREHOLDERS setting when the chain is not configured). None = no limit."""
+        cap = (reg["cap"] if reg else max_shareholders())
+        mine = int(o["max_holders"]) if o.get("max_holders") else None
+        limits = [x for x in (cap, mine) if x]
+        return min(limits) if limits else None
+
+    # -------------------------------------------------------------- share register on BlockID Chain
+    def register(self, c: dict, *, strict: bool = True) -> dict | None:
+        """{cap, count} read from the company's share token: cap = maxShareholders() (None = no limit), count =
+        shareholderCount(). The token enforces the cap itself (a mint over it reverts ShareholderCapReached), so this
+        is what reservations and settlement are checked against. None when no chain reader is configured (tests / no
+        RPC), or when it cannot be read and strict is False; strict -> 503."""
+        chain = getattr(self.ctx, "chain", None)
+        if chain is None or not c.get("local_token"):
+            return None
+        try:
+            cap, count = chain.shareholders(c["local_token"])
+        except Exception as e:  # noqa: BLE001 - RPC down / bad token
+            log.warning("share register of %s unreadable: %s", c.get("ticker"), e)
+            if strict:
+                raise HTTPException(503, "the share register on BlockID Chain cannot be read right now; "
+                                         "please try again in a minute") from None
+            return None
+        return {"cap": int(cap) or None, "count": int(count)}
+
+    def newcomers(self, c: dict, conn, wallets: set[str], offering_id: int) -> tuple[set[str], set[str]]:
+        """(offering wallets that hold no shares on chain yet, other wallets waiting for a mint that hold none).
+        Other pending mints (requested / approved / running, not from this offering) also take a holder slot."""
+        pending = {r["w"] for r in conn.execute(
+            "SELECT DISTINCT lower(to_wallet) AS w FROM studio.mints WHERE company_id=%s AND status IN "
+            "('pending','approved','minting') AND (offering_id IS NULL OR offering_id <> %s)",
+            (c["id"], offering_id)).fetchall()}
+        ask = sorted(wallets | pending)
+        if not ask:
+            return set(), set()
+        bal = {w.lower(): int(b) for w, b in self.ctx.chain.balances(c["local_token"], ask).items()}
+        new = {w for w in wallets if bal.get(w, 0) <= 0}
+        return new, {w for w in pending - wallets if bal.get(w, 0) <= 0}
+
+    def register_view(self, c: dict, o: dict) -> dict | None:
+        """For the admin queue: shareholders on chain now, the cap, and the count once this offering is settled."""
+        reg = self.register(c, strict=False)
+        if reg is None:
+            return None
+        db = self.ctx.need_db()
+        try:
+            with db.tx() as tx:
+                ws = {r["w"] for r in tx.execute("SELECT DISTINCT lower(wallet) AS w FROM studio.reservations "
+                                                 "WHERE offering_id=%s AND status='reserved'", (o["id"],)).fetchall()}
+                new, other = self.newcomers(c, tx, ws, o["id"])
+        except Exception as e:  # noqa: BLE001
+            log.warning("register view of offering %s failed: %s", o["id"], e)
+            return None
+        after = reg["count"] + len(new) + len(other)
+        return {"count": reg["count"], "cap": reg["cap"], "new": len(new), "other_pending": len(other),
+                "after": after, "fits": reg["cap"] is None or after <= reg["cap"]}
 
     def build_pack(self, c: dict, o: dict, now: datetime | None = None) -> dict:
         db = self.ctx.need_db()
@@ -252,7 +322,7 @@ class OfferingService:
                       "min_raise_aud": _dec(o["min_raise_aud"]), "max_per_investor_shares":
                       int(o["max_per_investor_shares"]), "closes_at": o["closes_at"],
                       "cooling_off_days": int(o.get("cooling_off_days") or COOLING_OFF_DAYS),
-                      "max_holders": self.holder_limit(o),
+                      "max_holders": self.holder_limit(o, self.register(c, strict=False)),
                       "price_vs_mark_pct": round(float((price / mark - 1) * 100), 2) if mark > 0 else None,
                       "use_of_funds": o.get("use_of_funds") or ""},
             "valuation": valuation, "updates": updates, "cap_table": cap, "risks": list(RISKS),
@@ -399,7 +469,7 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
             raise HTTPException(404, "unknown offering")
         return o
 
-    def check_terms(body: TermsBody, now: datetime) -> datetime:
+    def check_terms(body: TermsBody, now: datetime, c: dict) -> datetime:
         closes = _utc(body.closes_at)
         if closes <= now + timedelta(minutes=5):
             raise HTTPException(422, "the closing date must be in the future")
@@ -409,9 +479,21 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
             raise HTTPException(422, "the most per investor cannot be more than the shares offered")
         if Decimal(str(body.min_raise_aud)) > amount_for(body.shares_offered, body.price_aud):
             raise HTTPException(422, "the minimum to raise cannot be more than all the shares offered are worth")
-        if body.max_holders is not None and body.max_holders > max_shareholders():
-            raise HTTPException(422, f"this share register allows at most {max_shareholders()} shareholders")
+        if body.max_holders is not None:
+            cap, holders = register_now(c)
+            if cap is not None and body.max_holders > cap:
+                raise HTTPException(422, f"this share register allows at most {cap:,} shareholders")
+            if body.max_holders < holders:
+                raise HTTPException(422, f"the business already has {holders:,} shareholders; the most shareholders "
+                                         "cannot be lower than that")
         return closes
+
+    def register_now(c: dict) -> tuple[int | None, int]:
+        """(cap, shareholders now): from the token on BlockID Chain, else the MAX_SHAREHOLDERS setting and the DB."""
+        reg = svc.register(c, strict=False)
+        if reg is not None:
+            return reg["cap"], reg["count"]
+        return max_shareholders(), len(svc.holders_now(c["id"]))
 
     def reservations_of(oid: int) -> list[dict]:
         return jsonable(ctx.need_db().all(f"SELECT {RES_COLS} FROM studio.reservations WHERE offering_id=%s "
@@ -421,11 +503,12 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
         db = ctx.need_db()
         o = current(c["id"])
         mark, _ = svc.latest_mark(c)
-        holders = len(svc.holders_now(c["id"]))
+        cap, holders = register_now(c)
         out: dict[str, Any] = {
             "ticker": c["ticker"], "company_id": c["id"], "name": c["name"], "you": role, "live": live(c),
             "defaults": {"price_aud": mark, "cooling_off_days": COOLING_OFF_DAYS, "holders": holders,
-                         "max_holders": max_shareholders(), "total_shares": int(c["total_shares"])},
+                         "max_holders": cap, "total_shares": int(c["total_shares"]),
+                         "max_days_open": MAX_DAYS_OPEN},
             "offering": None, "pack": None, "progress": None, "reservations": [],
         }
         if o:
@@ -452,7 +535,7 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
         if not live(c):
             raise HTTPException(409, "an offering can be set up once the shares are issued")
         now = datetime.now(timezone.utc)
-        closes = check_terms(body, now)
+        closes = check_terms(body, now, c)
         o = current(c["id"])
         if o and o["status"] not in EDITABLE:
             raise HTTPException(409, f"the current offering is {o['status']}; it cannot be changed now")
@@ -466,10 +549,13 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
             if not row:
                 raise HTTPException(409, "the offering changed meanwhile; reload")
         else:
-            row = db.one("INSERT INTO studio.offerings (company_id, price_aud, shares_offered, min_raise_aud, "
-                         "max_per_investor_shares, max_holders, closes_at, use_of_funds, cooling_off_days, status, "
-                         f"created_by) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft',%s) RETURNING {COLS}",
-                         (c["id"], *vals, COOLING_OFF_DAYS, sess.actor))
+            try:
+                row = db.one("INSERT INTO studio.offerings (company_id, price_aud, shares_offered, min_raise_aud, "
+                             "max_per_investor_shares, max_holders, closes_at, use_of_funds, cooling_off_days, status, "
+                             f"created_by) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft',%s) RETURNING {COLS}",
+                             (c["id"], *vals, COOLING_OFF_DAYS, sess.actor))
+            except UniqueViolation:  # another request created this company's offering at the same moment
+                raise HTTPException(409, "an offering for this business was just created; reload the page") from None
         audit(sess.actor, role, "offering_saved", c, offering_id=row["id"], price_aud=body.price_aud,
               shares_offered=body.shares_offered, min_raise_aud=body.min_raise_aud,
               max_per_investor_shares=body.max_per_investor_shares, max_holders=body.max_holders, closes_at=closes,
@@ -588,6 +674,19 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
             if not allocs and not tx.execute("SELECT 1 FROM studio.mints WHERE offering_id=%s LIMIT 1",
                                              (oid,)).fetchone():
                 raise HTTPException(409, "no reservations to settle")
+            # the token refuses a mint that would pass its holder cap (ShareholderCapReached): check it on chain first,
+            # counting other share issues still waiting, so settlement cannot get stuck half-way
+            co = tx.execute("SELECT * FROM studio.companies WHERE id=%s", (o["company_id"],)).fetchone()
+            reg = svc.register(co)
+            if reg is not None and reg["cap"] is not None:
+                new, other = svc.newcomers(co, tx, {a["wallet"].lower() for a in allocs}, oid)
+                after = reg["count"] + len(new) + len(other)
+                if after > reg["cap"]:
+                    raise HTTPException(409, f"settling would take this business to {after:,} shareholders but its "
+                                             f"share register allows at most {reg['cap']:,} ({reg['count']:,} now on "
+                                             f"BlockID Chain, {len(new):,} new from this offering"
+                                             + (f", {len(other):,} waiting in other share issues" if other else "")
+                                             + "); release the offering or settle the other issues first")
             for a in allocs:
                 tx.execute("INSERT INTO studio.mints (company_id, to_wallet, holder_name, shares, reason, status, "
                            "requested_by, offering_id) VALUES (%s,%s,%s,%s,%s,'approved',%s,%s) "
@@ -613,30 +712,57 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
 
     @r.post("/v1/admin/offerings/{oid}/release")
     def release(oid: int, body: ReasonBody | None = None, sess: Session = Depends(require_admin)):
-        """Do not settle: release every reservation (only while nothing has been issued for this offering)."""
+        """Do not settle (the rest): release every reservation whose shares were not issued. Allocations already
+        minted stay (their reservations become 'allocated') and the offering ends 'settled' in part; with nothing
+        minted it ends 'released'. Refused while a mint is running."""
         db = ctx.need_db()
+        reason = (body.reason.strip() if body else "") or "released by admin"
         with db.tx() as tx:
             o = tx.execute(f"SELECT {COLS} FROM studio.offerings WHERE id=%s FOR UPDATE", (oid,)).fetchone()
             if not o:
                 raise HTTPException(404, "unknown offering")
             if o["status"] not in ("awaiting_settlement", "failed"):
                 raise HTTPException(409, f"offering is {o['status']}, not waiting for settlement")
-            if tx.execute("SELECT 1 FROM studio.mints WHERE offering_id=%s AND status IN ('minted','minting') LIMIT 1",
+            if tx.execute("SELECT 1 FROM studio.mints WHERE offering_id=%s AND status='minting' LIMIT 1",
                           (oid,)).fetchone():
-                raise HTTPException(409, "some shares were already issued for this offering; approve the settlement "
-                                         "again to finish it")
+                raise HTTPException(409, "shares for this offering are being issued right now; wait until that "
+                                         "finishes")
+            minted = tx.execute("SELECT count(*) AS n, COALESCE(sum(shares),0) AS s FROM studio.mints "
+                                "WHERE offering_id=%s AND status='minted'", (oid,)).fetchone()
             tx.execute("UPDATE studio.mints SET status='rejected' WHERE offering_id=%s AND status IN ('approved','failed')",
                        (oid,))
+            kept = tx.execute("UPDATE studio.reservations r SET status='allocated', mint_id=m.id, updated_at=now() "
+                              "FROM studio.mints m WHERE r.offering_id=%s AND r.status='reserved' "
+                              "AND m.offering_id=r.offering_id AND lower(m.to_wallet)=lower(r.wallet) "
+                              "AND m.status='minted'", (oid,)).rowcount
             n = tx.execute("UPDATE studio.reservations SET status='released', updated_at=now() WHERE offering_id=%s "
                            "AND status='reserved'", (oid,)).rowcount
-            tx.execute("UPDATE studio.offerings SET status='released', reason=%s, updated_at=now() WHERE id=%s",
-                       ((body.reason.strip() if body else "") or "released by admin", oid))
-            tx.execute("INSERT INTO studio.events (company_id, kind, data) VALUES (%s,'offering_released',%s)",
-                       (o["company_id"], Jsonb({"offering_id": oid, "released": n, "by_admin": True,
-                                                "simulated": True})))
-        audit(sess.actor, "platform_admin", "offering_released_by_admin", company_by_id(o["company_id"]),
-              offering_id=oid, released=n, reason=body.reason if body else "")
-        return {"id": oid, "status": "released", "released": n}
+            partial = int(minted["n"]) > 0
+            if partial:
+                tx.execute("UPDATE studio.offerings SET status='settled', settled_at=now(), reason=%s, error=NULL, "
+                           "updated_at=now() WHERE id=%s", (reason, oid))
+                tx.execute("INSERT INTO studio.events (company_id, kind, data) VALUES (%s,'offering_settled',%s)",
+                           (o["company_id"], Jsonb({"offering_id": oid, "shares": int(minted["s"]),
+                                                    "investors": int(minted["n"]), "released": n, "partial": True,
+                                                    "by_admin": True, "simulated": True})))
+            else:
+                tx.execute("UPDATE studio.offerings SET status='released', reason=%s, updated_at=now() WHERE id=%s",
+                           (reason, oid))
+                tx.execute("INSERT INTO studio.events (company_id, kind, data) VALUES (%s,'offering_released',%s)",
+                           (o["company_id"], Jsonb({"offering_id": oid, "released": n, "by_admin": True,
+                                                    "simulated": True})))
+        c = company_by_id(o["company_id"])
+        audit(sess.actor, "platform_admin", "offering_released_by_admin", c, offering_id=oid, released=n,
+              allocated=kept, partial=partial, reason=body.reason if body else "")
+        if partial and ctx.issuer is not None:
+            try:  # the minted part changed the register: refresh the public copies once
+                ctx.issuer.post("/reanchor", {"company_id": c["id"]})
+            except IssuerError as e:
+                log.warning("re-sync after partial settlement of offering %s failed: %s", oid, e)
+        out = {"id": oid, "status": "settled" if partial else "released", "released": n}
+        if partial:
+            out["allocated"] = kept
+        return out
 
     @r.post("/v1/admin/offerings/run-automation")
     def run_automation(sess: Session = Depends(require_admin)):
@@ -654,8 +780,9 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
         db = ctx.need_db()
         out = view(o, pack=full)
         out.update(ticker=c["ticker"], company_name=c["name"], website=c.get("website"),
-                   grade=(c.get("grade") or "")[:1] or None, progress=progress(db, o),
-                   holder_limit=svc.holder_limit(o))
+                   grade=(c.get("grade") or "")[:1] or None, progress=progress(db, o))
+        if full:  # one chain read per page, not per list row
+            out["holder_limit"] = svc.holder_limit(o, svc.register(c, strict=False))
         if full and not o.get("pack"):
             out["pack"] = svc.build_pack(c, o)  # a draft seen by its company admins: live preview
         if not (sess and authz.role(sess, c["id"])):  # who did what stays with the company and the admins
@@ -726,6 +853,9 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
             shares = body.shares if body.shares is not None else shares_for(body.amount_aud, price)
             if shares < 1:
                 raise HTTPException(422, f"the amount is less than one share (A${price} per share)")
+            if amount_for(shares, price) < Decimal("0.01"):
+                raise HTTPException(422, f"a reservation must be worth at least A$0.01; at A${price} per share that is "
+                                         f"{shares_for_cent(price):,} shares or more")
             agg = tx.execute("SELECT COALESCE(sum(shares),0) AS s, COALESCE(sum(shares) FILTER "
                              "(WHERE lower(wallet)=lower(%s)),0) AS mine FROM studio.reservations "
                              "WHERE offering_id=%s AND status='reserved'", (wallet, oid)).fetchone()
@@ -738,14 +868,21 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
             if shares > room:
                 raise HTTPException(409, f"each investor can reserve at most {int(o['max_per_investor_shares']):,} "
                                          f"shares; you can add {max(room, 0):,} more")
-            held = svc.holders_now(o["company_id"], conn=tx)
             reserved_wallets = {x["w"] for x in tx.execute(
                 "SELECT DISTINCT lower(wallet) AS w FROM studio.reservations WHERE offering_id=%s AND status='reserved'",
                 (oid,)).fetchall()}
             w = wallet.lower()
-            if w not in held and w not in reserved_wallets:
-                limit = svc.holder_limit(o)
-                if len(held | reserved_wallets) + 1 > limit:
+            if w not in reserved_wallets:  # a wallet already reserving is counted already
+                co = tx.execute("SELECT * FROM studio.companies WHERE id=%s", (o["company_id"],)).fetchone()
+                reg = svc.register(co)  # the token's own cap and count; 503 when BlockID Chain cannot be read
+                limit = svc.holder_limit(o, reg)
+                if reg is not None:
+                    new, other = svc.newcomers(co, tx, reserved_wallets | {w}, oid)
+                    full = w in new and limit is not None and reg["count"] + len(new) + len(other) > limit
+                else:
+                    held = svc.holders_now(o["company_id"], conn=tx)
+                    full = w not in held and limit is not None and len(held | reserved_wallets) + 1 > limit
+                if full:
                     raise HTTPException(409, f"this business can have at most {limit:,} shareholders and that "
                                              "number is reached")
             name = body.name.strip() or ("Demo investor" if sess.auth_method == "demo" else

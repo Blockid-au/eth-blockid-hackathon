@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const APP = process.env.APP_URL || "https://eth.blockid.au";
+const APP_BASE = { v: APP }; // switched to HR_URL for the hr.blockid.au tour
 const OUT = path.resolve(process.env.OUT_DIR || "/tmp/flow-smoke");
 const VAL_ID = process.env.VAL_ID || "275fa4d16186466d";
 const TK = process.env.TK || "EBA";
@@ -19,7 +20,7 @@ async function tour(ctx, list, tag) {
   page.on("pageerror", (e) => problems.push(`${tag} ${page.url()}: pageerror ${e.message}`));
   page.on("console", (m) => { if (m.type() === "error" && !/favicon|401|403|404/.test(m.text())) problems.push(`${tag} ${page.url()}: console ${m.text().slice(0, 160)}`); });
   for (const [name, url] of list) {
-    await page.goto(APP + url, { waitUntil: "networkidle", timeout: 60000 }).catch((e) => problems.push(`${url}: ${e.message}`));
+    await page.goto(APP_BASE.v + url, { waitUntil: "networkidle", timeout: 60000 }).catch((e) => problems.push(`${url}: ${e.message}`));
     await page.waitForTimeout(1200);
     const info = await page.evaluate(() => ({
       h1: document.querySelector("main h1, main h2")?.textContent?.trim().slice(0, 70),
@@ -65,6 +66,26 @@ await tour(adm, [
 
 const mob = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
 await tour(mob, [["m-inv-demo", "/i/demo"], ["m-offerings", "/i/offerings"], ["m-offering", `/i/offerings/${OFFER_ID}`], ["m-inv-pos", "/i/demo/CNV"], ["m-start", "/start"], ["m-start-list", "/start?goal=list"], ["m-co", `/c/${TK}/overview`], ["m-val", `/v/${VAL_ID}/report`], ["m-home", "/"]], "m");
+
+// hr.blockid.au (same build, host-based routes). HR_URL=off skips; HR_TEAM / HR_PERSON add report tabs.
+// Local: HR_URL="http://127.0.0.1:4173" with ?host=hr handled via HR_Q="?host=hr".
+const HR = process.env.HR_URL || "https://hr.blockid.au";
+if (HR !== "off") {
+  const q = process.env.HR_Q || "";
+  const hrPages = [["hr-home", "/"], ["hr-new-team", "/new"], ["hr-new-person", "/new/person"], ["hr-me", "/me"], ["hr-method", "/method"], ["hr-missing", "/r/does-not-exist"]];
+  if (process.env.HR_TEAM) for (const tb of ["", "/people", "/gaps", "/sources", "/p/n1"]) hrPages.push([`hr-team${tb.replace(/\//g, "-")}`, `/r/${process.env.HR_TEAM}${tb}`]);
+  if (process.env.HR_PERSON) for (const tb of ["", "/score", "/requirements", "/cv", "/assessment", "/sources"]) hrPages.push([`hr-person${tb.replace(/\//g, "-")}`, `/p/${process.env.HR_PERSON}${tb}`]);
+  const withQ = (l) => l.map(([n, u]) => [n, u + q]);
+  const saveApp = APP;
+  const hrTour = async (ctx, list, tag) => { const pg = await tour(ctx, list.map(([n, u]) => [n, u]), tag); await pg.close(); };
+  // tour() prefixes APP; reuse it by swapping the base
+  const hrDesk = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  const hrMob = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+  APP_BASE.v = HR;
+  await hrTour(hrDesk, withQ(hrPages), "hr");
+  await hrTour(hrMob, withQ(hrPages.slice(0, 5)), "hrm");
+  APP_BASE.v = saveApp;
+}
 
 await browser.close();
 console.log(problems.length ? "\nPROBLEMS:\n" + problems.join("\n") : "\nno problems");

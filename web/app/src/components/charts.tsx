@@ -128,7 +128,7 @@ export function Contrib({ dims, totalLabel }: { dims: DimRow[]; totalLabel: stri
         sum += c;
         return (
           <div className="r" key={d.key} title={d.rationale || undefined}>
-            <span>{d.label} · {fmt(d.score)}{d.basis === "self_reported" && <> <span className="pill sr" title={t("sr.chip.tip")}>{t("sr.chip")}</span></>}</span>
+            <span>{d.label} · {fmt(d.score)}{d.basis === "self_reported" && <> <span className="pill sr" title={t("sr.chip.tip")}>{t("sr.chip")}</span></>}{d.basis === "team_report" && <> <span className="pill ok">{t("hr.basis.team")}</span></>}</span>
             <span className="t"><i style={{ width: Math.max(0, Math.min(100, d.score)) + "%" }} /></span>
             <span className="w">×{fmt(d.weight, 2)}</span>
             <span className="v">{fmt(c, 1)}</span>

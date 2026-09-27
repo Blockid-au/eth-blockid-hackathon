@@ -10,6 +10,7 @@ import { AddrCard, ManualSteps, NetworkDetails } from "../components/AddrCard";
 import { ErrorBox, Loading } from "../components/Layout";
 import { useAsync, useTitle } from "../lib/hooks";
 import { colorAt, foldParts, GRADE_C } from "../lib/math";
+import { readNumber } from "../lib/typed";
 import { CHAINS, chainOf, isAddressValid, shortAddr } from "../wallet";
 import type { DictKey } from "../dict";
 import { Tracker } from "../components/Tracker";
@@ -193,7 +194,11 @@ function DividendForm({ c, onSent }: { c: CompanyDetail; onSent: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; s: string } | null>(null);
   const [root, setRoot] = useState<string | null>(null);
-  const total = Math.max(0, Math.floor(Number(amt) || 0));
+  // cents allowed; the API refuses more than 6 decimals and tells what rounding leaves with the company
+  const typed = readNumber(amt);
+  const amtOk = typed.kind === "ok" && typed.n >= 0.01 && typed.dp <= 2 && typed.n <= 1e12;
+  const total = amtOk && typed.kind === "ok" ? typed.n : 0;
+  const m6 = (n: number) => fmt(n, Math.round(n * 1e6) % 10000 === 0 ? 2 : 6);
   const supply = c.cap_table.reduce((a, r) => a + Number(r.shares), 0) || 1;
   const rows = c.cap_table.map((r, i) => {
     const pay = Math.floor(((total * Number(r.shares)) / supply) * 100) / 100;
@@ -201,12 +206,14 @@ function DividendForm({ c, onSent }: { c: CompanyDetail; onSent: () => void }) {
   });
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (total < 1) return;
+    if (!amtOk) return;
     setBusy(true); setMsg(null);
     try {
       const r = await api.requestDividend(c.ticker, total);
       setRoot(r?.merkle_root ?? null);
-      setMsg({ ok: true, s: t("c.div.sent") });
+      const paid = r?.total_maud ?? total;
+      const rest = (r?.remainder_units ?? 0) / 1e6;
+      setMsg({ ok: true, s: t("c.div.sent") + " " + (rest > 0 ? t("fx2.div.paidRest", { x: m6(paid), y: m6(rest) }) : t("fx2.div.paid", { x: m6(paid) })) });
       onSent();
     } catch (x) {
       setMsg({ ok: false, s: errText(x, t) });
@@ -220,11 +227,12 @@ function DividendForm({ c, onSent }: { c: CompanyDetail; onSent: () => void }) {
       <p className="sub">{t("dv.p")}</p>
       <div className="field" style={{ alignItems: "center" }}>
         <label htmlFor="div-amt" className="sub">{t("dv.amt")}</label>
-        <input id="div-amt" type="number" min={0} step={1000} value={amt} onChange={(e) => setAmt(e.target.value)} style={{ maxWidth: 160 }} />
+        <input id="div-amt" type="text" inputMode="decimal" value={amt} aria-invalid={!amtOk || undefined} aria-describedby={!amtOk ? "div-amt-err" : undefined} onChange={(e) => setAmt(e.target.value)} style={{ maxWidth: 160 }} />
       </div>
+      {!amtOk && <span id="div-amt-err" className="err">{t("fx2.div.amt")}</span>}
       <HBars rows={rows} x0={130} x1={380} rowH={36} ariaLabel={t("dv.h")} />
       <div className="merkle"><span>{t("dv.root")}</span> <span>{root ?? t("c.div.root")}</span> · <span>{t("dv.deadline")}</span></div>
-      <button className="btn ghost" type="submit" disabled={busy || total < 1} style={{ justifySelf: "start" }}>{t("dv.request")}</button>
+      <button className="btn ghost" type="submit" disabled={busy || !amtOk} style={{ justifySelf: "start" }}>{t("dv.request")}</button>
       {msg && <p className={msg.ok ? "toast" : "err"} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
     </form>
   );

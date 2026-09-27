@@ -297,7 +297,17 @@ needs_db = pytest.mark.skipif(not TEST_DB, reason="TEST_DATABASE_URL not set")
 class FakeChain:
     def __init__(self):
         self.balances_by_token: dict[str, dict[str, int]] = {}
+        self.caps: dict[str, int] = {}
         self.fail = False
+        # what transfer_facts returns (test_transfer_rules.py changes it); all clear by default
+        self.facts = {"balance_from": 10**9, "balance_to": 0, "from_verified": True, "to_verified": True,
+                      "frozen_from": False, "frozen_to": False, "lockup_until": 0, "holders": 1, "max_holders": 0,
+                      "now": 1_700_000_000}
+
+    def transfer_facts(self, token, registry, frm, to):
+        if self.fail:
+            raise ConnectionError("rpc down")
+        return dict(self.facts)
 
     def block_number(self) -> int:
         if self.fail:
@@ -309,6 +319,13 @@ class FakeChain:
             raise ConnectionError("rpc down")
         b = self.balances_by_token.get(token, {})
         return {w: b.get(w.lower(), 0) for w in wallets}
+
+    def shareholders(self, token):
+        """(maxShareholders, shareholderCount): cap from `caps` (default 0 = no limit), count = non-zero balances."""
+        if self.fail:
+            raise ConnectionError("rpc down")
+        count = sum(1 for v in self.balances_by_token.get(token, {}).values() if v > 0)
+        return self.caps.get(token, 0), count
 
 
 @pytest.fixture

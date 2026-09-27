@@ -9,6 +9,7 @@ import type { DictKey } from "../dict";
 import { ErrorBox } from "../components/Layout";
 import { useAsync } from "../lib/hooks";
 import { shortAddr } from "../lib/addr";
+import { readNumber, readWhole } from "../lib/typed";
 
 /**
  * Automatic dividends (agents/src/blockid_agents/studio/dividend_policy.py).
@@ -48,7 +49,7 @@ function DivPill({ s }: { s: string }) {
 
 /* ---------- company: set the rule ---------- */
 function PolicyForm({ ticker, cur, onSaved, onCancel }: { ticker: string; cur: DividendPolicy | null; onSaved: (v: DividendPolicyView, msg: string) => void; onCancel?: () => void }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [kind, setKind] = useState<PolicyKind>(cur?.kind ?? "payout_ratio");
   const [ratio, setRatio] = useState(cur?.ratio_pct != null ? String(cur.ratio_pct) : "30");
   const [fixed, setFixed] = useState(cur?.fixed_maud != null ? String(cur.fixed_maud) : "10000");
@@ -57,15 +58,31 @@ function PolicyForm({ ticker, cur, onSaved, onCancel }: { ticker: string; cur: D
   const [veto, setVeto] = useState(String(cur?.veto_hours ?? 24));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const num = (v: string) => Number(v.trim().replace(/,/g, ""));
-  const body: PolicyIn = { kind, ratio_pct: kind === "payout_ratio" ? num(ratio) : null, fixed_maud: kind === "fixed" ? num(fixed) : null, max_maud_per_round: num(max), frequency: freq, veto_hours: Math.round(num(veto)) };
-  const ok = body.max_maud_per_round > 0 && body.veto_hours >= 1 && (kind === "payout_ratio" ? (body.ratio_pct ?? 0) > 0 : (body.fixed_maud ?? 0) > 0);
+  // each field checked where it is typed (same rules as the API: whole cents >= 0.01, ratio 0-100, 1-168 hours)
+  const cents = (raw: string): { n: number; err: DictKey | null } => {
+    const r = readNumber(raw);
+    if (r.kind !== "ok") return { n: NaN, err: "fx2.dv.cents" };
+    if (r.n < 0.01 || r.dp > 2) return { n: r.n, err: "fx2.dv.cents" };
+    if (r.n > 1e9) return { n: r.n, err: "fx2.dv.tooBig" };
+    return { n: r.n, err: null };
+  };
+  const rr = readNumber(ratio);
+  const ratioErr: DictKey | null = rr.kind !== "ok" || rr.n <= 0 || rr.n > 100 ? "fx2.dv.ratio" : null;
+  const fx = cents(fixed);
+  const mx = cents(max);
+  const vetoN = readWhole(veto);
+  const vetoErr: DictKey | null = vetoN == null || vetoN < 1 || vetoN > 168 ? "fx2.dv.veto" : null;
+  const overCap = kind === "fixed" && !fx.err && !mx.err && fx.n > mx.n;
+  const errs = { ratio: kind === "payout_ratio" ? ratioErr : null, fixed: kind === "fixed" ? fx.err : null, max: mx.err, veto: vetoErr };
+  const ok = !errs.ratio && !errs.fixed && !errs.max && !errs.veto && !overCap;
+  const body: PolicyIn = { kind, ratio_pct: kind === "payout_ratio" && rr.kind === "ok" ? rr.n : null, fixed_maud: kind === "fixed" ? fx.n : null, max_maud_per_round: mx.n, frequency: freq, veto_hours: vetoN ?? 0 };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ok) { setErr(t("dvp.need")); return; }
+    if (!ok) { setErr(t("fx2.fix")); return; }
     setBusy(true); setErr("");
     try { onSaved(await api.saveDividendPolicy(ticker, body), t("dvp.saved")); } catch (x) { setErr(errText(x, t)); } finally { setBusy(false); }
   };
+  const fe = (k: DictKey | null, extra?: Record<string, string>) => (k ? <span className="err">{t(k, extra)}</span> : null);
   return (
     <form className="stack" onSubmit={submit} noValidate>
       {cur && (cur.status === "active" || cur.status === "paused") && <p className="banner warn" role="note">{t("dvp.editwarn")}</p>}
@@ -74,21 +91,22 @@ function PolicyForm({ ticker, cur, onSaved, onCancel }: { ticker: string; cur: D
       </div>
       <div className="fgrid">
         {kind === "payout_ratio" ? (
-          <label className="lf"><span>{t("dvp.ratio")}</span><input type="number" inputMode="decimal" min={0.1} max={100} step="any" value={ratio} onChange={(e) => setRatio(e.target.value)} /></label>
+          <label className="lf"><span>{t("dvp.ratio")}</span><input type="text" inputMode="decimal" value={ratio} aria-invalid={!!errs.ratio || undefined} onChange={(e) => setRatio(e.target.value)} />{fe(errs.ratio)}</label>
         ) : (
-          <label className="lf"><span>{t("dvp.fixed")}</span><input type="number" inputMode="decimal" min={1} step="any" value={fixed} onChange={(e) => setFixed(e.target.value)} /></label>
+          <label className="lf"><span>{t("dvp.fixed")}</span><input type="text" inputMode="decimal" value={fixed} aria-invalid={!!errs.fixed || overCap || undefined} onChange={(e) => setFixed(e.target.value)} />
+            {fe(errs.fixed)}{overCap && fe("fx2.dv.fixedOverCap", { m: fmt(mx.n, 2) })}</label>
         )}
-        <label className="lf"><span>{t("dvp.max")}</span><input type="number" inputMode="decimal" min={1} step="any" value={max} onChange={(e) => setMax(e.target.value)} /></label>
+        <label className="lf"><span>{t("dvp.max")}</span><input type="text" inputMode="decimal" value={max} aria-invalid={!!errs.max || undefined} onChange={(e) => setMax(e.target.value)} />{fe(errs.max)}</label>
         <label className="lf"><span>{t("dvp.freq")}</span>
           <select value={freq} onChange={(e) => setFreq(e.target.value as PolicyFrequency)}>
             {(["quarterly", "monthly"] as PolicyFrequency[]).map((x) => <option key={x} value={x}>{t(("dvp.freq." + x) as DictKey)}</option>)}
           </select>
         </label>
-        <label className="lf"><span>{t("dvp.veto")}</span><input type="number" inputMode="numeric" min={1} max={168} step={1} value={veto} onChange={(e) => setVeto(e.target.value)} /></label>
+        <label className="lf"><span>{t("dvp.veto")}</span><input type="text" inputMode="numeric" value={veto} aria-invalid={!!errs.veto || undefined} onChange={(e) => setVeto(e.target.value)} />{fe(errs.veto)}</label>
       </div>
       {ok && <div className="pane"><PolicySummary p={{ ...body, max_maud_per_round: body.max_maud_per_round }} /></div>}
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-        <button className="btn" type="submit" disabled={busy}>{t("dvp.save")}</button>
+        <button className="btn" type="submit" disabled={busy || !ok}>{t("dvp.save")}</button>
         {onCancel && <button className="btn ghost" type="button" onClick={onCancel}>{t("dvp.keep")}</button>}
       </div>
       {err && <p className="err" role="alert">{err}</p>}
@@ -107,6 +125,18 @@ function PolicyCard({ v, onChanged }: { v: DividendPolicyView; onChanged: (v: Di
     try { onChanged(await api.policyAction(v.ticker, a)); setMsg({ ok: true, s: t(okMsg) }); } catch (x) { setMsg({ ok: false, s: errText(x, t) }); } finally { setBusy(false); }
   };
   const showForm = v.live && (!p || editing || p.status === "draft");
+  // announced payments are still paid after a pause or a change of the rule, unless cancelled (the veto)
+  const announced = v.announced ?? [];
+  const cancelAll = async () => {
+    if (!window.confirm(t("fx2.dv.cancelConfirm", { n: announced.length }))) return;
+    setBusy(true); setMsg(null);
+    try {
+      let last: DividendPolicyView | null = null;
+      for (const d of announced) last = await api.vetoDividend(v.ticker, d.id, t("fx2.dv.cancelReason"));
+      if (last) onChanged(last);
+      setMsg({ ok: true, s: t("fx2.dv.cancelledAll", { n: announced.length }) });
+    } catch (x) { setMsg({ ok: false, s: errText(x, t) }); } finally { setBusy(false); }
+  };
   return (
     <section className="card solid">
       <div className="between">
@@ -122,6 +152,12 @@ function PolicyCard({ v, onChanged }: { v: DividendPolicyView; onChanged: (v: Di
       {p?.status === "active" && v.next && (
         <div className="nextact">
           <div><span className="eyebrow">{t("dvp.next")}</span><p>{t("dvp.next.p", { p: v.next.period_label, h: v.next.veto_hours, max: fmt(v.next.max_maud, 2) })}</p></div>
+        </div>
+      )}
+      {announced.length > 0 && p && (editing || p.status !== "active") && (
+        <div className="banner warn" role="note">
+          <p style={{ margin: 0 }}>{t("fx2.dv.announced", { n: announced.length, a: fmt(announced.reduce((x, d) => x + d.total_maud, 0), 2) })}</p>
+          <button className="btn danger sm" type="button" disabled={busy} onClick={() => void cancelAll()}>{t("fx2.dv.cancelAll")}</button>
         </div>
       )}
       {showForm && <PolicyForm ticker={v.ticker} cur={p} onSaved={(nv, s) => { onChanged(nv); setEditing(false); setMsg({ ok: true, s }); }} onCancel={editing ? () => setEditing(false) : undefined} />}

@@ -150,9 +150,10 @@ class SearchChain:
         raise SearchUnavailable("; ".join(errors) or "no search provider configured")
 
 
-def build_search(settings, store: EvidenceStore) -> SearchChain | None:
+def build_search(settings, store: EvidenceStore, providers_order: tuple[str, ...] | None = None) -> SearchChain | None:
+    """providers_order overrides SEARCH_PROVIDERS (e.g. HR_SEARCH_PROVIDERS for the People Analyst)."""
     providers: list[tuple[str, object]] = []
-    for name in settings.search_providers:
+    for name in (settings.search_providers if providers_order is None else providers_order):
         if name == "brave" and settings.brave_api_key:
             providers.append(("brave", BraveSearch(settings.brave_api_key, store, max_rps=settings.brave_max_rps,
                                                    cache_ttl_hours=settings.brave_cache_ttl_hours)))

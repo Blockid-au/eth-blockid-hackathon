@@ -1,11 +1,14 @@
 """Business updates API (docs/UPGRADE-INVESTOR-PLAN.md 3c, lean MVP).
 
 Founder side (platform admin, or an active owner / manager of the company, see company_admins.CompanyAuthz):
-  GET  /v1/companies/{tk}/kpis                 KPI values entered so far, by period
-  PUT  /v1/companies/{tk}/kpis                 {period_end, values:{metric: number|null}}   (null = remove)
+  GET  /v1/companies/{tk}/kpis                 KPI values entered so far, by cadence + period
+  PUT  /v1/companies/{tk}/kpis                 {cadence, period_end, values:{metric: number|null}}   (null = remove)
   POST /v1/companies/{tk}/updates              {cadence, period_end, kpis?, note?} -> draft built by code from the
                                                numbers (update_draft.build_draft); re-preparing a draft / rejected /
                                                failed update of the same period rebuilds it
+Periods: the end lines up with the cadence (update_draft.period_end_problem), the period is over, and no other update
+of the same cadence that is sent / published covers any of its days (409 names that period), so the dividend rule
+never pays twice for the same days.
   PATCH /v1/updates/{id}                       {title?, summary?, note?, highlights?, risks?}  (draft / rejected)
   POST /v1/updates/{id}/submit                 draft | rejected -> pending_approval
 Approval (platform admin only; queue "updates" in GET /v1/admin/approvals):
@@ -29,6 +32,7 @@ from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -42,6 +46,9 @@ from .services import IssuerError
 log = logging.getLogger(__name__)
 
 EDITABLE = ("draft", "rejected")
+REBUILDABLE = ("draft", "rejected", "failed")
+# an update in one of these states holds its period: no other update of the same cadence may overlap it
+HOLDS_PERIOD = ("pending_approval", "publishing", "published", "failed")
 MAX_ABS = Decimal(10) ** 15
 NONNEG = {"revenue", "cash", "customers", "headcount"}
 
@@ -51,6 +58,7 @@ class _Body(BaseModel):
 
 
 class KpiBody(_Body):
+    cadence: Literal["weekly", "monthly", "quarterly", "annual"] = "monthly"
     period_end: date
     values: dict[str, float | None] = Field(default_factory=dict)
 
@@ -60,6 +68,9 @@ class PrepareBody(_Body):
     period_end: date
     kpis: dict[str, float | None] | None = None
     note: str = Field(default="", max_length=2000)
+
+
+ITEM_MAX = 500
 
 
 class EditBody(_Body):
@@ -158,33 +169,58 @@ def build_updates_router(ctx) -> APIRouter:
 
     # -------------------------------------------------------------- KPIs
     def kpi_periods(cid: int) -> list[dict]:
-        rows = ctx.need_db().all("SELECT period_end, metric, value, unit FROM studio.kpi_values WHERE company_id=%s "
-                                 "ORDER BY period_end DESC, metric", (cid,))
-        out: dict[date, dict] = {}
+        rows = ctx.need_db().all("SELECT cadence, period_end, metric, value, unit FROM studio.kpi_values "
+                                 "WHERE company_id=%s ORDER BY period_end DESC, cadence, metric", (cid,))
+        out: dict[tuple[str, date], dict] = {}
         for x in rows:
-            out.setdefault(x["period_end"], {})[x["metric"]] = ud.num(x["value"])
-        return jsonable([{"period_end": k, "values": v} for k, v in out.items()])
+            out.setdefault((x["cadence"], x["period_end"]), {})[x["metric"]] = ud.num(x["value"])
+        return jsonable([{"cadence": k[0], "period_end": k[1], "values": v} for k, v in out.items()])
 
-    def upsert_kpis(c: dict, period_end: date, values: dict[str, float | None], actor: str) -> dict:
-        checked = {m: _check_value(m, v) for m, v in values.items()}
-        with ctx.need_db().tx() as tx:
-            for m, v in checked.items():
-                if v is None:
-                    tx.execute("DELETE FROM studio.kpi_values WHERE company_id=%s AND metric=%s AND period_end=%s",
-                               (c["id"], m, period_end))
-                else:
-                    tx.execute("INSERT INTO studio.kpi_values (company_id, period_end, metric, value, unit, source, "
-                               "entered_by) VALUES (%s,%s,%s,%s,%s,'manual',%s) ON CONFLICT (company_id, metric, "
-                               "period_end) DO UPDATE SET value=EXCLUDED.value, unit=EXCLUDED.unit, "
-                               "source='manual', entered_by=EXCLUDED.entered_by, created_at=now()",
-                               (c["id"], period_end, m, v, ud.METRICS[m], actor))
-        return {m: ud.num(v) for m, v in checked.items()}
+    def stored_kpis(cid: int, cadence: str, period_end: date) -> dict[str, Decimal]:
+        return {x["metric"]: x["value"] for x in ctx.need_db().all(
+            "SELECT metric, value FROM studio.kpi_values WHERE company_id=%s AND cadence=%s AND period_end=%s",
+            (cid, cadence, period_end))}
 
-    def check_period(end: date) -> None:
-        if end > datetime.now(timezone.utc).date() + timedelta(days=1):
-            raise HTTPException(422, "the period cannot end in the future")
+    def write_kpis(tx, c: dict, cadence: str, period_end: date, checked: dict[str, Decimal | None],
+                   actor: str) -> None:
+        """Values already checked by _check_value; None removes the stored value (cleared on purpose)."""
+        for m, v in checked.items():
+            if v is None:
+                tx.execute("DELETE FROM studio.kpi_values WHERE company_id=%s AND cadence=%s AND metric=%s "
+                           "AND period_end=%s", (c["id"], cadence, m, period_end))
+            else:
+                tx.execute("INSERT INTO studio.kpi_values (company_id, cadence, period_end, metric, value, unit, "
+                           "source, entered_by) VALUES (%s,%s,%s,%s,%s,%s,'manual',%s) ON CONFLICT (company_id, "
+                           "cadence, metric, period_end) DO UPDATE SET value=EXCLUDED.value, unit=EXCLUDED.unit, "
+                           "source='manual', entered_by=EXCLUDED.entered_by, created_at=now()",
+                           (c["id"], cadence, period_end, m, v, ud.METRICS[m], actor))
+
+    def check_period(cadence: str, end: date) -> None:
+        """The period must line up with its cadence and be over. 'Over' is judged against the latest calendar date in
+        use anywhere (UTC+14), so a founder is never refused a period that has ended where they are; the web app
+        applies the stricter local date."""
+        problem = ud.period_end_problem(cadence, end)
+        if problem:
+            raise HTTPException(422, problem)
+        latest_today = (datetime.now(timezone.utc) + timedelta(hours=14)).date()
+        if end >= latest_today:
+            raise HTTPException(422, "this period has not finished yet; you can report it after it ends")
         if end.year < 2000:
             raise HTTPException(422, "period_end is too far in the past")
+
+    def check_overlap(conn, cid: int, cadence: str, start: date, end: date, statuses: tuple[str, ...]) -> None:
+        """409 when another update of this cadence (in one of `statuses`) covers any day of start..end."""
+        o = conn.execute("SELECT period_start, period_end, status FROM studio.updates WHERE company_id=%s "
+                         "AND cadence=%s AND period_end <> %s AND period_start <= %s AND period_end >= %s "
+                         "AND status = ANY(%s) ORDER BY period_end LIMIT 1",
+                         (cid, cadence, end, end, start, list(statuses))).fetchone()
+        if o:
+            raise HTTPException(409, f"this period overlaps the {cadence} update for "
+                                     f"{ud.period_label(cadence, o['period_end'])} ({o['period_start'].isoformat()} to "
+                                     f"{o['period_end'].isoformat()}), which is {o['status'].replace('_', ' ')}")
+
+    def lock_company_updates(conn, cid: int) -> None:
+        conn.execute("SELECT pg_advisory_xact_lock(hashtext('studio.updates.period'), %s)", (cid,))
 
     @r.get("/v1/companies/{tk}/kpis")
     def get_kpis(tk: str, sess: Session = Depends(require_user)):
@@ -197,48 +233,68 @@ def build_updates_router(ctx) -> APIRouter:
     def put_kpis(tk: str, body: KpiBody, sess: Session = Depends(require_user)):
         c = company(tk)
         role = authz.check(sess, c["id"])
-        check_period(body.period_end)
-        saved = upsert_kpis(c, body.period_end, body.values, sess.actor)
-        audit(sess, role, "kpis_entered", c["ticker"], company_id=c["id"], period_end=body.period_end, values=saved)
-        return {"ticker": c["ticker"], "period_end": body.period_end.isoformat(), "saved": saved,
-                "periods": kpi_periods(c["id"])}
+        check_period(body.cadence, body.period_end)
+        checked = {m: _check_value(m, v) for m, v in body.values.items()}
+        with ctx.need_db().tx() as tx:
+            write_kpis(tx, c, body.cadence, body.period_end, checked, sess.actor)
+        saved = {m: ud.num(v) for m, v in checked.items()}
+        audit(sess, role, "kpis_entered", c["ticker"], company_id=c["id"], cadence=body.cadence,
+              period_end=body.period_end, values=saved)
+        return {"ticker": c["ticker"], "cadence": body.cadence, "period_end": body.period_end.isoformat(),
+                "saved": saved, "periods": kpi_periods(c["id"])}
 
     # -------------------------------------------------------------- drafts
     @r.post("/v1/companies/{tk}/updates", status_code=201)
     def prepare(tk: str, body: PrepareBody, sess: Session = Depends(require_user)):
+        """Every check runs before anything is written: a refused request never removes stored figures."""
         db = ctx.need_db()
         c = company(tk)
         role = authz.check(sess, c["id"])
         if c["status"] not in ONCHAIN_STATUSES:
             raise HTTPException(409, "updates start once the shares are issued")
-        check_period(body.period_end)
+        check_period(body.cadence, body.period_end)
         start = ud.period_start(body.cadence, body.period_end)
+        checked = {m: _check_value(m, v) for m, v in (body.kpis or {}).items()}
         existing = db.one("SELECT id, status FROM studio.updates WHERE company_id=%s AND cadence=%s AND period_end=%s",
                           (c["id"], body.cadence, body.period_end))
-        if existing and existing["status"] not in ("draft", "rejected", "failed"):
-            raise HTTPException(409, f"the {body.cadence} update for this period is already {existing['status']}")
-        if body.kpis:
-            upsert_kpis(c, body.period_end, body.kpis, sess.actor)
-        cur = {x["metric"]: x["value"] for x in db.all(
-            "SELECT metric, value FROM studio.kpi_values WHERE company_id=%s AND period_end=%s",
-            (c["id"], body.period_end))}
+        if existing and existing["status"] not in REBUILDABLE:
+            raise HTTPException(409, f"the {body.cadence} update for this period is already "
+                                     f"{existing['status'].replace('_', ' ')}")
+        cur = stored_kpis(c["id"], body.cadence, body.period_end)
+        for m, v in checked.items():
+            if v is None:
+                cur.pop(m, None)
+            else:
+                cur[m] = v
         if not cur:
             raise HTTPException(422, "enter at least one figure for this period first")
         prev = {x["metric"]: x["value"] for x in db.all(
-            "SELECT DISTINCT ON (metric) metric, value FROM studio.kpi_values WHERE company_id=%s AND period_end < %s "
-            "ORDER BY metric, period_end DESC", (c["id"], start))}
+            "SELECT DISTINCT ON (metric) metric, value FROM studio.kpi_values WHERE company_id=%s AND cadence=%s "
+            "AND period_end < %s ORDER BY metric, period_end DESC", (c["id"], body.cadence, start))}
         draft = ud.build_draft(c, body.cadence, start, body.period_end, cur, prev, body.note)
-        if existing:
-            db.exec("UPDATE studio.updates SET status='draft', period_start=%s, title=%s, body=%s, content_hash=NULL, "
-                    "anchor=NULL, error=NULL, reason=NULL, approved_by=NULL, created_by=%s, updated_at=now() "
-                    "WHERE id=%s", (start, draft["title"], Jsonb(draft["body"]), sess.actor, existing["id"]))
-            uid = existing["id"]
-        else:
-            uid = "upd_" + uuid.uuid4().hex[:12]
-            db.exec("INSERT INTO studio.updates (id, company_id, cadence, period_start, period_end, status, title, "
-                    "body, created_by) VALUES (%s,%s,%s,%s,%s,'draft',%s,%s,%s)",
-                    (uid, c["id"], body.cadence, start, body.period_end, draft["title"], Jsonb(draft["body"]),
-                     sess.actor))
+        uid = existing["id"] if existing else "upd_" + uuid.uuid4().hex[:12]
+        try:
+            with db.tx() as tx:
+                lock_company_updates(tx, c["id"])
+                check_overlap(tx, c["id"], body.cadence, start, body.period_end, HOLDS_PERIOD)
+                if existing:
+                    n = tx.execute("UPDATE studio.updates SET status='draft', period_start=%s, title=%s, body=%s, "
+                                   "content_hash=NULL, anchor=NULL, error=NULL, reason=NULL, approved_by=NULL, "
+                                   "created_by=%s, updated_at=now() WHERE id=%s AND status = ANY(%s)",
+                                   (start, draft["title"], Jsonb(draft["body"]), sess.actor, uid,
+                                    list(REBUILDABLE))).rowcount
+                    if not n:
+                        raise HTTPException(409, "this update changed meanwhile (sent for approval or published); "
+                                                 "reload the page")
+                else:
+                    tx.execute("INSERT INTO studio.updates (id, company_id, cadence, period_start, period_end, status, "
+                               "title, body, created_by) VALUES (%s,%s,%s,%s,%s,'draft',%s,%s,%s)",
+                               (uid, c["id"], body.cadence, start, body.period_end, draft["title"],
+                                Jsonb(draft["body"]), sess.actor))
+                write_kpis(tx, c, body.cadence, body.period_end, checked, sess.actor)
+        except UniqueViolation:
+            raise HTTPException(409, f"a {body.cadence} update for this period was just created; reload the page") \
+                from None
         audit(sess, role, "update_prepared", c["ticker"], company_id=c["id"], update_id=uid, cadence=body.cadence,
               period_end=body.period_end, rebuilt=bool(existing))
         return view(load(uid), private=True)
@@ -252,6 +308,8 @@ def build_updates_router(ctx) -> APIRouter:
             raise HTTPException(409, f"update is {u['status']}; only drafts can be edited")
         b = ud.canonical_body(u.get("body"))
         changed = []
+        if body.summary is not None and not body.summary.strip():
+            raise HTTPException(422, "the summary cannot be empty")
         for k in ("summary", "note"):
             v = getattr(body, k)
             if v is not None:
@@ -260,7 +318,11 @@ def build_updates_router(ctx) -> APIRouter:
         for k in ("highlights", "risks"):
             v = getattr(body, k)
             if v is not None:
-                b[k] = [x.strip()[:500] for x in v if x and x.strip()]
+                items = [x.strip() for x in v if x and x.strip()]
+                for i, x in enumerate(items, 1):
+                    if len(x) > ITEM_MAX:
+                        raise HTTPException(422, f"{k[:-1]} {i} is {len(x)} characters long; the most is {ITEM_MAX}")
+                b[k] = items
                 changed.append(k)
         title = u["title"]
         if body.title is not None:
@@ -281,8 +343,14 @@ def build_updates_router(ctx) -> APIRouter:
         db = ctx.need_db()
         u = load(uid)
         role = authz.check(sess, u["company_id"])
-        n = db.exec("UPDATE studio.updates SET status='pending_approval', reason=NULL, error=NULL, updated_at=now() "
-                    "WHERE id=%s AND status IN ('draft','rejected')", (uid,))
+        problem = ud.period_end_problem(u["cadence"], u["period_end"])
+        if problem and u["status"] in EDITABLE:
+            raise HTTPException(422, problem + "; prepare the update again for a full period")
+        with db.tx() as tx:
+            lock_company_updates(tx, u["company_id"])
+            check_overlap(tx, u["company_id"], u["cadence"], u["period_start"], u["period_end"], HOLDS_PERIOD)
+            n = tx.execute("UPDATE studio.updates SET status='pending_approval', reason=NULL, error=NULL, "
+                           "updated_at=now() WHERE id=%s AND status IN ('draft','rejected')", (uid,)).rowcount
         if not n:
             raise HTTPException(409, f"update is {u['status']}, not a draft")
         audit(sess, role, "update_submitted", u["ticker"], company_id=u["company_id"], update_id=uid)

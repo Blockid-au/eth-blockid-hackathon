@@ -193,24 +193,28 @@ class DividendAutomation:
         db = self.ctx.need_db()
         p = {c: r["p_" + c] for c in POLICY_COLS.split(", ")}
         actor, period = f"policy:{p['id']}", ud.period_label(r["cadence"], r["period_end"])
-        units = policy_amount_units(p, net_profit_of(r))
+        profit = _dec(net_profit_of(r))
+        units = policy_amount_units(p, profit)
         claims, root, note = [], None, None
-        if net_profit_of(r) is None:
+        if profit is None:
             note = "no net profit in this update"
-        elif units <= 0:
+        elif profit <= 0:
             note = "no profit this period"
+        elif units <= 0:
+            note = "the amount for this period rounds to A$0.00, so nothing is paid"
         elif r["company_status"] not in ONCHAIN_STATUSES or not r.get("local_token"):
             note, units = "shares are not issued on BlockID Chain", 0
         else:
             table, _, _ = self.cap_table(db.one("SELECT * FROM studio.companies WHERE id=%s", (r["company_id"],)))
             try:
                 claims, root, total, _ = plan_claims(table, units)
-            except ValueError:
-                claims, total = [], 0
-            if not claims:
-                note, units = "amount too small to pay any shareholder", 0
+            except ValueError:  # nobody holds shares at the record date
+                note, units = "no shareholders to pay", 0
             else:
-                units = total
+                if not claims:
+                    note, units = "the amount is too small to give any shareholder at least 1 cent", 0
+                else:
+                    units = total
         status = "scheduled" if units > 0 else "skipped"
         pay_after = now + timedelta(hours=int(p["veto_hours"])) if units > 0 else None
         row = db.one(
@@ -314,6 +318,15 @@ class ReasonBody(_Body):
     reason: str = Field(default="", max_length=1000)
 
 
+def check_money(label: str, v: float | None) -> None:
+    """A$ amounts of a rule: at least 1 cent and whole cents (anything smaller would round to A$0.00 for ever)."""
+    d = Decimal(str(v))
+    if d < Decimal("0.01"):
+        raise HTTPException(422, f"{label} must be at least A$0.01")
+    if d != d.quantize(Decimal("0.01")):
+        raise HTTPException(422, f"{label} can have at most 2 decimals (whole cents)")
+
+
 def build_dividend_policy_router(ctx, automation: DividendAutomation) -> APIRouter:
     r = APIRouter()
     authz = CompanyAuthz(ctx)
@@ -374,9 +387,15 @@ def build_dividend_policy_router(ctx, automation: DividendAutomation) -> APIRout
             nxt = {"period_end": end.isoformat(), "period_label": ud.period_label(p["frequency"], end),
                    "cadence": p["frequency"], "veto_hours": p["veto_hours"],
                    "max_maud": float(p["max_maud_per_round"])}
+        # announced (scheduled) payments are paid when their window ends even if the rule is paused or changed
+        # afterwards; the web app says so and offers to cancel them (veto, one by one)
+        announced = ctx.need_db().all("SELECT id, total_units, pay_after FROM studio.dividends WHERE company_id=%s "
+                                      "AND status='scheduled' ORDER BY pay_after, id", (c["id"],))
         return jsonable({"ticker": c["ticker"], "company_id": c["id"], "you": role,
                          "live": c["status"] in ONCHAIN_STATUSES and bool(c.get("local_token")),
-                         "policy": policy_view(p), "next": nxt, "dividends": dividends_of(c["id"])})
+                         "policy": policy_view(p), "next": nxt, "dividends": dividends_of(c["id"]),
+                         "announced": [{"id": x["id"], "total_maud": int(x["total_units"]) / UNITS,
+                                        "pay_after": x["pay_after"]} for x in announced]})
 
     @r.get("/v1/companies/{tk}/dividend-policy")
     def get_policy(tk: str, sess: Session = Depends(require_user)):
@@ -394,6 +413,11 @@ def build_dividend_policy_router(ctx, automation: DividendAutomation) -> APIRout
             raise HTTPException(422, "ratio_pct is required for a payout ratio")
         if body.kind == "fixed" and body.fixed_maud is None:
             raise HTTPException(422, "fixed_maud is required for a fixed amount")
+        check_money("the most per payment", body.max_maud_per_round)
+        if body.kind == "fixed":
+            check_money("the fixed amount", body.fixed_maud)
+            if Decimal(str(body.fixed_maud)) > Decimal(str(body.max_maud_per_round)):
+                raise HTTPException(422, "the fixed amount cannot be more than the most per payment")
         ratio = body.ratio_pct if body.kind == "payout_ratio" else None
         fixed = body.fixed_maud if body.kind == "fixed" else None
         prev = policy_of(c["id"])

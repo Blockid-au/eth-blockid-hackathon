@@ -68,3 +68,28 @@ Needs `LLM_BACKEND=hosted` with SambaNova / claude_bridge / DeepInfra keys and `
 `/search` must be reachable from where it runs; the worker uses the docker host address). Cost per company: ≤ 8
 searches (≤ 3 pages each) and about 9 LLM calls. Set `SEARCH_MAX_QUERIES=8`, `SEARCH_FETCH_PER_QUERY=3` (the
 defaults) — `app.env` may still pin the old 3 / 2.
+
+## Live backtest — 27 Sep 2026 (real search + LLM chain, Brave quota exhausted → Claude bridge/other search)
+
+```
+company             reference A$     v3 value A$    error  in range conf      v2 err
+Canva             52,350,000,000  45,047,020,500   -14.0%  yes      medium    +55.3%
+                methods: market_anchor 64% (A$63,000,000,000), revenue_multiple 36% (A$13,365,000,000); searches 6
+Airwallex         16,500,000,000  11,959,355,550   -27.5%  no       high      -69.2%
+                methods: market_anchor 71% (A$12,000,000,000), revenue_multiple 29% (A$11,859,750,000); searches 6
+SafetyCulture      2,500,000,000   1,950,000,000   -22.0%  yes      medium    -96.9%
+                methods: market_anchor 100% (A$1,950,000,000); searches 4
+Go1                3,000,000,000   1,500,000,000   -50.0%  no       medium    -97.4%
+                methods: market_anchor 100% (A$1,500,000,000); searches 4
+Airtasker             97,900,000      72,600,000   -25.8%  yes      low       -22.9%
+                methods: stage_scorecard 100% (A$72,600,000); searches 4
+Employment Hero    2,200,000,000   1,250,000,000   -43.2%  no       medium    -97.0%
+                methods: market_anchor 100% (A$1,250,000,000); searches 4
+Culture Amp        2,000,000,000   2,353,483,500   +17.7%  yes      medium         -
+                methods: market_anchor 54% (A$3,000,000,000), revenue_multiple 46% (A$1,593,000,000); searches 6
+
+median |error| v3: 25.8%  (target <= 30%)  · in range: 4/7
+median |error| v2 (live site values, 6 companies): 83.1%
+```
+
+Median |error| 25.8% on 7 companies (target ≤ 30%); Linktree skipped (robots.txt blocks reading its site). Airtasker's ASX market cap was not found in this run, so it fell back to the stage benchmark.

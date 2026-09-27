@@ -35,7 +35,9 @@ GRADE_BANDS = [
     {"grade": "E", "min": 0, "label": svi_tools.band(0)},
 ]
 VALUATION_METHOD = (
-    "index = round(sum(weight_i x score_i), 2) over the 7 dimensions (weights sum to 1). "
+    "index = round(sum(weight_i x score_i), 2) over the 7 dimensions (weights sum to 1; v4 weights: founder_quality "
+    "0.30, product 0.15, market 0.15, revenue 0.15, growth 0.10, readiness 0.10, trust 0.05 - earlier reports use the "
+    "v3 set recorded in svi.weights; founder_quality may come from a founding-team report, basis team_report). "
     "factor = 0.5 + index/100 (index 50 -> 1.0x). "
     "If revenue > 0 and a cited median revenue multiple exists: low/mid/high = revenue x (multiple_low | median | "
     "multiple_high) x factor, with multiple_low defaulting to 0.6 x median and multiple_high to 1.5 x median. "
@@ -58,6 +60,8 @@ EXPLORERS = {
 def formula() -> dict:
     return {
         "weights": dict(svi_tools.WEIGHTS),
+        "weights_by_version": {k: dict(v) for k, v in svi_tools.WEIGHT_SETS.items()},
+        "current_formula": svi_tools.FORMULA_VERSION,
         "grade_bands": GRADE_BANDS,
         "stage_pre_revenue_range_aud": {k: list(v) for k, v in svi_tools.STAGE_PRE_REVENUE_RANGE.items()},
         "valuation_method": VALUATION_METHOD,
@@ -79,12 +83,13 @@ def recompute(report: dict) -> dict:
     (dimension scores, profile metrics/stage, cited market multiples) with the public formula."""
     s = (report or {}).get("svi") or {}
     dims = s.get("dimensions") or {}
+    wver, weights = weights_for(s)
     contributions = []
-    for k, w in svi_tools.WEIGHTS.items():
+    for k, w in weights.items():
         sc = _num((dims.get(k) or {}).get("score"))
         contributions.append({"dimension": k, "score": sc, "weight": w, "contribution": round(w * sc, 4),
                               "basis": (dims.get(k) or {}).get("basis")})
-    index = round(sum(svi_tools.WEIGHTS[c["dimension"]] * c["score"] for c in contributions), 2)
+    index = round(sum(weights[c["dimension"]] * c["score"] for c in contributions), 2)
     factor = 0.5 + index / 100
     profile = (report or {}).get("profile") or {}
     rev = _num((profile.get("metrics") or {}).get("revenue_ttm_aud"))
@@ -111,16 +116,36 @@ def recompute(report: dict) -> dict:
         if all(matches(cand).values()):
             version, (low, mid, high, method) = v, cand
             break
+    if version == "v3" and wver == "v4":
+        version = "v4"  # v4 = v3 valuation rules + the v4 dimension weights
     out = {"index": index, "band": svi_tools.band(index), "factor": round(factor, 4),
            "low": round(low, -3), "mid": round(mid, -3), "high": round(high, -3),
            "method": method, "formula_version": version, "current_formula": svi_tools.FORMULA_VERSION,
-           "contributions": contributions}
+           "weights_version": wver, "weights": dict(weights), "contributions": contributions}
     out["matches_report"] = {
         "index": s.get("index") is not None and abs(_num(s.get("index")) - index) < 0.005,
         "band": s.get("band") == out["band"],
         **matches((low, mid, high)),
     }
     return out
+
+
+def weights_for(s: dict) -> tuple[str, dict[str, float]]:
+    """The dimension-weight set a stored SVI result was computed with: the set equal to its recorded `weights`
+    (SVIResult.weights), else the newest set whose weighted sum reproduces its index, else the current set."""
+    stored = s.get("weights") if isinstance(s.get("weights"), dict) else None
+    if stored:
+        for ver, w in svi_tools.WEIGHT_SETS.items():
+            if set(stored) == set(w) and all(abs(_num(stored[k]) - w[k]) < 1e-9 for k in w):
+                return ver, w
+    dims = s.get("dimensions") or {}
+    if s.get("index") is not None:
+        for ver, w in svi_tools.WEIGHT_SETS.items():
+            idx = round(sum(w[k] * _num((dims.get(k) or {}).get("score")) for k in w), 2)
+            if abs(idx - _num(s.get("index"))) < 0.005:
+                return ver, w
+    ver = next(iter(svi_tools.WEIGHT_SETS))
+    return ver, svi_tools.WEIGHT_SETS[ver]
 
 
 def _range_v3(tri: dict, method: str):

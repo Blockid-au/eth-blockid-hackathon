@@ -19,17 +19,18 @@ POST /v1/admin/companies/{cid}/transfer-mode   {mode: free|approval} -> issuer p
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
+from ..tools import captable
 from .auth import COOKIE, Session
 from .company_admins import CompanyAuthz
 from .db import ONCHAIN_STATUSES, jsonable
-from .services import IssuerError
+from .services import REASON_TEXT, IssuerError, Web3ChainReader, transfer_blocker
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +63,15 @@ ERRORS = {
 }
 
 
+# names are stripped before the length check, so "   " is refused like ""
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+Note = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+
+def reason_detail(code: str) -> str:
+    """'<code>: <plain words>' (the UI translates the code in front of the colon)."""
+    return f"{code}: {REASON_TEXT.get(code, code)}"
+
+
 class CheckBody(BaseModel):
     from_wallet: str = Field(max_length=64)
     to_wallet: str = Field(max_length=64)
@@ -70,15 +80,15 @@ class CheckBody(BaseModel):
 
 class TransferBody(BaseModel):
     to_wallet: str = Field(max_length=64)
-    to_name: str = Field(default="", max_length=120)
+    to_name: Name
     shares: int = Field(gt=0, le=10**15)
-    tx_hash: str | None = Field(default=None, max_length=80)
-    note: str = Field(default="", max_length=500)
+    tx_hash: str | None = Field(default=None, max_length=80, pattern=r"^0x[0-9a-fA-F]{64}$")
+    note: Note = ""
 
 
 class KycBody(BaseModel):
     wallet: str | None = Field(default=None, max_length=64)
-    name: str = Field(min_length=1, max_length=120)
+    name: Name
 
 
 class ModeBody(BaseModel):
@@ -132,10 +142,32 @@ def build_transfer_router(ctx) -> APIRouter:
         return c
 
     def addr(a: str, field: str = "wallet") -> str:
+        """Strict EIP-55 (a mixed-case typo is refused, not silently fixed); the zero address is refused."""
         try:
-            return Web3.to_checksum_address(a.strip())
-        except (ValueError, AttributeError):
-            raise HTTPException(422, f"{field}: not an address") from None
+            return captable.checksum(a)
+        except captable.CapTableError as e:
+            raise HTTPException(422, f"{field}: {e}") from None
+
+    def reader():
+        """ctx.chain when it can read transfer facts (tests pass a fake), else a reader on the same RPC."""
+        if hasattr(ctx.chain, "transfer_facts"):
+            return ctx.chain
+        if "reader" not in state:
+            state["reader"] = Web3ChainReader(s.local_rpc_url, timeout=8)
+        return state["reader"]
+
+    def facts(c: dict, frm: str, to: str) -> dict:
+        try:
+            return reader().transfer_facts(c["local_token"], c["local_registry"], frm, to)
+        except Exception as e:  # noqa: BLE001 - RPC down: refuse rather than let an unchecked request through
+            log.warning("transfer facts %s: %s", c["ticker"], e)
+            raise HTTPException(503, "BlockID Chain cannot be read right now; try again in a minute") from None
+
+    def pending_shares(c: dict, frm: str, exclude: int | None = None) -> int:
+        row = ctx.need_db().one(
+            "SELECT coalesce(sum(shares),0) AS n FROM studio.transfers WHERE company_id=%s AND lower(from_wallet)="
+            "lower(%s) AND status IN ('pending','approved','executing') AND id<>%s", (c["id"], frm, exclude or 0))
+        return int(row["n"])
 
     def mode(c: dict) -> str:
         return c.get("transfer_mode") or "free"
@@ -183,19 +215,25 @@ def build_transfer_router(ctx) -> APIRouter:
     def check(tk: str, body: CheckBody):
         c = company(tk)
         frm, to = addr(body.from_wallet, "from_wallet"), addr(body.to_wallet, "to_wallet")
-        out: dict[str, Any] = {"mode": mode(c), "from_verified": verified(c, frm), "to_verified": verified(c, to)}
-        tok = w3().eth.contract(address=Web3.to_checksum_address(c["local_token"]), abi=TOKEN_ABI)
-        out["balance"] = int(tok.functions.balanceOf(frm).call())
+        m = mode(c)
+        f = facts(c, frm, to)
+        out: dict[str, Any] = {"mode": m, "via": "request" if m == "approval" else "wallet",
+                               "from_verified": f["from_verified"], "to_verified": f["to_verified"],
+                               "balance": f["balance_from"], "frozen": f["frozen_from"] or f["frozen_to"],
+                               "lockup_until": f["lockup_until"]}
         if frm == to:
             return {**out, "ok": False, "reason": "self"}
-        if out["balance"] < body.shares:
-            return {**out, "ok": False, "reason": "balance"}
-        if not out["to_verified"]:
-            return {**out, "ok": False, "reason": "not_verified"}
-        if mode(c) == "approval":  # executed by the issuer (forcedTransfer): checks above are what matters
-            return {**out, "ok": True, "reason": None, "via": "request"}
+        if m == "approval":
+            # the issuer executes it with forcedTransfer, which skips freeze / lock-up / sender KYC on chain: the
+            # platform applies the same rules as a plain transfer here, on create and again before sending
+            out["pending"] = pending_shares(c, frm)
+            reason = transfer_blocker(f, body.shares, pending=out["pending"])
+            return {**out, "ok": reason is None, "reason": reason}
+        reason = transfer_blocker(f, body.shares)
+        if reason:
+            return {**out, "ok": False, "reason": reason}
         ok, reason = simulate(c, frm, to, body.shares)
-        return {**out, "ok": ok, "reason": reason, "via": "wallet"}
+        return {**out, "ok": ok, "reason": reason}
 
     @r.get("/v1/companies/{tk}/transfers")
     def history(tk: str):
@@ -213,7 +251,7 @@ def build_transfer_router(ctx) -> APIRouter:
             raise HTTPException(403, "sign in with the wallet that holds the shares (MetaMask)")
         frm, to = addr(sess.address), addr(body.to_wallet, "to_wallet")
         if frm == to:
-            raise HTTPException(422, "sender and receiver are the same wallet")
+            raise HTTPException(422, reason_detail("self"))
         m = mode(c)
         if m == "free":
             if not body.tx_hash:
@@ -234,28 +272,25 @@ def build_transfer_router(ctx) -> APIRouter:
                 row = db.one("INSERT INTO studio.transfers(company_id,from_wallet,to_wallet,to_name,shares,mode,status,"
                              "tx_hash,block,note,requested_by,decided_at) VALUES (%s,%s,%s,%s,%s,'free','done',%s,%s,%s,"
                              "%s,now()) RETURNING *",
-                             (c["id"], frm, to, body.to_name.strip(), body.shares, body.tx_hash.lower(),
+                             (c["id"], frm, to, body.to_name, body.shares, body.tx_hash.lower(),
                               int(rc["blockNumber"]), body.note, sess.actor))
             except UniqueViolation:
                 raise HTTPException(409, "this transaction is already recorded") from None
             db.exec("INSERT INTO studio.events(company_id,kind,chain,tx_hash,block,data) "
                     "VALUES (%s,'transferred','blockid',%s,%s,%s)",
                     (c["id"], body.tx_hash.lower(), int(rc["blockNumber"]),
-                     Jsonb({"transfer_id": row["id"], "from": frm, "to": to, "name": body.to_name.strip(),
+                     Jsonb({"transfer_id": row["id"], "from": frm, "to": to, "name": body.to_name,
                             "shares": body.shares, "mode": "free"})))
             audit(sess, "transfer_recorded", c["ticker"], transfer_id=row["id"], shares=body.shares, to=to)
             err = notify_issuer("/reanchor", {"company_id": c["id"]})
             return {**jsonable(row), "reanchor_error": err}
-        # approval mode: a request for the admin queue
-        tok = w3().eth.contract(address=Web3.to_checksum_address(c["local_token"]), abi=TOKEN_ABI)
-        pending = db.one("SELECT coalesce(sum(shares),0) AS n FROM studio.transfers WHERE company_id=%s AND "
-                         "lower(from_wallet)=lower(%s) AND status IN ('pending','approved','executing')",
-                         (c["id"], frm))
-        if int(tok.functions.balanceOf(frm).call()) < body.shares + int(pending["n"]):
-            raise HTTPException(409, "not enough shares (including your pending requests)")
+        # approval mode: a request for the admin queue, only if a plain transfer would be allowed too
+        reason = transfer_blocker(facts(c, frm, to), body.shares, pending=pending_shares(c, frm))
+        if reason:
+            raise HTTPException(409, reason_detail(reason))
         row = db.one("INSERT INTO studio.transfers(company_id,from_wallet,to_wallet,to_name,shares,mode,status,note,"
                      "requested_by) VALUES (%s,%s,%s,%s,%s,'approval','pending',%s,%s) RETURNING *",
-                     (c["id"], frm, to, body.to_name.strip(), body.shares, body.note, sess.actor))
+                     (c["id"], frm, to, body.to_name, body.shares, body.note, sess.actor))
         db.exec("INSERT INTO studio.events(company_id,kind,data) VALUES (%s,'transfer_requested',%s)",
                 (c["id"], Jsonb({"transfer_id": row["id"], "from": frm, "to": to, "shares": body.shares})))
         audit(sess, "transfer_requested", c["ticker"], transfer_id=row["id"], shares=body.shares, to=to)
@@ -273,7 +308,7 @@ def build_transfer_router(ctx) -> APIRouter:
         if dup:
             return jsonable(dup)
         row = db.one("INSERT INTO studio.kyc_requests(company_id,wallet,name,status,requested_by) "
-                     "VALUES (%s,%s,%s,'pending',%s) RETURNING *", (c["id"], wallet, body.name.strip(), sess.actor))
+                     "VALUES (%s,%s,%s,'pending',%s) RETURNING *", (c["id"], wallet, body.name, sess.actor))
         audit(sess, "kyc_requested", c["ticker"], kyc_id=row["id"], wallet=wallet)
         return jsonable(row)
 
@@ -283,11 +318,28 @@ def build_transfer_router(ctx) -> APIRouter:
         where = "" if ids is None else "WHERE c.id = ANY(%(ids)s) "
         return jsonable(ctx.need_db().all(sql.format(where=where), None if ids is None else {"ids": ids}))
 
+    def row_blocker(t: dict) -> str | None:
+        """Reason an approval-mode request would be refused now (shown on the queue row), None when it may go."""
+        c = ctx.need_db().one("SELECT * FROM studio.companies WHERE id=%s", (t["company_id"],))
+        if not c or not c.get("local_token") or not c.get("local_registry"):
+            return None
+        frm, to = captable.checksum(t["from_wallet"]), captable.checksum(t["to_wallet"])
+        f = reader().transfer_facts(c["local_token"], c["local_registry"], frm, to)
+        return transfer_blocker(f, int(t["shares"]), pending=pending_shares(c, frm, exclude=t["id"]))
+
     @r.get("/v1/admin/transfers")
     def admin_transfers(sess: Session = Depends(require_user)):
-        return queue(sess, "SELECT t.*, c.ticker, c.name AS company_name FROM studio.transfers t "
+        rows = queue(sess, "SELECT t.*, c.ticker, c.name AS company_name FROM studio.transfers t "
                            "JOIN studio.companies c ON c.id=t.company_id {where}"
                            "ORDER BY (t.status='pending') DESC, t.id DESC LIMIT 200")
+        for t in rows:
+            if t.get("mode") == "approval" and t.get("status") in ("pending", "failed"):
+                try:
+                    t["blocker"] = row_blocker(t)
+                except Exception as e:  # noqa: BLE001 - the queue still loads when the chain cannot be read
+                    log.warning("transfer %s blocker: %s", t.get("id"), e)
+                    t["blocker"] = None
+        return rows
 
     @r.get("/v1/admin/kyc")
     def admin_kyc(sess: Session = Depends(require_user)):
@@ -323,6 +375,15 @@ def build_transfer_router(ctx) -> APIRouter:
 
     @r.post("/v1/admin/transfers/{tid}/approve", status_code=202)
     def approve_transfer(tid: int, sess: Session = Depends(require_user)):
+        authz.check_item(sess, "transfers", tid)
+        t = ctx.need_db().one("SELECT * FROM studio.transfers WHERE id=%s", (tid,))
+        if t and t["mode"] == "approval" and t["status"] in ("pending", "failed"):
+            try:
+                reason = row_blocker(t)
+            except Exception:  # noqa: BLE001
+                raise HTTPException(503, "BlockID Chain cannot be read right now; try again in a minute") from None
+            if reason:  # stays in the queue; the admin sees why and can reject it
+                raise HTTPException(409, reason_detail(reason))
         return approve("transfers", tid, "/transfer", "transfer_id", sess, "transfer_approved")
 
     @r.post("/v1/admin/transfers/{tid}/reject")

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
+import { Link } from "react-router-dom";
+import { api, ApiError } from "../api";
 import { errText, useAuth } from "../auth";
 import { useI18n } from "../i18n";
 
@@ -39,6 +40,7 @@ export function GoogleButton({ onDone, width = 240 }: { onDone?: () => void; wid
   const box = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "off">("loading");
   const [err, setErr] = useState("");
+  const [newWallet, setNewWallet] = useState<string | null>(null);
   const done = useRef(onDone);
   done.current = onDone;
 
@@ -54,8 +56,13 @@ export function GoogleButton({ onDone, width = 240 }: { onDone?: () => void; wid
           client_id: id,
           itp_support: true,
           callback: async ({ credential }) => {
-            setErr("");
-            try { await google(credential); done.current?.(); } catch (e) { setErr(errText(e, t)); }
+            setErr(""); setNewWallet(null);
+            try {
+              const m = await google(credential);
+              // new browser, new key, but this Google account already has a wallet: say so (and stay here)
+              if (m?.newWallet?.length) { setNewWallet(m.newWallet[0]); return; }
+              done.current?.();
+            } catch (e) { setErr(e instanceof ApiError && e.status === 409 ? t("fx.g.taken") : errText(e, t)); }
           },
         });
         window.google.accounts.id.renderButton(box.current, { theme: "outline", size: "large", text: "continue_with", shape: "pill", width, locale: lang });
@@ -72,6 +79,15 @@ export function GoogleButton({ onDone, width = 240 }: { onDone?: () => void; wid
     <span style={{ display: "grid", gap: 6 }}>
       <div ref={box} style={{ minHeight: 40 }} aria-busy={state === "loading"} />
       {err && <span role="alert" style={{ color: "var(--bad)", fontSize: ".82rem" }}>{err}</span>}
+      {newWallet && (
+        <span role="status" className="banner warn" style={{ fontSize: ".82rem", display: "grid", gap: 6 }}>
+          <span>{t("fx.g.newkey", { a: newWallet })}</span>
+          <span className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+            <Link className="btn gold sm" to="/i/account#restore">{t("fx.g.restore")}</Link>
+            <button className="btn ghost sm" type="button" onClick={() => { setNewWallet(null); done.current?.(); }}>{t("fx.g.keepNew")}</button>
+          </span>
+        </span>
+      )}
     </span>
   );
 }

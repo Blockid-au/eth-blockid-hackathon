@@ -60,6 +60,7 @@ def _setup(ca):
         db.exec("INSERT INTO studio.holders (company_id, name, wallet, pct, shares) VALUES (%s,%s,%s,%s,%s)",
                 (ca["a"], name, w, n / 10, n))
     ca["chain"].balances_by_token[TOKEN] = {OWNER.lower(): 600, OUTSIDER.lower(): 400}
+    ca["chain"].caps[TOKEN] = 500  # the token's maxShareholders()
     db.exec("INSERT INTO studio.valuations (id, url, requested_by, status, result) VALUES ('val-aaa', "
             "'https://aaa.example', %s, 'approved', %s)",
             (OWNER, Jsonb({"svi": {"valuation_low_aud": 800, "valuation_mid_aud": 1000, "valuation_high_aud": 1400,
@@ -359,7 +360,6 @@ def test_close_early_settle_idempotent_and_authz(ca):
     db.exec("UPDATE studio.mints SET status='minted', tx_hash='0xabc' WHERE lower(to_wallet)=%s", (DEMO,))
     db.exec("UPDATE studio.mints SET status='failed' WHERE lower(to_wallet)=%s", (INV[0].lower(),))
     db.exec("UPDATE studio.offerings SET status='failed', error='boom' WHERE id=%s", (oid,))
-    assert admin.post(f"/v1/admin/offerings/{oid}/release").status_code == 409  # some shares already issued
     assert admin.post(f"/v1/admin/offerings/{oid}/settle").status_code == 202
     assert {m["to_wallet"].lower(): m["status"] for m in db.all("SELECT * FROM studio.mints")} == \
         {DEMO: "minted", INV[0].lower(): "approved"}

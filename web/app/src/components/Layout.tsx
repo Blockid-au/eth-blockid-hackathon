@@ -174,6 +174,24 @@ export function Nav() {
 
 export function Footer() {
   const { t } = useI18n();
+  const [qrOpen, setQrOpen] = useState(false);
+  const qrRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!qrOpen) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !qrRef.current?.contains(e.target as Node)) {
+        setQrOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [qrOpen]);
+
   return (
     <footer>
       <div className="wrap">
@@ -184,10 +202,31 @@ export function Footer() {
           <a href="/deck/BlockID-Business-Passport-3min.pptx" download>PPTX</a>{" · "}
           <a href="/deck/BlockID-Startup-Passport-pitch.pdf" download>{t("foot.deckFull")}</a>
         </span>
-        <span className="foot-contact">
+        <span className="foot-contact" ref={qrRef}>
           {t("foot.contact")}:{" "}
           <a href="mailto:info@blockid.au">info@blockid.au</a>{" · "}
           <a href="https://www.linkedin.com/in/dovanlong" target="_blank" rel="noopener noreferrer">LinkedIn · Long Do</a>
+          <button
+            type="button"
+            className="foot-qr-btn"
+            aria-expanded={qrOpen}
+            aria-label="LinkedIn QR Code"
+            title="Scan LinkedIn QR · Long Do"
+            onClick={() => setQrOpen((o) => !o)}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M2 2h8v8H2V2zm2 2v4h4V4H4zm10-2h8v8h-8V2zm2 2v4h4V4h-4zM2 14h8v8H2v-8zm2 2v4h4v-4H4zm14-2h4v3h-4v-3zm0 5h2v3h-2v-3zm-4-5h2v8h-2v-8zm4 5h-2v-2h2v2zm-2-2h-2v-3h2v3z"/>
+            </svg>
+            <span>QR</span>
+          </button>
+          {qrOpen && (
+            <span className="foot-qr-popover" role="dialog" aria-label="LinkedIn QR · Long Do">
+              <img src="/linkedin-qr-card.png" alt="Do Van Long - LinkedIn QR" width="220" height="220" />
+              <a href="https://www.linkedin.com/in/dovanlong" target="_blank" rel="noopener noreferrer">
+                linkedin.com/in/dovanlong ↗
+              </a>
+            </span>
+          )}
         </span>
         <span><Link to="/hsk">{t("nav.hsk")}</Link></span>
         <span>{t("foot.legal")}</span>

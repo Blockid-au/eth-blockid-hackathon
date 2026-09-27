@@ -55,7 +55,10 @@ class ValuationRunner:
     def decide(self, vid: str, approved: bool, overrides: dict[str, float], reviewer: str) -> str:
         decision = {"approved": approved, "overrides": overrides, "reviewer": reviewer}
         cfg = thread(vid)
-        if self.graph.get_state(cfg).interrupts:
+        row0 = self.db.get_valuation(vid) or {}
+        team_scored = (((row0.get("result") or {}).get("qualitative") or {}).get("founder_quality") or {}
+                       ).get("basis") == "team_report"  # the checkpoint predates the team blend: use the stored result
+        if self.graph.get_state(cfg).interrupts and not team_scored:
             out = self.graph.invoke(Command(resume=decision), cfg)
             patch = {k: out[k] for k in ("svi", "qualitative") if approved and out.get(k)}
         else:  # checkpoint unavailable (e.g. separate SQLite files): re-score from the stored result

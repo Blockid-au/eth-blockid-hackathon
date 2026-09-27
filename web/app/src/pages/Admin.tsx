@@ -13,7 +13,7 @@ import { EventList } from "./Company";
 import { ErrorBox } from "../components/Layout";
 import { useAsync, useNow, usePageVisible, useTitle, type Async } from "../lib/hooks";
 import { bandGrade } from "../lib/svi";
-import { CHAINS, chainOf, isAddressValid, shortAddr } from "../wallet";
+import { CHAINS, addrError, chainOf, isAddressValid, shortAddr } from "../wallet";
 import type { DictKey } from "../dict";
 import { SyncChips } from "../components/Tracker";
 import { LowBalanceBanner } from "../components/LowBalance";
@@ -87,9 +87,14 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
   const [n2, setN2] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  // same rules as the server (studio/auth.py password_problem), shown under the field as it is typed
+  const bytes = new TextEncoder().encode(n1).length;
+  const n1Err = !n1 ? "" : !n1.trim() ? t("fx.pw.spaces") : n1.length < 10 ? t("ad.cp.short") : bytes > 72 ? t("fx.pw.long", { n: bytes }) : cur && n1 === cur ? t("fx.pw.same") : "";
+  const n2Err = n2 && n1 !== n2 ? t("ad.cp.mismatch") : "";
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (n1.length < 10) { setErr(t("ad.cp.short")); return; }
+    if (!cur) { setErr(t("fx.pw.cur")); return; }
+    if (!n1 || n1Err) { setErr(n1Err || t("ad.cp.short")); return; }
     if (n1 !== n2) { setErr(t("ad.cp.mismatch")); return; }
     setBusy(true); setErr("");
     try { await api.changePassword(cur, n1); onDone(); }
@@ -97,14 +102,14 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
     finally { setBusy(false); }
   };
   return (
-    <form className="login" onSubmit={submit}>
+    <form className="login" onSubmit={submit} noValidate>
       <h3>{t("ad.cp.h")}</h3>
       <p className="sub muted">{t("ad.cp.p")}</p>
       <label className="lf"><span>{t("ad.cp.cur")}</span><input type="password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} required /></label>
-      <label className="lf"><span>{t("ad.cp.new")}</span><input type="password" autoComplete="new-password" minLength={10} value={n1} onChange={(e) => setN1(e.target.value)} required /></label>
-      <label className="lf"><span>{t("ad.cp.rep")}</span><input type="password" autoComplete="new-password" minLength={10} value={n2} onChange={(e) => setN2(e.target.value)} required /></label>
+      <label className="lf"><span>{t("ad.cp.new")}</span><input type="password" autoComplete="new-password" minLength={10} className={n1Err ? "bad" : undefined} aria-invalid={!!n1Err} value={n1} onChange={(e) => setN1(e.target.value)} required />{n1Err && <span className="hint bad">{n1Err}</span>}</label>
+      <label className="lf"><span>{t("ad.cp.rep")}</span><input type="password" autoComplete="new-password" minLength={10} className={n2Err ? "bad" : undefined} aria-invalid={!!n2Err} value={n2} onChange={(e) => setN2(e.target.value)} required />{n2Err && <span className="hint bad">{n2Err}</span>}</label>
       <div className="row">
-        <button className="btn" type="submit" disabled={busy}>{t("ad.cp.go")}</button>
+        <button className="btn" type="submit" disabled={busy || !cur || !n1 || !!n1Err || n1 !== n2}>{t("ad.cp.go")}</button>
         <button className="btn ghost" type="button" onClick={() => void logout()}>{t("ad.logout")}</button>
       </div>
       <p className="err" role="alert">{err}</p>
@@ -681,7 +686,7 @@ function WalletsTab() {
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
     const a = isAddressValid(addr);
-    if (!a) { setErr(t("ad.bad.addr")); return; }
+    if (!a) { setErr(addrError(t, addr) || t("ad.bad.addr")); return; }
     if (!label.trim()) { setErr(t("ad.bad.label")); return; }
     setErr("");
     try { await api.addIssuerWallet(a, label.trim()); setAddr(""); setLabel(""); await iw.reload(); }
@@ -720,7 +725,7 @@ function WalletsTab() {
       <div className="pane">
         <div className="phead"><h4>{t("ad.iw")}</h4><span className="note mono">ISSUER_ROLE</span></div>
         <form className="addform" onSubmit={add} noValidate>
-          <input className="mono" placeholder="0x… wallet address" aria-label={t("t.wallet")} value={addr} onChange={(e) => setAddr(e.target.value.trim())} spellCheck={false} />
+          <input className={"mono" + (addrError(t, addr) ? " bad" : "")} placeholder="0x… wallet address" aria-label={t("t.wallet")} aria-invalid={!!addrError(t, addr)} title={addrError(t, addr) || undefined} value={addr} onChange={(e) => { setAddr(e.target.value.trim()); setErr(addrError(t, e.target.value.trim())); }} spellCheck={false} />
           <input placeholder={t("ad.w.label")} aria-label={t("ad.w.label")} value={label} onChange={(e) => setLabel(e.target.value)} />
           <button className="btn sm" type="submit">{t("ad.grant")}</button>
         </form>

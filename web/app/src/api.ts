@@ -108,6 +108,9 @@ export interface Valuation {
   requested_by?: string | null;
   created_at?: string;
   updated_at?: string;
+  /** founding-team review linked to this valuation (studio/hr.py) and its public-safe summary */
+  team_id?: string | null;
+  team?: TeamSummary | null;
 }
 export interface Evidence {
   url: string;
@@ -270,6 +273,8 @@ export interface DividendReq {
   holders?: number;
   record_block?: number | null;
   balances_source?: string;
+  /** POST /v1/companies/{tk}/dividends: mAUD units (6 decimals) that stay with the company after rounding */
+  remainder_units?: number;
   tx_hash?: string | null;
   merkle_root?: string | null;
   status: string;
@@ -328,12 +333,15 @@ export interface Offering extends OfferingTerms {
   settle_approved_at?: string | null; settled_at?: string | null; error?: string | null; created_by?: string | null;
   created_at?: string; updated_at?: string;
   // public / queue views
-  ticker?: string; company_name?: string; website?: string | null; grade?: string | null; holder_limit?: number;
+  ticker?: string; company_name?: string; website?: string | null; grade?: string | null; holder_limit?: number | null;
+  /** admin queue, offerings to settle: shareholders on BlockID Chain now, the token's cap (null = no limit), after settling */
+  register?: { count: number; cap: number | null; new: number; other_pending: number; after: number; fits: boolean } | null;
   progress?: OfferingProgress; mine?: Reservation[]; mine_reserved_shares?: number; you_hold?: boolean;
 }
 export interface CompanyOfferingView {
   ticker: string; company_id: number; name: string; you: string; live: boolean;
-  defaults: { price_aud: number; cooling_off_days: number; holders: number; max_holders: number; total_shares: number };
+  /** holders / max_holders: read from the share token on BlockID Chain when possible; max_holders null = no limit */
+  defaults: { price_aud: number; cooling_off_days: number; holders: number; max_holders: number | null; total_shares: number; max_days_open?: number };
   offering: Offering | null; pack: OfferingPack | null; progress: OfferingProgress | null; reservations: Reservation[];
   history: (Offering & { progress: OfferingProgress })[];
 }
@@ -392,6 +400,8 @@ export interface DividendPolicyView {
   policy: DividendPolicy | null;
   next: { period_end: string; period_label: string; cadence: PolicyFrequency; veto_hours: number; max_maud: number } | null;
   dividends: CoDividend[];
+  /** announced (scheduled) payments: still paid after a pause or change unless cancelled */
+  announced?: { id: number; total_maud: number; pay_after: string | null }[];
 }
 export interface PaidDividend { at: string; ticker: string; company: string; tx_hash?: string | null; wallet?: string | null; dividend_id?: number | null; amount_maud: number }
 export interface DividendLedger { wallets: string[]; paid: PaidDividend[]; upcoming: UpcomingDividend[]; total_maud: number; demo?: boolean }
@@ -429,7 +439,7 @@ export interface BizUpdate {
   recorded?: { chain_id: number; tag: string; calldata: string | null };
 }
 export interface CompanyUpdates { ticker: string; name: string; can_manage: boolean; updates: BizUpdate[] }
-export interface KpiPeriods { ticker: string; metrics: { metric: Metric; unit: string }[]; periods: { period_end: string; values: Partial<Record<Metric, number>> }[] }
+export interface KpiPeriods { ticker: string; metrics: { metric: Metric; unit: string }[]; periods: { cadence?: Cadence; period_end: string; values: Partial<Record<Metric, number>> }[] }
 export interface IssuerWallet {
   address: string;
   label: string;
@@ -524,6 +534,183 @@ export async function request<T>(method: string, path: string, body?: unknown): 
 
 const enc = encodeURIComponent;
 
+/* ---------- founding team + person review (studio/hr.py, served on hr.blockid.au) ---------- */
+export type PersonKind = "founder" | "cofounder" | "executive" | "employee" | "advisor";
+export const PERSON_KINDS: PersonKind[] = ["founder", "cofounder", "executive", "employee", "advisor"];
+export interface PersonIn {
+  full_name: string;
+  role: string;
+  kind: PersonKind;
+  headline?: string | null;
+  full_time?: boolean | null;
+  start_year?: number | null;
+  equity_pct?: number | null;
+  urls?: string[];
+  bio?: string | null;
+  cv?: string | null;
+}
+export type HrTarget =
+  | { type: "business"; valuation_id?: string | null; ticker?: string | null; website?: string | null }
+  | { type: "role"; company: string; title: string; description: string; requirements: string[] };
+export type HrTargetView =
+  | { type: "business"; valuation_id?: string | null; ticker?: string | null; website?: string | null; company?: string | null; sector?: string | null; stage?: string | null; description?: string | null }
+  | { type: "role"; company?: string | null; title?: string | null; description?: string | null; requirements?: string[] };
+export type TeamStatus = "draft" | "queued" | "running" | "done" | "failed";
+export type HrMode = "team" | "person";
+export type TeamFunction = "tech" | "commercial" | "domain" | "finance";
+export const SUBSCORE_KEYS = ["domain_fit", "track_record", "leadership", "functional_depth", "verifiability", "commitment"] as const;
+export const FIT_KEYS = ["skills_match", "domain_match", "stage_scale_match", "seniority_match", "track_record_relevance", "gaps"] as const;
+export const TEAM_COMPONENTS = ["complementarity", "key_roles", "worked_together", "advisors_board", "concentration"] as const;
+export interface TeamStep { at: string; step: string; person?: string | null; msg: string }
+export interface TeamPerson extends PersonIn { id: number; position: number; has_cv?: boolean }
+export interface PersonSubScore { score: number; suggested?: number; capped?: boolean; weight: number; rationale?: string; fact_ids?: string[]; self_reported?: boolean }
+export interface PersonFact { id: string; text: string; quote?: string; source_id?: string; url?: string; category?: string }
+export interface CvSource { type: "verified" | "self_reported" | string; fact_ids?: string[]; urls?: string[] }
+export interface CvProfile {
+  headline?: { text: string; source?: CvSource } | null;
+  location?: { text: string; source?: CvSource } | null;
+  summary?: string | null;
+  experience?: { org: string; title?: string | null; start?: string | null; end?: string | null; achievements?: string[]; source?: CvSource }[];
+  education?: { institution: string; degree?: string | null; field?: string | null; start?: string | null; end?: string | null; source?: CvSource }[];
+  skills?: { group: string; items: string[]; source?: CvSource }[];
+  ventures?: { name: string; role?: string | null; outcome?: "exit" | "acquired" | "ipo" | "active" | "closed" | "unknown" | string; year?: number | string | null; source?: CvSource }[];
+  publications?: { title: string; kind?: "publication" | "patent" | "talk" | string; venue?: string | null; year?: number | string | null; source?: CvSource }[];
+  awards?: { title: string; year?: number | string | null; source?: CvSource }[];
+  links?: { url: string; label?: string | null }[];
+  completeness_pct?: number | null;
+}
+export interface FitRequirement { requirement: string; must_have?: boolean; status: "matched" | "partial" | "missing" | "unverified" | string; fact_ids?: string[]; self_reported?: boolean; note?: string | null }
+export interface PersonFit {
+  target_type: "business" | "role";
+  label?: string;
+  score: number;
+  components: Record<string, PersonSubScore>;
+  requirements?: FitRequirement[];
+  matched?: string[];
+  missing?: string[];
+  risks?: string[];
+  interview_questions?: string[];
+}
+export interface PersonCard {
+  person_id: number;
+  full_name: string;
+  role: string;
+  kind: PersonKind;
+  multiplier?: number;
+  score: number;
+  subscores: Record<string, PersonSubScore>;
+  fit?: PersonFit | null;
+  contribution?: number;
+  profile?: CvProfile | null;
+  facts: PersonFact[];
+  self_reported?: { headline?: string | null; bio?: string | null; full_time?: boolean | null; equity_pct?: number | null; start_year?: number | null; has_cv?: boolean } | null;
+  unconfirmed: { text: string; quote?: string | null; url?: string | null; reason?: string }[];
+  strengths: string[];
+  gaps: string[];
+  questions: string[];
+  functions: TeamFunction[];
+  model?: string | null;
+}
+export interface TeamBlock {
+  score: number;
+  grade: string;
+  people_component?: number;
+  team_component?: number;
+  red_flag_penalty?: number;
+  components: Record<string, number>;
+  component_detail?: Record<string, { score?: number; rationale?: string; fact_ids?: string[]; computed?: boolean }>;
+  coverage: Record<TeamFunction, boolean>;
+  strengths: string[];
+  gaps: string[];
+  risks: string[];
+  questions: string[];
+  red_flags?: { text: string; fact_ids?: string[] }[];
+}
+export interface HrSource { id: string; url: string; title?: string | null; sha256?: string | null; kind?: string; fetched_at?: string | null; person_id?: number | null }
+export interface TeamReport {
+  version: string;
+  mode?: HrMode;
+  team: TeamBlock | null;
+  people: PersonCard[];
+  method?: {
+    person_weights?: Record<string, number>; fit_weights?: Record<string, number>; team_weights?: Record<string, number>;
+    role_multipliers?: Record<string, number>; contribution?: string; cap_without_evidence?: number; notes?: string[];
+    models?: Record<string, string>; search_providers?: string[];
+  } | null;
+  sources: HrSource[];
+  counters?: Partial<Record<"searches" | "search_budget" | "pages_fetched" | "facts_verified" | "facts_unconfirmed" | "facts_dropped_sensitive" | "llm_calls", number>> | null;
+  created_at?: string;
+}
+/** ReportOut: a team report (mode "team") or a person report (mode "person"). */
+export interface Team {
+  id: string;
+  mode?: HrMode;
+  name: string;
+  website?: string | null;
+  valuation_id?: string | null;
+  company_id?: number | null;
+  target?: HrTargetView | null;
+  status: TeamStatus;
+  error?: string | null;
+  consent?: boolean;
+  consented_at?: string | null;
+  is_demo?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  mine?: boolean;
+  can_edit?: boolean;
+  share_token?: string | null;
+  report_url?: string;
+  steps: TeamStep[];
+  people: TeamPerson[];
+  result?: TeamReport | null;
+}
+export interface TeamSummary {
+  id: string;
+  mode?: HrMode;
+  name: string;
+  status: TeamStatus;
+  valuation_id?: string | null;
+  score: number | null;
+  grade: string | null;
+  people: { full_name: string; role: string; kind: PersonKind; score: number | null; fit?: number | null }[];
+  strengths: string[];
+  gaps: string[];
+  url?: string;
+}
+export interface TeamListItem {
+  id: string;
+  mode?: HrMode;
+  name: string;
+  status: TeamStatus;
+  valuation_id?: string | null;
+  company_id?: number | null;
+  score: number | null;
+  grade: string | null;
+  people_count: number;
+  target_type?: "business" | "role" | null;
+  created_at?: string;
+  updated_at?: string;
+}
+const shareQ = (share?: string | null) => (share ? `?share=${encodeURIComponent(share)}` : "");
+const hrApi = {
+  hrCreateTeam: (body: { name: string; website?: string | null; valuation_id?: string | null; people: PersonIn[]; consent: true; run?: boolean }) =>
+    request<Team>("POST", "/v1/hr/teams", body),
+  hrCreatePersonReport: (body: { person: PersonIn; target: HrTarget | null; consent: true; run?: boolean }) =>
+    request<Team>("POST", "/v1/hr/people-reports", body),
+  hrSetPeople: (id: string, people: PersonIn[]) => request<Team>("PUT", `/v1/hr/teams/${enc(id)}/people`, { people }),
+  hrSetTarget: (id: string, target: HrTarget | null) => request<Team>("PUT", `/v1/hr/teams/${enc(id)}/target`, { target }),
+  hrRun: (id: string) => request<Team>("POST", `/v1/hr/teams/${enc(id)}/run`),
+  hrTeam: (id: string, share?: string | null) => request<Team>("GET", `/v1/hr/teams/${enc(id)}${shareQ(share)}`),
+  hrMyTeams: () => request<{ teams: TeamListItem[] }>("GET", "/v1/hr/teams?mine=1"),
+  hrTeamSummary: (id: string, share?: string | null) => request<TeamSummary>("GET", `/v1/hr/teams/${enc(id)}/summary${shareQ(share)}`),
+  hrDeletePerson: (pid: number) => request<{ ok: boolean; team_id: string }>("DELETE", `/v1/hr/people/${pid}`),
+  hrDeleteReport: (id: string) => request<{ ok: boolean }>("DELETE", `/v1/hr/teams/${enc(id)}`),
+  hrShare: (id: string) => request<{ share_token: string }>("POST", `/v1/hr/teams/${enc(id)}/share`),
+  hrUnshare: (id: string) => request<{ ok: boolean }>("DELETE", `/v1/hr/teams/${enc(id)}/share`),
+  hrApplyToValuation: (id: string) => request<{ applied: boolean; reason: string | null }>("POST", `/v1/hr/teams/${enc(id)}/apply-to-valuation`),
+};
+
 export const api = {
   // auth
   nonce: () => request<{ nonce: string }>("GET", "/v1/auth/nonce"),
@@ -539,8 +726,10 @@ export const api = {
   mailTest: (to: string) => request<{ ok: boolean }>("POST", "/v1/admin/mail/test", { to }),
   // studio
   checkUrl: (url: string) => request<UrlCheckResult>("POST", "/v1/studio/check-url", { url }),
-  createValuation: (url: string, metrics?: SelfReported) =>
-    request<{ id: string }>("POST", "/v1/studio/valuations", metrics && Object.keys(metrics).length ? { url, metrics } : { url }),
+  createValuation: (url: string, metrics?: SelfReported, team?: { people: PersonIn[]; consent: true }) =>
+    request<{ id: string; team_id?: string | null }>("POST", "/v1/studio/valuations", {
+      url, ...(metrics && Object.keys(metrics).length ? { metrics } : {}), ...(team && team.people.length ? { team } : {}),
+    }),
   valuation: (id: string) => request<Valuation>("GET", `/v1/studio/valuations/${enc(id)}`),
   evidence: (id: string) => request<Evidence[]>("GET", `/v1/studio/valuations/${enc(id)}/evidence`),
   decide: (id: string, approved: boolean, overrides?: Record<string, number>) =>
@@ -584,8 +773,8 @@ export const api = {
   myUpdates: () => request<{ updates: BizUpdate[] }>("GET", "/v1/me/updates"),
   demoUpdates: () => request<{ updates: BizUpdate[] }>("GET", "/v1/demo/updates"),
   kpis: (ticker: string) => request<KpiPeriods>("GET", `/v1/companies/${enc(ticker)}/kpis`),
-  putKpis: (ticker: string, period_end: string, values: Partial<Record<Metric, number | null>>) =>
-    request<KpiPeriods>("PUT", `/v1/companies/${enc(ticker)}/kpis`, { period_end, values }),
+  putKpis: (ticker: string, period_end: string, values: Partial<Record<Metric, number | null>>, cadence: Cadence = "monthly") =>
+    request<KpiPeriods>("PUT", `/v1/companies/${enc(ticker)}/kpis`, { cadence, period_end, values }),
   prepareUpdate: (ticker: string, body: { cadence: Cadence; period_end: string; kpis?: Partial<Record<Metric, number | null>>; note?: string }) =>
     request<BizUpdate>("POST", `/v1/companies/${enc(ticker)}/updates`, body),
   editUpdate: (id: string, body: { title?: string; summary?: string; note?: string; highlights?: string[]; risks?: string[] }) =>
@@ -617,4 +806,5 @@ export const api = {
   settleOffering: (id: number) => request<{ id: number; status: string; investors: number; shares: number }>("POST", `/v1/admin/offerings/${id}/settle`),
   releaseOffering: (id: number, reason: string) => request<unknown>("POST", `/v1/admin/offerings/${id}/release`, { reason }),
   demoDividends: () => request<DividendLedger>("GET", "/v1/demo/dividends"),
+  ...hrApi,
 };

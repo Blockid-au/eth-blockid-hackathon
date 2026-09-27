@@ -1,11 +1,13 @@
-import { getAddress, toHex } from "viem";
+import { getAddress, isAddress, toHex } from "viem";
 import { createSiweMessage } from "viem/siwe";
 import { api, isMock, type Role } from "./api";
+import type { DictKey } from "./dict";
 
-/** EIP-4361 domain: eth.blockid.au in production; the backend also accepts localhost for local dev. */
-const LOCAL = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-export const SIWE_DOMAIN = LOCAL ? location.host : "eth.blockid.au";
-export const SIWE_URI = LOCAL ? `${location.protocol}//${location.host}` : "https://eth.blockid.au";
+/** EIP-4361 domain: the page's own host on eth.blockid.au / hr.blockid.au (same SPA on both) and for local dev
+ *  (the backend allows these domains); any other host signs for eth.blockid.au. */
+const OWN_HOST = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|(eth|hr)\.blockid\.au)$/.test(location.hostname);
+export const SIWE_DOMAIN = OWN_HOST ? location.host : "eth.blockid.au";
+export const SIWE_URI = OWN_HOST ? `${location.protocol}//${location.host}` : "https://eth.blockid.au";
 
 export interface ChainInfo {
   key: "local" | "hoodi" | "hsk";
@@ -101,12 +103,30 @@ function wrap(e: unknown): never {
   throw new WalletError("other", err?.message || String(e));
 }
 
+export type AddrProblem = "format" | "checksum" | "zero";
+
+/** Why a typed address is not usable, or null. Same rules as the server (captable.checksum): mixed case must carry a
+ *  valid EIP-55 checksum (a typo is refused, not silently "fixed"); all-lowercase / all-uppercase has no checksum;
+ *  the zero address is not a wallet. */
+export function addressProblem(a: string): AddrProblem | null {
+  const s = a.trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(s)) return "format";
+  const body = s.slice(2);
+  if (body !== body.toLowerCase() && body !== body.toUpperCase() && !isAddress(s, { strict: true })) return "checksum";
+  if (/^0+$/.test(body)) return "zero";
+  return null;
+}
+
+/** Inline message for a typed address ("" when it is fine or empty). */
+export function addrError(t: (k: DictKey) => string, a: string): string {
+  if (!a.trim()) return "";
+  const p = addressProblem(a);
+  return p ? t(`fx.addr.${p}` as DictKey) : "";
+}
+
+/** EIP-55 form of a valid address, else null (see addressProblem for the reason). */
 export function isAddressValid(a: string): string | null {
-  try {
-    return getAddress(a.trim());
-  } catch {
-    return null;
-  }
+  return addressProblem(a) ? null : getAddress(a.trim().toLowerCase());
 }
 
 export { shortAddr } from "./lib/addr";

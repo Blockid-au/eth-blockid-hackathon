@@ -157,6 +157,9 @@ def event_text(e: dict) -> str:
         if d.get("by_admin"):
             return "share offering closed by the platform; all reservations released"
         return "share offering closed without reaching its minimum; all reservations released"
+    if e["kind"] == "offering_settled" and d.get("shares") is not None and d.get("partial"):
+        return (f"share offering completed in part: {int(d['shares']):,} new shares issued to "
+                f"{int(d.get('investors') or 0):,} investors, the other reservations released (simulated payment)")
     if e["kind"] == "offering_settled" and d.get("shares") is not None:
         return (f"share offering completed: {int(d['shares']):,} new shares issued to "
                 f"{int(d.get('investors') or 0):,} investors (simulated payment)")

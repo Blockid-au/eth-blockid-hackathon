@@ -99,3 +99,39 @@ Earlier (3-model chain):
 Valuation of https://www.cultureamp.com/ after the change: all 6 steps done in 107 s; every LLM call
 (StartupProfile, CompetitorList, MarketAnalysis, QualitativeScores, Narrative) answered by
 `sambanova:gpt-oss-120b` with no fallback, so the LLM cost was US$0.
+
+## People Analyst (founding-team / person review, 27 Sep 2026)
+
+The People Analyst (`agents/people.py`) has its **own** chain; the valuation chain above is unchanged. It is a
+per-agent override in `llm.py` (`AGENT_CHAINS` → `build_agent_llms` → `Deps.agent_llm`), reusing `cloud_chain`,
+`FallbackLLM` and each provider's parking / cooldown logic.
+
+```
+HR_LLM_PROVIDER_ORDER=claude_bridge,sambanova,deepinfra        # default
+HR_SAMBANOVA_MODELS=DeepSeek-V3.1,DeepSeek-V3.2                 # free
+HR_DEEPINFRA_MODELS=deepseek-ai/DeepSeek-V4-Flash,Qwen/Qwen3-235B-A22B-Instruct-2507   # paid, cheap
+HR_SEARCH_PROVIDERS=claude,brave                                # default
+HR_TIER=cloud  HR_SEARCHES_PER_PERSON=3 (cap 3)  HR_SEARCHES_PER_TEAM=12 (cap 12)  HR_RUNS_PER_DAY=5  HR_MAX_ACTIVE=5
+```
+
+- **Why Claude first**: the hard part is person disambiguation (namesakes) and verbatim quoting; Claude Sonnet via the
+  host bridge (`POST /complete`, no tools, our JSON schema) is the most reliable at both. The Claude CLI is added only
+  if `HR_LLM_PROVIDER_ORDER` lists `claude` (no automatic CLI insertion for this agent).
+- **Fallbacks**: SambaNova DeepSeek-V3.1 / V3.2 (free, per-model quota parking), then DeepInfra DeepSeek-V4-Flash
+  (closest to Sonnet in the SVI benchmark above, no invented URLs) and Qwen3-235B-A22B-Instruct-2507 (reliable JSON,
+  slower). Both DeepInfra ids and both SambaNova ids were confirmed in each provider's `/models` listing with the
+  worker's keys on 2026-09-27 (other candidates seen there: `moonshotai/Kimi-K2.6`, `zai-org/GLM-4.7`,
+  `deepseek-ai/DeepSeek-V4-Pro`; not benchmarked for this task yet). With `LLM_BACKEND=gateway` the agent uses the
+  gateway like every other agent.
+- **Budget**: 1 extraction call per person + 1 team call per report (a 5-person team = 6 calls) — the bridge's daily
+  cap `BRIDGE_COMPLETE_MAX_PER_DAY=300` is shared with the valuations; when it is reached the bridge parks and the
+  chain falls through to SambaNova.
+- **Search**: Claude web search first (better at finding the right person; Brave's monthly quota is currently 0),
+  then Brave; same 72 h cache and audit log (`search_served` / `search_unavailable`). Every attempt is in the report's
+  `searches` (person, query, provider, results).
+- **Logging**: the model that answered each person's extraction and the team call is stored in the report
+  (`method.models`, `people[].model`) and in the audit log (`person_analysed`, `team_analysed`, `llm_call`).
+- **Privacy**: names (and the typed bio / CV) of people whose consent the requester confirmed are sent to these cloud
+  providers and the search providers. Emails and phone numbers are redacted before anything is stored, prompted or
+  searched; sensitive categories are filtered from the output by code. See [SECURITY.md](SECURITY.md).
+

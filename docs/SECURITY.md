@@ -54,3 +54,21 @@ Controls added after the internal security review (all verified on the live site
 
 Known testnet-only choices: admin login is a SIWE wallet in `ADMIN_WALLETS` or a username/password configured via
 `ADMIN_PASSWORD_HASH` (bcrypt; rotate before any real use); the issuer key is a hot key on the server (production must move issuance to a Safe multisig — see above).
+
+## People reviews (hr.blockid.au) — privacy
+
+The People Analyst (`agents/people.py`, API `studio/hr.py`) researches named individuals, so it has extra rules:
+
+| Area | Control |
+|---|---|
+| Consent | Every team / person report requires `consent: true` from the requester ("the listed people agreed"); stored with `consented_at` and audited (`hr_team_created`, `hr_person_report_created`). |
+| Scope | Public professional information only (roles, ventures, exits, education, publications, awards, skills). LinkedIn is not scraped (sign-in wall): the typed bio / CV is used and labelled self-reported. |
+| Sensitive data | Health, religion, politics, family / relationships, home address, phone, personal email, age / date of birth, ethnicity and sexuality are never collected: the prompt forbids them and code drops any fact, CV item, rationale or text matching the personal-context keyword filter (`people.SENSITIVE`), counted in `facts_dropped_sensitive`. |
+| Redaction | Emails and phone numbers are redacted from founder-typed text before storage, and from fetched pages, prompts and search queries (`people.redact`, plus `sanitize_query`). |
+| Verification | A fact is shown as verified only when its quote is on a stored page that names the person and the company (or an organisation the person self-reported) or on a founder-provided URL; everything else is listed as "unconfirmed". Red flags count only when they cite a verified fact. |
+| Access | Full report: requester, platform admins, active company admins of the linked company, any signed-in viewer for demo reports, or holders of the share token (revocable). The summary on the valuation card carries names, roles and numbers only (no facts or sources). |
+| Removal | People can ask to be removed (info@blockid.au): `DELETE /v1/hr/people/{id}` (requester or platform admin) deletes the person, their card, facts and stored evidence and recomputes the team score; `DELETE /v1/hr/teams/{id}` deletes a whole report. The audit row records the ids, never the name. |
+| Least privilege | Policy `people_analyst`: `web_search`, `fetch_url`, `store_evidence` only; no keys, no chain access; SSRF-safe fetch (`tools/safefetch.py`). The report is advisory — not an employment, credit or investment decision. |
+| Cloud processing | Names and the typed bio / CV of consenting people are sent to the HR LLM chain (Claude via the host bridge, SambaNova, DeepInfra) and to the search providers (Claude web search, Brave). |
+| Abuse | `HR_RUNS_PER_DAY` (default 5) runs per wallet per day, `HR_MAX_ACTIVE` (5) queued/running at once; admins exempt from the daily limit. |
+

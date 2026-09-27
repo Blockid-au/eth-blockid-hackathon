@@ -11,12 +11,13 @@ import { StatusBar, type StatusNext, type Tone } from "../components/StatusBar";
 import { Contrib, Donut, HBars, Legend, Radar, RangeChart } from "../components/charts";
 import { ValuationMethods, type Triangulation, type ValuationEvidence } from "../components/ValuationMethods";
 import { ErrorBox, Loading } from "../components/Layout";
+import { TeamCard } from "../components/TeamCard";
 import { useAsync, useTitle } from "../lib/hooks";
 import { bandGrade, dimRows, OVERRIDABLE, stepLabel } from "../lib/svi";
 import { allocate, colorAt, foldParts } from "../lib/math";
 import { SAMPLE, SAMPLE_EVIDENCE } from "../lib/sample";
 import { SR_FIELDS, type SrField } from "../lib/selfReported";
-import { isAddressValid } from "../wallet";
+import { addrError, isAddressValid } from "../wallet";
 
 const ACTIVE = ["queued", "running", "waiting_approval"];
 
@@ -142,6 +143,7 @@ function Report({ v, evidence, isAdmin, onDecided }: { v: Val; evidence: Evidenc
         <span className="bigno">{money(svi.valuation_mid_aud)}</span>
         <span className="muted">{t("v.score", { s: fmt(svi.index, 1) })} · {money(svi.valuation_low_aud)} – {money(svi.valuation_high_aud)}</span>
       </div>
+      <TeamCard valuationId={v.id} teamId={v.team_id} summary={v.team} weight={svi.weights?.founder_quality} sample={v.id === "sample"} />
       <div className="cols">
         <div className="card"><h4>{t("s3.radar")}</h4><Radar dims={rows} /></div>
         <div className="card">
@@ -382,20 +384,30 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
   const sumP = pcts.reduce((a, b) => a + b, 0);
   const ok = Math.abs(sumP - 100) < 1e-6;
   const T = Math.max(0, Math.floor(Number(total) || 0));
+  // the same rules as the server (tools/captable.py + routes create_company), caught on the row that breaks them
+  const totalErr = !/^\d+$/.test(total.trim()) || T < 1 ? t("fx.sh.supply") : T < rows.length ? t("fx.sh.few", { n: rows.length }) : "";
   const shares = ok ? allocate(T, pcts) : pcts.map((p) => Math.floor((T * p) / 100));
   const seen = new Map<string, number>();
-  const rowErr = rows.map((r) => {
+  const pctErr = rows.map((r) => {
+    const v = r.pct.trim();
+    if (!v || !(Number(v) > 0)) return t("fx.sh.pctNeed");
+    if (!/^\d+(\.\d{1,2})?$/.test(v)) return t("fx.sh.dec");
+    if (Number(v) > 100) return t("fx.sh.pctMax");
+    return "";
+  });
+  const rowErr = rows.map((r, i) => {
     const a = isAddressValid(r.wallet);
     if (!r.name.trim()) return t("v.sh.badname");
-    if (!a) return t("v.sh.badaddr");
+    if (!a) return r.wallet.trim() ? addrError(t, r.wallet) : t("v.sh.badaddr");
     const k = a.toLowerCase();
     if (seen.has(k)) return t("v.sh.dup");
     seen.set(k, 1);
-    if (!(Number(r.pct) > 0)) return "%";
+    if (pctErr[i]) return "%";
+    if (ok && !totalErr && shares[i] < 1) return t("fx.sh.zero", { n: fmt(T) });  // server: "would receive 0 shares"
     return "";
   });
   const tickerReady = /^[A-Z]{3}$/.test(ticker) && !tkBad && name.trim().length > 0;
-  const valid = ok && T >= 1 && rowErr.every((e) => !e) && tickerReady;
+  const valid = ok && T >= 1 && !totalErr && rowErr.every((e) => !e) && tickerReady;
   const folded = foldParts(rows.map((r, i) => ({ name: r.name || "—", v: Math.max(pcts[i], 0) })), t("c.other"));
   const parts = folded.map((p) => ({ ...p, tip: `${p.name} · ${fmt(p.v, 2)}%` }));
 
@@ -406,7 +418,8 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
       // take the person to the first thing to fix: a bad row, else the % column of the last row
       const bad = rowErr.findIndex((e) => !!e);
       const i = bad >= 0 ? bad : rows.length - 1;
-      const el = document.querySelector<HTMLInputElement>(`[data-caprow="${i}"] ${bad >= 0 && rowErr[bad] !== "%" ? "input" : "input[type=number]"}`);
+      const el = totalErr && bad < 0 ? document.querySelector<HTMLInputElement>("#supply")
+        : document.querySelector<HTMLInputElement>(`[data-caprow="${i}"] ${bad >= 0 && rowErr[bad] !== "%" ? "input" : "input[type=number]"}`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
       el?.focus({ preventScroll: true });
       return;
@@ -446,16 +459,19 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
         <div className="card">
           <div className="field" style={{ alignItems: "center" }}>
             <label htmlFor="supply" className="sub">{t("s5.supply")}</label>
-            <input id="supply" type="number" min={1} step={1000} value={total} onChange={(e) => setTotal(e.target.value)} style={{ maxWidth: 180 }} />
+            <input id="supply" type="number" min={1} step={1000} value={total} className={totalErr ? "bad" : undefined} aria-invalid={!!totalErr} aria-describedby="supply-err" onChange={(e) => setTotal(e.target.value)} style={{ maxWidth: 180 }} />
             <button type="button" className="btn ghost sm" onClick={() => setTotal(String(mid))}>{money(mid)}</button>
           </div>
           <span className="hint">{t("v.sh.default", { n: fmt(mid) })}</span>
+          {totalErr && <span id="supply-err" className="hint bad" role="alert">{totalErr}</span>}
           <div className="tbl captbl">
             <table>
               <thead><tr><th>{t("t.holder")}</th><th>{t("t.wallet")}</th><th className="r">%</th><th className="r">{t("t.shares")}</th><th><span className="sr-only">{t("v.sh.remove", { n: "" })}</span></th></tr></thead>
               <tbody>
                 {rows.map((r, i) => {
-                  const e = touched || r.wallet ? rowErr[i] : "";
+                  const e0 = touched || r.wallet ? rowErr[i] : "";
+                  const e = e0 === "%" ? "" : e0;  // percentage problems are shown under the % field
+                  const pe = touched || r.pct.trim() !== "" ? pctErr[i] : "";
                   const addrBad = !!r.wallet && !isAddressValid(r.wallet);
                   return (
                     <tr key={r.id} data-caprow={i}>
@@ -466,7 +482,7 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
                           onBlur={() => { const a = isAddressValid(r.wallet); if (a && a !== r.wallet) upd(r.id, "wallet", a); }} />
                         {e && <div className="hint bad">{e}</div>}
                       </td>
-                      <td className="r"><input className={"w-pct" + ((touched || sumP > 100) && (!ok || !(Number(r.pct) > 0)) ? " bad" : "")} type="number" step="0.01" min={0} max={100} value={r.pct} aria-label={`${r.name || t("t.holder")} %`} aria-invalid={!ok || !(Number(r.pct) > 0)} onChange={(x) => upd(r.id, "pct", x.target.value)} /></td>
+                      <td className="r"><input className={"w-pct" + (pe || ((touched || sumP > 100) && !ok) ? " bad" : "")} type="number" step="0.01" min={0} max={100} value={r.pct} aria-label={`${r.name || t("t.holder")} %`} aria-invalid={!ok || !!pctErr[i]} onChange={(x) => upd(r.id, "pct", x.target.value)} />{pe && <div className="hint bad">{pe}</div>}</td>
                       <td className="r">{fmt(shares[i] || 0)}</td>
                       <td>{rows.length > 1 && <button type="button" className="xbtn" aria-label={t("v.sh.remove", { n: r.name || String(i + 1) })} onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}>×</button>}</td>
                     </tr>

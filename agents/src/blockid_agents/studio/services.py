@@ -18,11 +18,21 @@ ERC20_ABI = [
     {"type": "function", "name": "totalSupply", "stateMutability": "view", "inputs": [],
      "outputs": [{"name": "", "type": "uint256"}]},
 ]
+# BlockIDShareToken: the holder cap is enforced by the token itself (reverts ShareholderCapReached)
+SHARE_TOKEN_ABI = [
+    {"type": "function", "name": "maxShareholders", "stateMutability": "view", "inputs": [],
+     "outputs": [{"name": "", "type": "uint32"}]},
+    {"type": "function", "name": "shareholderCount", "stateMutability": "view", "inputs": [],
+     "outputs": [{"name": "", "type": "uint32"}]},
+]
 
 
 class ChainReader(Protocol):
     def block_number(self) -> int: ...
     def balances(self, token: str, wallets: list[str]) -> dict[str, int]: ...
+    def shareholders(self, token: str) -> tuple[int, int]:
+        """(maxShareholders, shareholderCount) of a BlockIDShareToken; a cap of 0 means no limit."""
+        ...
 
 
 class Web3ChainReader:
@@ -39,6 +49,75 @@ class Web3ChainReader:
 
         c = self.w3.eth.contract(address=Web3.to_checksum_address(token), abi=ERC20_ABI)
         return {w: int(c.functions.balanceOf(Web3.to_checksum_address(w)).call()) for w in wallets}
+
+    def shareholders(self, token: str) -> tuple[int, int]:
+        from web3 import Web3
+
+        c = self.w3.eth.contract(address=Web3.to_checksum_address(token), abi=SHARE_TOKEN_ABI)
+        return int(c.functions.maxShareholders().call()), int(c.functions.shareholderCount().call())
+
+    def transfer_facts(self, token: str, registry: str, frm: str, to: str) -> dict:
+        """What BlockIDShareToken._update checks for a secondary transfer (see transfer_blocker)."""
+        from web3 import Web3
+
+        tok = self.w3.eth.contract(address=Web3.to_checksum_address(token), abi=SHARE_TOKEN_FACTS_ABI)
+        reg = self.w3.eth.contract(address=Web3.to_checksum_address(registry), abi=REGISTRY_FACTS_ABI)
+        f, t = Web3.to_checksum_address(frm), Web3.to_checksum_address(to)
+        return {
+            "balance_from": int(tok.functions.balanceOf(f).call()),
+            "balance_to": int(tok.functions.balanceOf(t).call()),
+            "from_verified": bool(reg.functions.isVerified(f).call()),
+            "to_verified": bool(reg.functions.isVerified(t).call()),
+            "frozen_from": bool(tok.functions.frozen(f).call()),
+            "frozen_to": bool(tok.functions.frozen(t).call()),
+            "lockup_until": int(tok.functions.lockupUntil().call()),
+            "holders": int(tok.functions.shareholderCount().call()),
+            "max_holders": int(tok.functions.maxShareholders().call()),
+            "now": int(self.w3.eth.get_block("latest")["timestamp"]),
+        }
+
+
+def _view(name: str, inputs: list[str], out: str) -> dict:
+    return {"type": "function", "name": name, "stateMutability": "view",
+            "inputs": [{"name": f"a{i}", "type": x} for i, x in enumerate(inputs)],
+            "outputs": [{"name": "", "type": out}]}
+
+
+SHARE_TOKEN_FACTS_ABI = [_view("balanceOf", ["address"], "uint256"), _view("frozen", ["address"], "bool"),
+                         _view("lockupUntil", [], "uint64"), _view("shareholderCount", [], "uint32"),
+                         _view("maxShareholders", [], "uint32")]
+REGISTRY_FACTS_ABI = [_view("isVerified", ["address"], "bool")]
+
+
+REASON_TEXT = {
+    "self": "sender and receiver are the same wallet",
+    "balance": "not enough shares (including pending requests)",
+    "frozen": "a wallet in this transfer is frozen by the transfer agent",
+    "lockup": "the lock-up period is still active; shares cannot move yet",
+    "not_verified": "the sender or the receiver is not KYC-verified for this company",
+    "cap": "the company has reached its maximum number of shareholders",
+}
+
+
+def transfer_blocker(f: dict, shares: int, *, pending: int = 0) -> str | None:
+    """First rule a secondary transfer breaks, as a reason code (same codes as the on-chain custom errors), else None.
+
+    Mirrors BlockIDShareToken._update for a plain transfer: freeze, lock-up, sender and receiver KYC, shareholder
+    cap. Used for admin-approval transfers too (the issuer's forcedTransfer skips freeze / lock-up / sender KYC on
+    chain, so the platform enforces them here and again in the issuer right before sending).
+    """
+    if f["balance_from"] < shares + pending:
+        return "balance"
+    if f["frozen_from"] or f["frozen_to"]:
+        return "frozen"
+    if f["now"] < f["lockup_until"]:
+        return "lockup"
+    if not f["from_verified"] or not f["to_verified"]:
+        return "not_verified"
+    # the contract counts the new holder before it removes a sender who sends everything, so no relief for that
+    if f["max_holders"] and f["balance_to"] == 0 and shares > 0 and f["holders"] + 1 > f["max_holders"]:
+        return "cap"
+    return None
 
 
 class IssuerError(RuntimeError):

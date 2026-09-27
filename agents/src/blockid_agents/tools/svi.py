@@ -26,7 +26,19 @@ import math
 from ..config import IMPLIED_MULTIPLE_BOUNDS, default_multiples
 from ..schemas import DimensionScore, MarketAnalysis, QualitativeScores, StartupProfile, SVIResult
 
+# v4 (2026-09-27, docs/PLAN-HR.md): the founding team is the highest-weighted dimension. When a founding-team report
+# (agents/people.py) is linked, founder_quality = its team score (basis "team_report"; an admin override still wins).
 WEIGHTS: dict[str, float] = {
+    "founder_quality": 0.30,
+    "product_strength": 0.15,
+    "market_attractiveness": 0.15,
+    "revenue_performance": 0.15,
+    "growth_capability": 0.10,
+    "investment_readiness": 0.10,
+    "trust_verification": 0.05,
+}
+# v1-v3 weights: kept so /verify reproduces every report valued before v4 (SVIResult.weights records the set used)
+WEIGHTS_V3: dict[str, float] = {
     "founder_quality": 0.20,
     "product_strength": 0.15,
     "market_attractiveness": 0.20,
@@ -35,7 +47,9 @@ WEIGHTS: dict[str, float] = {
     "investment_readiness": 0.10,
     "trust_verification": 0.05,
 }
-assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9
+WEIGHT_SETS: dict[str, dict[str, float]] = {"v4": WEIGHTS, "v3": WEIGHTS_V3}  # newest first
+for _w in WEIGHT_SETS.values():
+    assert abs(sum(_w.values()) - 1.0) < 1e-9
 
 # Placeholder calibration (AUD). Replace with values derived from the SVI research dataset.
 STAGE_REVENUE_BENCHMARK = {"idea": 0, "pre-seed": 50_000, "seed": 300_000, "series-a": 2_000_000, "growth": 10_000_000}
@@ -145,7 +159,7 @@ def score(profile: StartupProfile, qualitative: QualitativeScores, market: Marke
         index=index,
         band=band(index),
         dimensions=dims,
-        weights=WEIGHTS,
+        weights=dict(WEIGHTS),
         valuation_low_aud=round(low, -3),
         valuation_mid_aud=round(mid, -3),
         valuation_high_aud=round(high, -3),
@@ -172,7 +186,8 @@ def report_hash(result: SVIResult) -> str:
     payload = result.model_dump(exclude=exclude)  # pre-v3 reports keep their original hash
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
-FORMULA_VERSION = "v3"  # v3: triangulation (tools/triangulate.py); v2 rules below remain the revenue/stage fallback
+FORMULA_VERSION = "v4"  # v4: v3 + new WEIGHTS (founder_quality 0.30); v3: triangulation (tools/triangulate.py)
+TRIANGULATION_VERSION = "v3"  # valuation-range rules (unchanged by v4); v2 rules below remain the fallback
 LEGACY_FORMULA_VERSION = "v2"  # v2: implied multiple > cited multiple (0.7x-1.4x spread if single) > default > stage
 
 

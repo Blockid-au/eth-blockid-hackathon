@@ -50,6 +50,11 @@ class Worker:
             from .studio.runner import ValuationRunner
 
             self.valuations = ValuationRunner(deps, checkpointer, studio)
+        self.hr = None  # founding-team / person reviews (studio/hr_store.py); run after valuations each drain
+        if studio is not None:
+            from .studio.hr_store import HrRunner
+
+            self.hr = HrRunner(deps, studio)
 
     @classmethod
     def from_settings(cls, deps: Deps) -> "Worker":
@@ -111,6 +116,8 @@ class Worker:
             n += 1
         if self.valuations is not None:
             n += self.valuations.drain()
+        if self.hr is not None:
+            n += self.hr.drain()
         return n
 
     def forever(self, poll_s: float = 10) -> None:

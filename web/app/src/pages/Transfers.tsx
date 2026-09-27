@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { encodeFunctionData, getAddress } from "viem";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
-import { request, type CompanyDetail } from "../api";
+import { ApiError, request, type CompanyDetail } from "../api";
 import { useAsync } from "../lib/hooks";
-import { CHAINS, isAddressValid, shortAddr, signInWithEthereum, switchOrAddChain } from "../wallet";
+import { CHAINS, addrError, isAddressValid, shortAddr, signInWithEthereum, switchOrAddChain } from "../wallet";
 
 /* Secondary share transfers (backend: agents/src/blockid_agents/studio/transfers.py).
    free     = holder signs BlockIDShareToken.transfer in MetaMask; the API verifies the receipt.
@@ -12,10 +12,12 @@ import { CHAINS, isAddressValid, shortAddr, signInWithEthereum, switchOrAddChain
 
 type Mode = "free" | "approval";
 interface Info { ticker: string; mode: Mode; paused: boolean | null; token: string; registry: string; chain_id: number }
-interface Check { ok: boolean; reason: string | null; mode: Mode; from_verified: boolean; to_verified: boolean; balance: number; via?: string }
+interface Check { ok: boolean; reason: string | null; mode: Mode; from_verified: boolean; to_verified: boolean; balance: number; via?: "wallet" | "request"; pending?: number }
 export interface TransferRow {
   id: number; company_id?: number; ticker?: string; company_name?: string; from_wallet: string; to_wallet: string; to_name: string;
   shares: number; mode: Mode; status: string; tx_hash?: string | null; note?: string | null; created_at?: string; requested_by?: string | null;
+  /** admin queue: why the request would be refused right now (reason code), null when it may go */
+  blocker?: string | null;
 }
 export interface KycRow { id: number; ticker?: string; company_name?: string; wallet: string; name: string; status: string; note?: string | null; requested_by?: string | null; created_at?: string }
 
@@ -95,6 +97,22 @@ export function ModeBadge({ mode }: { mode: Mode }) {
   return <span className={"pill"} style={{ background: mode === "approval" ? "var(--gold-soft)" : "var(--accent-soft)", color: mode === "approval" ? "var(--gold)" : "var(--accent-deep)" }}>{mode === "approval" ? "◆ " + L.approval : "⇄ " + L.free}</span>;
 }
 
+/* A sent-but-not-yet-recorded transaction survives reloads (per company + wallet), so it is recorded, never sent twice. */
+interface PendingTx { hash: string; to: string; name: string; shares: number; note: string }
+const pendKey = (tk: string, w: string) => `bid.tx.pending.${tk.toUpperCase()}.${w.toLowerCase()}`;
+function readPending(tk: string, w: string | null): PendingTx | null {
+  if (!w) return null;
+  try { const x = JSON.parse(localStorage.getItem(pendKey(tk, w)) || "null"); return x && /^0x[0-9a-f]{64}$/i.test(x.hash) ? x : null; } catch { return null; }
+}
+function writePending(tk: string, w: string, p: PendingTx | null) {
+  try { if (p) localStorage.setItem(pendKey(tk, w), JSON.stringify(p)); else localStorage.removeItem(pendKey(tk, w)); } catch { /* private mode */ }
+}
+/** "<code>: words" from the API (studio/transfers.py reason_detail) -> the translated reason, else the text as is. */
+function apiReason(L: typeof EN, msg: string): string {
+  const m = /^(\w+):/.exec(msg);
+  return m && (L as Record<string, string>)["r_" + m[1]] ? reasonText(L, m[1]) : msg;
+}
+
 export function TransferPanel({ c, onDone }: { c: CompanyDetail; onDone: () => void }) {
   const { t, fmt } = useI18n();
   const L = useTx();
@@ -108,14 +126,25 @@ export function TransferPanel({ c, onDone }: { c: CompanyDetail; onDone: () => v
   const [chk, setChk] = useState<Check | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; s: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [touched, setTouched] = useState(false);
   const mode: Mode = info.data?.mode ?? "free";
   const me_addr = me?.address ? getAddress(me.address) : null;
+  const [pending, setPendingState] = useState<PendingTx | null>(() => readPending(c.ticker, me_addr));
+  useEffect(() => { setPendingState(readPending(c.ticker, me_addr)); }, [c.ticker, me_addr]);
+  const setPending = (p: PendingTx | null) => { if (me_addr) writePending(c.ticker, me_addr, p); setPendingState(p); };
   const w = isAddressValid(to);
-  const shares = Math.max(0, Math.floor(Number(n) || 0));
   const mine = me_addr ? c.cap_table.find((r) => r.wallet.toLowerCase() === me_addr.toLowerCase()) : undefined;
+  const held = Number(mine?.shares ?? 0);
+  // inline checks, shown as soon as something is typed (all of them on submit)
+  const nT = n.trim();
+  const sharesErr = !nT ? t("fx.tr.sharesNeed") : !/^\d+$/.test(nT) ? t("fx.tr.whole") : Number(nT) < 1 ? t("fx.tr.sharesNeed") : Number(nT) > held ? t("fx.tr.max", { n: fmt(held) }) : "";
+  const shares = sharesErr ? 0 : Number(nT);
+  const toErr = to ? addrError(t, to) || (w && me_addr && w === me_addr ? t("fx.tr.self") : "") : touched ? t("fx.addr.need") : "";
+  const nameErr = !name.trim() && (touched || name.length > 0) ? t("fx.tr.nameNeed") : "";
+  const formOk = !!w && !toErr && !sharesErr && !!name.trim();
 
   const doCheck = async (): Promise<Check | null> => {
-    if (!me_addr || !w || shares < 1) return null;
+    if (!me_addr || !w || !shares) return null;
     try { const r = await tapi.check(c.ticker, me_addr, w, shares); setChk(r); return r; }
     catch (e) { setMsg({ ok: false, s: errText(e, t) }); return null; }
   };
@@ -126,16 +155,43 @@ export function TransferPanel({ c, onDone }: { c: CompanyDetail; onDone: () => v
     catch (e) { setMsg({ ok: false, s: errText(e, t) }); }
     finally { setBusy(false); }
   };
+  /** Record a sent transaction: wait for its receipt, then report it (the API refuses a hash twice). */
+  const record = async (p: PendingTx) => {
+    setBusy(true);
+    setMsg({ ok: true, s: L.waiting + " " + shortAddr(p.hash) });
+    try {
+      const rc = await waitReceipt(p.hash);
+      if (!rc) { setMsg({ ok: false, s: t("fx.tr.stillWaiting", { h: shortAddr(p.hash) }) }); return; }
+      if (rc.status !== "0x1") { setPending(null); setMsg({ ok: false, s: t("fx.tr.reverted", { h: shortAddr(p.hash) }) }); return; }
+      try {
+        await tapi.create(c.ticker, { to_wallet: p.to, to_name: p.name, shares: p.shares, tx_hash: p.hash, note: p.note });
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 409 && /already recorded/i.test(e.message))) throw e;
+      }
+      setPending(null);
+      setMsg({ ok: true, s: L.sent });
+      setChk(null); void hist.reload(); onDone();
+    } catch (x) {
+      setMsg({ ok: false, s: t("fx.tr.recordFail", { e: errText(x, t) }) });
+    } finally {
+      setBusy(false);
+    }
+  };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched(true);
     setMsg(null);
+    if (pending) { void record(pending); return; }  // never a second send while one is not recorded
+    if (!formOk || !w || !me_addr) return;
     const r = await doCheck();
-    if (!r || !r.ok || !w || !me_addr) { if (r && !r.ok) setMsg({ ok: false, s: reasonText(L, r.reason) }); return; }
+    if (!r || !r.ok) { if (r && !r.ok) setMsg({ ok: false, s: reasonText(L, r.reason) }); return; }
     setBusy(true);
     try {
-      if (mode === "approval") {
+      // branch on the fresh check (the mode may have changed since the page polled it)
+      if (r.via === "request" || r.mode === "approval") {
         await tapi.create(c.ticker, { to_wallet: w, to_name: name.trim(), shares, note: note.trim() });
         setMsg({ ok: true, s: L.reqSent });
+        setChk(null); void hist.reload(); onDone();
       } else {
         await switchOrAddChain(CHAINS.local);
         const eth = window.ethereum!;
@@ -143,19 +199,19 @@ export function TransferPanel({ c, onDone }: { c: CompanyDetail; onDone: () => v
         if (!accts?.length || getAddress(accts[0]) !== me_addr) { setMsg({ ok: false, s: L.mismatch }); return; }
         const data = encodeFunctionData({ abi: TRANSFER_ABI, functionName: "transfer", args: [w as `0x${string}`, BigInt(shares)] });
         const hash = (await eth.request({ method: "eth_sendTransaction", params: [{ from: me_addr, to: getAddress(c.local?.token ?? c.local_token ?? ""), data }] })) as string;
-        setMsg({ ok: true, s: L.waiting + " " + shortAddr(hash) });
-        const rc = await waitReceipt(hash);
-        if (!rc || rc.status !== "0x1") { setMsg({ ok: false, s: L.r_reverted }); return; }
-        await tapi.create(c.ticker, { to_wallet: w, to_name: name.trim(), shares, tx_hash: hash, note: note.trim() });
-        setMsg({ ok: true, s: L.sent });
+        const p = { hash, to: w, name: name.trim(), shares, note: note.trim() };
+        setPending(p);  // from here on the form only records this transaction
+        setBusy(false);
+        await record(p);
+        return;
       }
-      setChk(null); void hist.reload(); onDone();
     } catch (x) {
-      setMsg({ ok: false, s: errText(x, t) });
+      setMsg({ ok: false, s: x instanceof ApiError ? apiReason(L, x.message) : errText(x, t) });
     } finally {
       setBusy(false);
     }
   };
+  const bad = (err: string) => (err ? " bad" : "");
 
   return (
     <div className="panel">
@@ -169,20 +225,30 @@ export function TransferPanel({ c, onDone }: { c: CompanyDetail; onDone: () => v
           <div className="card solid"><p>{L.signin}</p><button className="btn gold sm" type="button" onClick={async () => { try { await signInWithEthereum(); await refresh?.(); location.reload(); } catch (e) { setMsg({ ok: false, s: errText(e, t) }); } }}>MetaMask</button></div>
         ) : (
           <form className="card solid" onSubmit={submit} noValidate>
-            <p className="sub">{L.bal}: <b className="num">{fmt(Number(mine?.shares ?? 0))}</b> {c.ticker} · <span className="mono">{shortAddr(me_addr)}</span>{!mine && <> · {L.youAreNot}</>}</p>
-            <div className="fgrid">
-              <label className="lf"><span>{L.to}</span><input className={"mono" + (to && !w ? " bad" : "")} value={to} placeholder="0x…" spellCheck={false} onChange={(e) => { setTo(e.target.value.trim()); setChk(null); }} /></label>
-              <label className="lf"><span>{L.name}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
-              <label className="lf"><span>{L.n}</span><input type="number" min={1} step={1} value={n} onChange={(e) => { setN(e.target.value); setChk(null); }} /></label>
-              <label className="lf"><span>{L.note}</span><input value={note} onChange={(e) => setNote(e.target.value)} /></label>
-            </div>
-            {chk && (chk.ok ? <p className="banner ok">✓ {L.ok}</p> : <p className="banner warn">{reasonText(L, chk.reason)}</p>)}
-            {chk && !chk.to_verified && (
+            <p className="sub">{L.bal}: <b className="num">{fmt(held)}</b> {c.ticker} · <span className="mono">{shortAddr(me_addr)}</span>{!mine && <> · {L.youAreNot}</>}</p>
+            {pending ? (
+              <div className="banner gold" role="status" style={{ display: "grid", gap: 6 }}>
+                <span>{t("fx.tr.pending", { h: shortAddr(pending.hash), n: fmt(pending.shares), a: shortAddr(pending.to) })}</span>
+                <a className="mono" href={CHAINS.local.txUrl(pending.hash)} target="_blank" rel="noopener noreferrer">{pending.hash}</a>
+              </div>
+            ) : (
+              <div className="fgrid">
+                <label className="lf"><span>{L.to}</span><input className={"mono" + bad(toErr)} value={to} placeholder="0x…" spellCheck={false} aria-invalid={!!toErr} onChange={(e) => { setTo(e.target.value.trim()); setChk(null); }} />{toErr && <span className="hint bad">{toErr}</span>}</label>
+                <label className="lf"><span>{L.name}</span><input className={bad(nameErr)} value={name} maxLength={120} aria-invalid={!!nameErr} onChange={(e) => setName(e.target.value)} />{nameErr && <span className="hint bad">{nameErr}</span>}</label>
+                <label className="lf"><span>{L.n}</span><input className={bad(n ? sharesErr : "")} inputMode="numeric" value={n} aria-invalid={!!sharesErr} onChange={(e) => { setN(e.target.value); setChk(null); }} />{(n || touched) && sharesErr && <span className="hint bad">{sharesErr}</span>}</label>
+                <label className="lf"><span>{L.note}</span><input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} /></label>
+              </div>
+            )}
+            {!pending && chk && (chk.ok ? <p className="banner ok">✓ {L.ok}</p> : <p className="banner warn">{reasonText(L, chk.reason)}</p>)}
+            {!pending && chk && !chk.to_verified && (
               <div className="banner gold"><span><b>{L.kycH}</b> · {L.kycP}</span><button className="btn gold sm" type="button" disabled={busy} onClick={kyc}>{L.kycBtn}</button></div>
             )}
             <div className="row">
-              <button className="btn ghost sm" type="button" disabled={busy || !w || shares < 1} onClick={() => void doCheck()}>{L.check}</button>
-              <button className="btn gold sm" type="submit" disabled={busy || !w || shares < 1}>{mode === "approval" ? L.req : L.send}</button>
+              {!pending && <button className="btn ghost sm" type="button" disabled={busy || !formOk} onClick={() => void doCheck()}>{L.check}</button>}
+              <button className="btn gold sm" type="submit" disabled={busy || (!pending && !formOk)}>
+                {busy ? <span className="spinner" aria-hidden="true" /> : null}
+                {pending ? (busy ? t("fx.tr.waitingBtn") : t("fx.tr.recordBtn", { h: shortAddr(pending.hash) })) : mode === "approval" ? L.req : L.send}
+              </button>
             </div>
             {msg && <p className={"banner " + (msg.ok ? "ok" : "bad")} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
           </form>
@@ -233,7 +299,7 @@ export function AdminTransfersTab({ companies, onChanged }: { companies: { id: n
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true); setMsg(null);
     try { await fn(); setMsg({ ok: true, s: t("ap.sent") }); void tr.reload(); void ky.reload(); onChanged(); }
-    catch (e) { setMsg({ ok: false, s: errText(e, t) }); }
+    catch (e) { setMsg({ ok: false, s: e instanceof ApiError ? apiReason(L, e.message) : errText(e, t) }); void tr.reload(); }
     finally { setBusy(false); }
   };
   const pendT = (tr.data ?? []).filter((x) => x.status === "pending" || x.status === "failed");
@@ -268,8 +334,9 @@ export function AdminTransfersTab({ companies, onChanged }: { companies: { id: n
               <span><b className="mono">{x.ticker}</b> · {fmt(Number(x.shares))} · <span className="mono">{shortAddr(x.from_wallet)}</span> → {x.to_name ? x.to_name + " " : ""}<span className="mono">{shortAddr(x.to_wallet)}</span></span>
               <span className="muted-sm">{stText(L, x.status)}{x.note ? " · " + x.note : ""}</span>
             </div>
+            {x.blocker && <p className="banner warn" role="status" style={{ margin: 0 }}>{t("fx.tr.blocked", { r: reasonText(L, x.blocker) })}</p>}
             <div className="row">
-              <button className="btn gold sm" type="button" disabled={busy} onClick={() => act(() => tapi.approveTransfer(x.id))}>{t("ap.approve")}</button>
+              <button className="btn gold sm" type="button" disabled={busy || !!x.blocker} onClick={() => act(() => tapi.approveTransfer(x.id))}>{t("ap.approve")}</button>
               {x.status === "pending" && <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => tapi.rejectTransfer(x.id, "rejected by admin"))}>{t("ap.reject")}</button>}
             </div>
           </div>

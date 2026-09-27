@@ -8,6 +8,25 @@ import { useAsync, useTitle } from "../lib/hooks";
 import { en, type DictKey } from "../dict";
 import { cleanInput, parseSelfReported, SR_FIELDS, type SrField } from "../lib/selfReported";
 import { checkUrlClient } from "../lib/urlcheck";
+import { ConsentBox, PeopleEditor } from "../components/PeopleEditor";
+import { emptyRow, rowUsed, toPersonIn, validateRows, type PersonRow } from "../lib/people";
+
+/** Optional founding team (hr.blockid.au review): sent with the valuation as `team`. */
+function TeamPanel({ rows, setRows, consent, setConsent, tried }: { rows: PersonRow[]; setRows: (f: (r: PersonRow[]) => PersonRow[]) => void; consent: boolean; setConsent: (v: boolean) => void; tried: boolean }) {
+  const { t } = useI18n();
+  const used = rows.filter(rowUsed).length;
+  const errs = used ? validateRows(rows, { requireOne: false }) : {};
+  const box = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { if (tried && used && (Object.keys(errs).length || !consent) && box.current) box.current.open = true; }, [tried]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <details className="hr-teambox" ref={box}>
+      <summary>{t("hr.wiz.toggle")}{used > 0 && <span className="pill gold" style={{ marginLeft: 8 }}>{used}</span>}</summary>
+      <p className="note" style={{ margin: 0 }}>{t("hr.wiz.p")}</p>
+      <PeopleEditor rows={rows} setRows={setRows} errs={errs} showAll={tried && used > 0} idPrefix="wz" />
+      {used > 0 && <ConsentBox checked={consent} onChange={setConsent} showErr={tried} />}
+    </details>
+  );
+}
 
 function Mine() {
   const { t, date, money } = useI18n();
@@ -104,6 +123,9 @@ export default function NewWizard() {
   const [busy, setBusy] = useState<"" | "check" | "start">("");
   const [raw, setRaw] = useState<SrRaw>({});
   const [badSr, setBad] = useState<Set<string>>(new Set());
+  const [team, setTeam] = useState<PersonRow[]>(() => [emptyRow("founder")]);
+  const [teamOk, setTeamOk] = useState(false);
+  const [teamTried, setTeamTried] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   useTitle(t(listing ? "new.eyebrow.list" : "new.eyebrow"));
 
@@ -118,6 +140,12 @@ export default function NewWizard() {
     const sr = parseSelfReported(raw);
     setBad(new Set(sr.bad.map((f) => f.key)));
     if (sr.bad.length) { setErr(t("sr.bad", { f: sr.bad.map((f) => t(f.label)).join(", ") })); return; }
+    const teamRows = team.filter(rowUsed);
+    if (teamRows.length) {
+      setTeamTried(true);
+      const n = Object.keys(validateRows(team, { requireOne: false })).length + (teamOk ? 0 : 1);
+      if (n) { setErr(t("hr.wiz.bad", { n })); return; }
+    }
     let target = c.url;
     setBusy("check");
     try {
@@ -137,7 +165,7 @@ export default function NewWizard() {
     setBusy("start");
     try {
       if (!me) await connect();
-      const { id } = await api.createValuation(target, sr.metrics);
+      const { id } = await api.createValuation(target, sr.metrics, teamRows.length ? { people: teamRows.map(toPersonIn), consent: true } : undefined);
       nav(`/v/${encodeURIComponent(id)}`);
     } catch (x) {
       setErr(x instanceof ApiError && x.status === 429 ? t("new.limit") : errText(x, t));
@@ -164,6 +192,7 @@ export default function NewWizard() {
           {bad?.suggestion && <button type="button" className="btn ghost sm" onClick={() => applySuggestion(bad.suggestion!)}>{t("url.use", { h: bad.suggestion })}</button>}
         </div>
         {err && <p className="err" role="alert">{err}</p>}
+        <TeamPanel rows={team} setRows={setTeam} consent={teamOk} setConsent={setTeamOk} tried={teamTried} />
         <SelfReportedFields raw={raw} setRaw={setRaw} bad={badSr} />
         {!me && <p className="quietline">{t("new.signin")}</p>}
         <div className="cols3">

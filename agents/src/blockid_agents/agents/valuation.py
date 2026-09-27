@@ -150,6 +150,30 @@ def narrate(state: dict, deps: Deps) -> dict:
     return {"svi": result.model_dump(), "status": "valued"}
 
 
+def apply_team_score(result: dict, team_score: float, rationale: str, sources: list[str]) -> dict | None:
+    """Re-score a STORED valuation result with founder_quality = the founding-team score (basis "team_report").
+    Deterministic: no LLM, no web — the stored profile, market, valuation evidence and other dimension scores are
+    reused, the SVI index and the v3 triangulation are recomputed with the current weights, the narrative is kept.
+    Returns {"svi", "qualitative"} or None when the stored result cannot be re-scored or an admin override on
+    founder_quality ("[set by ...]") must win."""
+    if not (result.get("qualitative") and result.get("profile") and result.get("svi")):
+        return None
+    q = QualitativeScores.model_validate(result["qualitative"])
+    fq = q.founder_quality
+    if fq.basis == "human" and "[set by " in (fq.rationale or ""):
+        return None
+    q.founder_quality = DimensionScore(score=round(float(team_score), 1), basis="team_report", rationale=rationale,
+                                       sources=sources)
+    profile = StartupProfile.model_validate(result["profile"])
+    market = MarketAnalysis.model_validate(result["market"]) if result.get("market") else None
+    sr = self_reported_metric_fields(result.get("self_reported"))
+    cited, _ = apply_cited_revenue(profile, market, sr)
+    res = svi.score(profile, q, market, sr, cited)
+    svi.apply_triangulation(res, triangulation_for(profile, market, result, res.index))
+    res.narrative = (result.get("svi") or {}).get("narrative", "")
+    return {"svi": res.model_dump(), "qualitative": q.model_dump()}
+
+
 def run(state: dict, deps: Deps) -> dict:
     out = score(state, deps)
     return {**out, **narrate({**state, **out}, deps)}
@@ -165,9 +189,12 @@ def apply_overrides(state: dict, overrides: dict[str, float], reviewer: str, dep
         if name in overrides:
             d.score = float(overrides[name])
             d.rationale = f"{d.rationale} [set by {reviewer}]"
+            d.basis = "human"
+        elif d.basis == "team_report":  # founding-team report score (studio/hr.py): kept unless overridden
+            d.rationale = f"{d.rationale} [confirmed by {reviewer}]"
         else:
             d.rationale = f"{d.rationale} [confirmed by {reviewer}]"
-        d.basis = "human"
+            d.basis = "human"
     sr = self_reported_metric_fields(state.get("self_reported"))
     cited, _ = apply_cited_revenue(profile, market, sr)
     result: SVIResult = svi.score(profile, q, market, sr, cited)

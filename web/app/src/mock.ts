@@ -6,6 +6,7 @@ import type {
   AdminWallets, Approvals, AuditRow, CapRow, CoEvent, CompanyDetail, CompanySummary, DividendReq, Evidence, IssuerWallet, Mark, Me, MintReq, SelfReported, Stats, TickerCandidate, Valuation,
 } from "./api";
 import { allocate, median } from "./lib/math";
+import { hrApplyToVal, hrForValuation, hrHandle, hrInit, NO_MATCH } from "./mock.hr";
 
 const DAY = 864e5;
 const NOW = Date.now();
@@ -28,6 +29,7 @@ let mustChange = true;
 const actor = () => session?.address ?? session?.username ?? "anon";
 const needUser = () => { if (!session) throw new ApiError(401, "Not signed in"); };
 const needAdmin = () => { needUser(); if (session!.role !== "admin") throw new ApiError(403, "admin only"); if (session!.must_change) throw new ApiError(403, "password change required"); };
+hrInit({ actor: () => actor(), needUser: () => needUser(), isAdmin: () => session?.role === "admin" });
 
 /* ---------------- companies ---------------- */
 const NAMES = ["Maya Chen", "Tom Nguyen", "Seed Fund I", "ESOP pool", "Angels", "Priya Shah", "Liam O'Brien", "Hana Sato", "Kiwi Ventures", "Quoc Tran", "Ava Rossi", "Noah Kim", "Southern Cross Capital", "Mai Pham"];
@@ -149,7 +151,7 @@ interface Val { v: Valuation; t0: number; decided?: boolean }
 const vals = new Map<string, Val>();
 const STEPS = ["read_site", "profile", "competitors", "market", "svi", "narrative"];
 const DIMS = { founder_quality: 72, product_strength: 68, market_attractiveness: 74, revenue_performance: 55, growth_capability: 61, investment_readiness: 70, trust_verification: 64 };
-const WEIGHTS = { founder_quality: 0.2, product_strength: 0.15, market_attractiveness: 0.2, revenue_performance: 0.2, growth_capability: 0.1, investment_readiness: 0.1, trust_verification: 0.05 };
+const WEIGHTS = { founder_quality: 0.3, product_strength: 0.15, market_attractiveness: 0.15, revenue_performance: 0.15, growth_capability: 0.1, investment_readiness: 0.1, trust_verification: 0.05 };
 function sviFor(host: string, dims: Record<string, number> = DIMS): Valuation["svi"] {
   const index = Object.entries(dims).reduce((a, [k, s]) => a + s * WEIGHTS[k as keyof typeof WEIGHTS], 0);
   const g = index >= 80 ? "A" : index >= 65 ? "B" : index >= 50 ? "C" : index >= 35 ? "D" : "E";
@@ -170,7 +172,7 @@ function newVal(id: string, url: string, t0: number, by: string): Val {
   return x;
 }
 function progress(x: Val) {
-  if (x.decided) return;
+  if (x.decided) { hrApplyToVal(x.v); return; }
   const el = (Date.now() - x.t0) / 1000;
   const v = x.v;
   const host = v.url.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -191,6 +193,7 @@ function progress(x: Val) {
   if (v.self_reported) warn.push(SR_WARNING);
   if (done >= 3 && host.includes("nosearch")) warn.push("Search unavailable: competitors suggested by the model and verified by fetching their websites");
   v.warnings = warn.length ? warn : null;
+  hrApplyToVal(v);
 }
 const SR_WARNING = "Includes self-reported figures (not independently verified)";
 /** Same labelling as the backend: revenue/growth dimensions fed by founder figures get basis "self_reported". */
@@ -208,6 +211,7 @@ function markSelfReported(svi: Valuation["svi"], sr: SelfReported | null | undef
 {
   const x = newVal("demo", "https://harbourline.com.au", NOW - 45 * DAY, MOCK_USER);
   x.v.self_reported = { revenue_ttm_aud: 820_000, revenue_growth_yoy_pct: 38, gross_margin_pct: 61, customers: 120, employees: 18 };
+  x.v.team_id = "t_demo";
   progress(x); x.v.status = "approved"; x.decided = true;
   const y = newVal("val-wait", "https://brightpath.com.au", NOW - 3 * 3600e3, addr("someone"));
   progress(y);
@@ -304,7 +308,11 @@ const routes: [string, RegExp, H][] = [
     const x = newVal(id, String(b?.url ?? ""), Date.now(), actor());
     const sr = (b?.metrics ?? null) as SelfReported | null;
     x.v.self_reported = sr && Object.keys(sr).length ? { ...sr } : null;
-    return { id };
+    if (b?.team?.people?.length) {
+      if (b.team.consent !== true) throw new ApiError(422, "team.consent must be true");
+      x.v.team_id = hrForValuation(id, x.v.url, b.team.people, actor());
+    }
+    return { id, team_id: x.v.team_id ?? null };
   }],
   ["GET", /^\/v1\/studio\/valuations\/([^/]+)$/, (m) => {
     const x = vals.get(decodeURIComponent(m[1]));
@@ -484,6 +492,8 @@ export async function handle(method: string, path: string, body: unknown): Promi
   await sleep(120 + Math.random() * 180);
   const [p, qs] = path.split("?");
   const q = qs ? Object.fromEntries(new URLSearchParams(qs)) : null;
+  const hr = hrHandle(method, p, body ?? q);
+  if (hr !== NO_MATCH) return hr;
   for (const [m, re, h] of routes) {
     if (m !== method) continue;
     const mm = p.match(re);

@@ -62,6 +62,23 @@ CREATE TABLE IF NOT EXISTS studio.kpi_values (
   period_end date NOT NULL, metric text NOT NULL, value numeric NOT NULL, unit text NOT NULL DEFAULT 'AUD',
   source text NOT NULL DEFAULT 'manual', entered_by text, created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (company_id, metric, period_end));
+-- KPI values are kept per cadence (a weekly figure must not overwrite the monthly one ending the same day). One-time
+-- backfill when the column is added: a value takes the cadence of the only update of its company ending that day.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='studio' AND table_name='kpi_values'
+                 AND column_name='cadence') THEN
+    ALTER TABLE studio.kpi_values ADD COLUMN cadence text NOT NULL DEFAULT 'monthly';
+    IF to_regclass('studio.updates') IS NOT NULL THEN
+      UPDATE studio.kpi_values k SET cadence = u.cadence FROM studio.updates u
+        WHERE u.company_id = k.company_id AND u.period_end = k.period_end
+          AND (SELECT count(DISTINCT u2.cadence) FROM studio.updates u2
+               WHERE u2.company_id = k.company_id AND u2.period_end = k.period_end) = 1;
+    END IF;
+  END IF;
+END $$;
+ALTER TABLE studio.kpi_values ADD COLUMN IF NOT EXISTS cadence text NOT NULL DEFAULT 'monthly';
+ALTER TABLE studio.kpi_values DROP CONSTRAINT IF EXISTS kpi_values_company_id_metric_period_end_key;
+CREATE UNIQUE INDEX IF NOT EXISTS kpi_values_cadence_uidx ON studio.kpi_values (company_id, cadence, metric, period_end);
 CREATE TABLE IF NOT EXISTS studio.updates (
   id text PRIMARY KEY, company_id int NOT NULL REFERENCES studio.companies(id) ON DELETE CASCADE,
   cadence text NOT NULL CHECK (cadence IN ('weekly','monthly','quarterly','annual')),
@@ -127,3 +144,30 @@ CREATE INDEX IF NOT EXISTS reservations_wallet_idx ON studio.reservations (lower
 ALTER TABLE studio.mints ADD COLUMN IF NOT EXISTS offering_id int;
 CREATE UNIQUE INDEX IF NOT EXISTS mints_offering_wallet_uidx ON studio.mints (offering_id, lower(to_wallet))
   WHERE offering_id IS NOT NULL;
+-- founding-team / person reviews (hr.blockid.au; studio/hr.py, agents/people.py, docs/PLAN-HR.md). A report is a
+-- "team" (founding team of a business) or a "person" (one person vs a business or a role). The People Analyst runs in
+-- the worker (studio/hr_store.py HrRunner); a done team report linked to a valuation re-scores its founder_quality.
+CREATE TABLE IF NOT EXISTS studio.hr_teams (
+  id text PRIMARY KEY, mode text NOT NULL DEFAULT 'team' CHECK (mode IN ('team','person')),
+  valuation_id text REFERENCES studio.valuations(id) ON DELETE SET NULL,
+  company_id int REFERENCES studio.companies(id) ON DELETE SET NULL,
+  name text NOT NULL, website text, target jsonb,
+  requested_by text NOT NULL, consent boolean NOT NULL DEFAULT false, consented_at timestamptz,
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','queued','running','done','failed')),
+  steps jsonb NOT NULL DEFAULT '[]', result jsonb, error text, share_token text UNIQUE,
+  started_at timestamptz, finished_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS hr_teams_requester_idx ON studio.hr_teams (lower(requested_by), created_at);
+CREATE INDEX IF NOT EXISTS hr_teams_valuation_idx ON studio.hr_teams (valuation_id);
+CREATE INDEX IF NOT EXISTS hr_teams_status_idx ON studio.hr_teams (status, updated_at);
+CREATE TABLE IF NOT EXISTS studio.hr_people (
+  id serial PRIMARY KEY, team_id text NOT NULL REFERENCES studio.hr_teams(id) ON DELETE CASCADE,
+  full_name text NOT NULL, role text NOT NULL DEFAULT '',
+  kind text NOT NULL DEFAULT 'employee' CHECK (kind IN ('founder','cofounder','executive','employee','advisor')),
+  headline text, full_time boolean, start_year int, equity_pct numeric, urls jsonb NOT NULL DEFAULT '[]',
+  bio text, cv text, position int NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS hr_people_team_idx ON studio.hr_people (team_id, position);
+-- one row per run request (daily per-wallet limit, HR_RUNS_PER_DAY)
+CREATE TABLE IF NOT EXISTS studio.hr_runs (id serial PRIMARY KEY, team_id text NOT NULL, requested_by text NOT NULL,
+  at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS hr_runs_requester_idx ON studio.hr_runs (lower(requested_by), at);

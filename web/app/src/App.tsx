@@ -5,6 +5,7 @@ import { ErrorBoundary, PageLoading } from "./components/Boundary";
 import { lazyPage as lazy } from "./lib/chunks";
 import { Home } from "./pages/Home";
 import { NotFound } from "./pages/NotFound";
+import { HR_HOST } from "./lib/hrhost";
 
 const NewWizard = lazy(() => import("./pages/NewWizard"));
 const ValuationPage = lazy(() => import("./pages/Valuation"));
@@ -15,9 +16,12 @@ const HskPage = lazy(() => import("./pages/Hsk"));
 const VerifyPage = lazy(() => import("./pages/Verify"));
 const InvestorPage = lazy(() => import("./pages/Investor"));
 const DocsPage = lazy(() => import("./pages/Docs"));
+const HrApp = lazy(() => import("./pages/hr/HrApp"));
 
 export function App() {
   const { pathname } = useLocation();
+  // hr.blockid.au (or ?host=hr / VITE_HOST=hr): the founding-team review app, same build
+  if (HR_HOST) return <Suspense fallback={<PageLoading />}><HrApp /></Suspense>;
   return (
     <>
       <ScrollManager />

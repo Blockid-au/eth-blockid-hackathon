@@ -61,6 +61,19 @@ def _is_eom(d: date) -> bool:
     return d.day == calendar.monthrange(d.year, d.month)[1]
 
 
+def period_end_problem(cadence: str, end: date) -> str | None:
+    """Why `end` cannot close a `cadence` period (plain words), or None. Monthly and yearly periods end on the last day
+    of a month, quarterly ones on 31 Mar / 30 Jun / 30 Sep / 31 Dec, so two periods of one cadence never half-overlap
+    (the dividend rule pays once per period). Weekly periods can end on any day."""
+    if cadence not in CADENCES:
+        return f"unknown cadence {cadence!r}"
+    if cadence in ("monthly", "annual") and not _is_eom(end):
+        return f"a {'monthly' if cadence == 'monthly' else 'yearly'} period must end on the last day of a month"
+    if cadence == "quarterly" and not (_is_eom(end) and end.month % 3 == 0):
+        return "a quarterly period must end on 31 Mar, 30 Jun, 30 Sep or 31 Dec"
+    return None
+
+
 def _day(d: date) -> str:
     return f"{d.day} {d.strftime('%b')} {d.year}"
 

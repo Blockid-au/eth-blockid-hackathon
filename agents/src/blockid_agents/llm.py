@@ -360,11 +360,18 @@ class TierRouter:
         return self.routes[tier].complete_json(tier, system, user, schema)
 
 
-def cloud_chain(s: Settings) -> list[tuple[str, LLMClient]]:
+def cloud_chain(s: Settings, *, order: tuple[str, ...] | list[str] | None = None,
+                sambanova_models: tuple[str, ...] | None = None, deepinfra_models: tuple[str, ...] | None = None,
+                auto_cli: bool = True) -> list[tuple[str, LLMClient]]:
     """Cloud-tier fallback chain: Claude CLI (if enabled) first unless LLM_PROVIDER_ORDER places "claude"
-    elsewhere, then the providers in LLM_PROVIDER_ORDER. Providers without credentials are skipped."""
-    order = list(s.llm_provider_order)
-    if s.claude_cli_enabled and "claude" not in order:
+    elsewhere, then the providers in LLM_PROVIDER_ORDER. Providers without credentials are skipped.
+
+    Per-agent override (see AGENT_CHAINS / build_agent_llms): `order` / `sambanova_models` / `deepinfra_models`
+    replace the global settings; auto_cli=False adds the Claude CLI only where `order` lists "claude"."""
+    order = list(s.llm_provider_order if order is None else order)
+    samba = s.sambanova_models if sambanova_models is None else sambanova_models
+    deepinfra = s.deepinfra_models if deepinfra_models is None else deepinfra_models
+    if auto_cli and s.claude_cli_enabled and "claude" not in order:
         order.insert(0, "claude")
     chain: list[tuple[str, LLMClient]] = []
     for name in order:
@@ -378,11 +385,11 @@ def cloud_chain(s: Settings) -> list[tuple[str, LLMClient]]:
             chain.append(("claude-bridge",
                           ClaudeBridgeLLM(s.claude_search_url, s.claude_search_token, s.claude_complete_timeout)))
         elif name == "sambanova" and s.sambanova_api_key:
-            for m in s.sambanova_models:
+            for m in samba:
                 chain.append((f"sambanova:{m}",
                               SambaNovaLLM(s.sambanova_base_url, s.sambanova_api_key, m, s.sambanova_timeout)))
         elif name == "deepinfra" and s.deepinfra_api_key:
-            for m in s.deepinfra_models:
+            for m in deepinfra:
                 chain.append((
                     f"deepinfra:{m}",
                     OpenAICompatLLM(s.deepinfra_base_url, s.deepinfra_api_key, {"cloud": m, "cloud_max": m},
@@ -408,6 +415,32 @@ def build_llm(settings: Settings | None = None) -> LLMClient:
     log.info("cloud LLM chain: %s", ", ".join(n for n, _ in chain))
     hosted = FallbackLLM(chain)
     return TierRouter({"local": GatewayLLM(s), "cloud": hosted, "cloud_max": hosted})
+
+
+# Agents with their own cloud chain (LLM_BACKEND=hosted only). Every other agent uses build_llm's chain.
+# people_analyst: HR_LLM_PROVIDER_ORDER / HR_SAMBANOVA_MODELS / HR_DEEPINFRA_MODELS (docs/LLM-ROUTING.md).
+AGENT_CHAINS: dict[str, Callable[[Settings], dict]] = {
+    "people_analyst": lambda s: {"order": s.hr_llm_provider_order, "sambanova_models": s.hr_sambanova_models,
+                                 "deepinfra_models": s.hr_deepinfra_models, "auto_cli": False},
+}
+
+
+def build_agent_llms(settings: Settings | None = None) -> dict[str, LLMClient]:
+    """agent name -> its own client (Deps.agent_llm). Empty with LLM_BACKEND=gateway (the gateway routes by tier).
+    The cloud tiers go to the agent's chain; `local` stays on the gateway exactly like build_llm."""
+    s = settings or get_settings()
+    if s.llm_backend != "hosted":
+        return {}
+    out: dict[str, LLMClient] = {}
+    for agent, spec in AGENT_CHAINS.items():
+        chain = cloud_chain(s, **spec(s))
+        if not chain:
+            log.warning("no LLM provider configured for agent %s; it uses the default chain", agent)
+            continue
+        log.info("%s LLM chain: %s", agent, ", ".join(n for n, _ in chain))
+        hosted = FallbackLLM(chain)
+        out[agent] = TierRouter({"local": GatewayLLM(s), "cloud": hosted, "cloud_max": hosted})
+    return out
 
 
 class FakeLLM:

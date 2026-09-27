@@ -71,6 +71,13 @@ POLICIES: dict[str, AgentPolicy] = {
         handles_pii=False,
         description="Finds up to 9 competitors via web search and extracts funding only when a fetched source states it.",
     ),
+    "people_analyst": AgentPolicy(
+        tiers=frozenset({"local", "cloud"}),
+        tools=frozenset({"web_search", "fetch_url", "store_evidence"}),  # read-only research; no keys, no chain
+        handles_pii=False,  # public professional info of people who consented; emails/phones redacted first
+        description="Founding-team review: reads provided public profile URLs + budgeted web search, extracts "
+                    "verbatim-quoted professional facts per person; code computes person and team scores.",
+    ),
 }
 
 # Tools that do not exist for ANY agent. Listed explicitly so reviewers see the boundary.

@@ -24,7 +24,9 @@ def checksum(addr: str) -> str:
         raise CapTableError(f"not an EVM address: {addr!r}")
     body = a[2:]
     if body != body.lower() and body != body.upper() and not is_checksum_address(a):
-        raise CapTableError(f"bad EIP-55 checksum: {addr!r}")
+        raise CapTableError(f"bad EIP-55 checksum (check for a typo): {addr!r}")
+    if int(body, 16) == 0:
+        raise CapTableError("the zero address is not a wallet")
     return to_checksum_address(a)
 
 

@@ -208,13 +208,43 @@ function Account() {
   const [local, setLocal] = useState<boolean | null>(null);
   const [restore, setRestore] = useState("");
   const [msg, setMsg] = useState("");
+  const [restoreErr, setRestoreErr] = useState("");
+  const [restoreTouched, setRestoreTouched] = useState(false);
+  const [plan, setPlan] = useState<{ address: string; replaces: string } | null>(null);
+  const [oldKey, setOldKey] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  // inline check as it is typed: a seed phrase or a full-length key is judged at once, a partial one on blur
+  const [keyErr, setKeyErr] = useState("");
+  useEffect(() => {
+    const v = restore.trim();
+    if (!v) { setKeyErr(""); return; }
+    const judge = restoreTouched || v.replace(/^0x/i, "").length >= 64 || v.split(/\s+/).length >= 12;
+    if (!judge) { setKeyErr(""); return; }
+    import("../devicewallet").then((m) => { try { m.parseKey(v); setKeyErr(""); } catch (e) { setKeyErr(errText(e, t)); } }).catch(() => setKeyErr(""));
+  }, [restore, restoreTouched, t]);
   useTitle(t("in.acc.h"));
+  useEffect(() => {  // arriving from "Restore your backup" (Google sign-in on a new browser)
+    if (!loading && window.location.hash === "#restore") document.getElementById("restore-key")?.focus();
+  }, [loading]);
   useEffect(() => {
     if (!me?.address) return;
     import("../devicewallet").then((m) => m.hasDeviceKey(me.address!)).then(setLocal).catch(() => setLocal(false));
   }, [me?.address]);
   if (loading) return <Loading />;
   const method = me?.auth_method ?? "wallet";
+  const doRestore = async (replace: boolean) => {
+    setRestoreErr(""); setRestoring(true);
+    try {
+      const m = await import("../devicewallet");
+      if (!replace) {
+        const p = await m.restorePlan(restore, method);
+        if (p.replaces) { setPlan({ address: p.address, replaces: p.replaces }); return; }
+      }
+      await m.importKey(restore, method, replace);
+      setRestore(""); setPlan(null); setOldKey(null);
+      await refresh(); nav("/i");
+    } catch (err) { setRestoreErr(errText(err, t)); } finally { setRestoring(false); }
+  };
   return (
     <div className="wrap page inv">
       <div className="head">
@@ -260,18 +290,29 @@ function Account() {
           </div>
         </>
       )}
-      <section className="card">
+      <section className="card" id="restore">
         <h4>{t("in.acc.restore")}</h4>
         <p className="muted">{t("in.acc.restoreP")}</p>
-        <form className="field" onSubmit={async (e) => {
-          e.preventDefault();
-          setMsg("");
-          try { const m = await import("../devicewallet"); await m.importKey(restore); setRestore(""); await refresh(); nav("/i"); } catch (err) { setMsg(errText(err, t)); }
-        }}>
-          <input id="restore-key" type="password" autoComplete="off" spellCheck={false} placeholder="0x…" aria-label={t("in.acc.restore")} value={restore} onChange={(e) => setRestore(e.target.value)} />
-          <button className="btn ghost sm" type="submit" disabled={!restore.trim()}>{t("in.acc.restoreBtn")}</button>
+        <form className="field" noValidate onSubmit={(e) => { e.preventDefault(); setRestoreTouched(true); if (!keyErr && restore.trim()) void doRestore(false); }}>
+          <input id="restore-key" type="password" autoComplete="off" spellCheck={false} placeholder="0x…" aria-label={t("in.acc.restore")} aria-invalid={!!keyErr} aria-describedby="restore-err"
+            className={keyErr ? "bad" : undefined} value={restore} onBlur={() => setRestoreTouched(true)}
+            onChange={(e) => { setRestore(e.target.value); setRestoreErr(""); setPlan(null); }} />
+          <button className="btn ghost sm" type="submit" disabled={!restore.trim() || !!keyErr || restoring || !!plan}>{restoring ? <span className="spinner" aria-hidden="true" /> : null}{t("in.acc.restoreBtn")}</button>
         </form>
-        {msg && !key && <span role="alert" className="muted-sm">{msg}</span>}
+        {(keyErr || restoreErr) && <span id="restore-err" role="alert" style={{ color: "var(--bad)", fontSize: ".85rem" }}>{keyErr || restoreErr}</span>}
+        {plan && (
+          <div className="banner warn" role="alert" style={{ display: "grid", gap: 8 }}>
+            <span>{t("fx.key.replace", { a: plan.replaces, b: plan.address })}</span>
+            <span>{t("fx.key.backupFirst")}</span>
+            {oldKey ? <p className="mono inv-key">{oldKey}</p> : (
+              <button className="btn ghost sm" type="button" style={{ justifySelf: "start" }} onClick={async () => { const m = await import("../devicewallet"); setOldKey(await m.exportKey(plan.replaces)); }}>{t("fx.key.showOld")}</button>
+            )}
+            <span className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+              <button className="btn danger sm" type="button" disabled={restoring} onClick={() => void doRestore(true)}>{t("fx.key.replaceBtn")}</button>
+              <button className="btn ghost sm" type="button" onClick={() => { setPlan(null); setOldKey(null); }}>{t("common.cancel")}</button>
+            </span>
+          </div>
+        )}
       </section>
     </div>
   );

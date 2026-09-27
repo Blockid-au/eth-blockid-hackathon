@@ -56,8 +56,24 @@ def verify_google(credential: str, client_id: str, verifier=None) -> GoogleIdent
                           picture=info.get("picture"))
 
 
-def link_google(db, ident: GoogleIdentity, address: str) -> tuple[int, bool]:
-    """Upsert the account and link the wallet. Returns (account_id, first_time_for_this_account)."""
+class AddressTaken(Exception):
+    """The wallet is already linked to another sign-in account (one browser key must not serve two people)."""
+
+
+def link_google(db, ident: GoogleIdentity, address: str) -> tuple[int, bool, list[str]]:
+    """Upsert the account and link the wallet.
+
+    Returns (account_id, first_time_for_this_account, other_wallets) where other_wallets lists the wallets this
+    account already had when `address` was linked for the first time now (a new browser made a new key: the
+    person should restore their backup instead). Raises AddressTaken when `address` belongs to another account;
+    nothing is written then.
+    """
+    other = db.one(
+        "SELECT a.id FROM studio.account_wallets w JOIN studio.accounts a ON a.id=w.account_id "
+        "WHERE lower(w.address)=lower(%s) AND NOT (a.provider='google' AND a.subject=%s) LIMIT 1",
+        (address, ident.sub))
+    if other:
+        raise AddressTaken(address)
     row = db.one(
         "INSERT INTO studio.accounts(provider, subject, email, name, picture, last_login_at) "
         "VALUES ('google', %s, %s, %s, %s, now()) "
@@ -66,10 +82,15 @@ def link_google(db, ident: GoogleIdentity, address: str) -> tuple[int, bool]:
         (ident.sub, ident.email, ident.name, ident.picture),
     )
     acc = int(row["id"])
-    db.exec(
+    added = db.one(
         "INSERT INTO studio.account_wallets(account_id, address, kind) VALUES (%s, %s, 'device') "
-        "ON CONFLICT (account_id, address) DO NOTHING", (acc, address))
-    return acc, bool(row["inserted"])
+        "ON CONFLICT (account_id, address) DO NOTHING RETURNING address", (acc, address))
+    others: list[str] = []
+    if added:
+        others = [w["address"] for w in db.all(
+            "SELECT address FROM studio.account_wallets WHERE account_id=%s AND lower(address)<>lower(%s) "
+            "ORDER BY linked_at", (acc, address))]
+    return acc, bool(row["inserted"]), others
 
 
 def account_view(db, account_id: int | None) -> dict | None:

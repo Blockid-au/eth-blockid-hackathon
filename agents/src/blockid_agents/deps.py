@@ -35,6 +35,9 @@ class Deps:
     fetcher: object = None  # callable(url) -> text; defaults to tools.brave.fetch_page
     site_transport: object = None  # httpx transport for the site crawler (tests); None -> real network
     host_check: object = None  # callable(host) -> bool SSRF guard for the crawler; None -> public_host
+    # per-agent overrides (llm.build_agent_llms / HR_SEARCH_PROVIDERS): agent name -> client / search chain
+    agent_llm: dict = field(default_factory=dict)
+    agent_search: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.search is None and self.brave is not None:
@@ -42,9 +45,14 @@ class Deps:
 
     def ask(self, agent: str, tier: Tier, system: str, user: str, schema: type[T]) -> T:
         guard(agent, tier=tier)
-        out = self.llm.complete_json(tier, f"{system}\n\n{UNTRUSTED_NOTE}", user, schema)
+        llm = self.agent_llm.get(agent, self.llm)
+        out = llm.complete_json(tier, f"{system}\n\n{UNTRUSTED_NOTE}", user, schema)
         self.audit.record(agent, "llm_call", tier=tier, schema=schema.__name__, provider=last_provider())
         return out
+
+    def search_for(self, agent: str) -> SearchChain | None:
+        """The agent's own search chain when it has one (people_analyst), else the shared one."""
+        return self.agent_search.get(agent, self.search)
 
     def tool(self, agent: str, name: str, **info) -> None:
         guard(agent, tool=name)
@@ -57,5 +65,11 @@ class Deps:
         store = EvidenceStore(data / "evidence.sqlite")
         search = build_search(s, store)
         brave = next((p for n, p in (search.providers if search else []) if n == "brave"), None)
+        from .llm import build_agent_llms
+
+        agent_search = {}
+        hr_search = build_search(s, store, s.hr_search_providers)
+        if hr_search is not None:
+            agent_search["people_analyst"] = hr_search
         return cls(llm=llm, audit=AuditLog(data / "audit.jsonl"), evidence=store, settings=s, brave=brave,
-                   search=search)
+                   search=search, agent_llm=build_agent_llms(s), agent_search=agent_search)

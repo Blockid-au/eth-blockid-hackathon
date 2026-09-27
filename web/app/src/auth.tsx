@@ -21,7 +21,7 @@ interface AuthState {
   /** Switch to the shared demo account of the project. */
   useDemo: () => Promise<Me | null>;
   /** Google sign-in (Gmail): the Google ID token is bound to a key created in this browser. */
-  google: (credential: string) => Promise<Me | null>;
+  google: (credential: string) => Promise<(Me & { newWallet?: string[] }) | null>;
   login: (u: string, p: string) => Promise<Me>;
   logout: () => Promise<void>;
   setMe: (m: Me | null) => void;
@@ -98,8 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     try {
       const { signInWithDeviceKey } = await import("./devicewallet");
-      await signInWithDeviceKey({ method: "google", credential });
-      return await refresh();
+      const r = await signInWithDeviceKey({ method: "google", credential });
+      const m = await refresh();
+      // a new key was made on this browser, but the account already has a wallet: the page offers the restore
+      return m && r.new_wallet && r.wallets?.length ? { ...m, newWallet: r.wallets } : m;
     } finally {
       setBusy(false);
     }
@@ -141,6 +143,10 @@ export function useAuth(): AuthState {
 
 /** Map any thrown error to a translatable message key, or a raw string from the API. */
 export function errText(e: unknown, t: (k: DictKey) => string): string {
+  if (e instanceof Error && e.name === "KeyError") {  // devicewallet.KeyError: the message is a dictionary key
+    const k = e as Error & { key: string; vars?: Record<string, string> };
+    return (t as (k: DictKey, v?: Record<string, string>) => string)(k.key as DictKey, k.vars);
+  }
   if (e instanceof Error && e.name === "WalletError") {
     const code = (e as Error & { code?: string }).code;
     if (code === "nomm") return t("toast.nomm");

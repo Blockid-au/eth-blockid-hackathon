@@ -33,6 +33,7 @@ from ..tools.merkle import build_distribution
 from . import metrics
 from . import urlcheck
 from .errors import company_error_info
+from .hr import TeamStart, create_team_for_valuation
 from .company_admins import CompanyAuthz, seed_owner
 from .gas import GasDripper
 from .updates import pending_updates
@@ -50,6 +51,7 @@ from .auth import (
     check_password,
     hash_password,
     password_locked,
+    password_problem,
     verify_siwe,
 )
 from .db import ONCHAIN_STATUSES, LimitError, Studio, jsonable
@@ -97,6 +99,7 @@ class CheckUrlBody(Body):
 class ValuationBody(Body):
     url: str = Field(max_length=500)
     metrics: SelfReportedMetrics | None = None  # optional founder-provided figures (labelled self-reported)
+    team: TeamStart | None = None  # optional founding team (studio/hr.py): runs after research, feeds founder_quality
 
 
 class DecisionBody(Body):
@@ -305,7 +308,11 @@ def build_router(ctx: StudioContext) -> APIRouter:
             raise HTTPException(e.status, e.detail) from None
         if not sessions.consume_nonce(msg.nonce):
             raise HTTPException(401, "nonce unknown, used or expired")
-        account_id, first = acct.link_google(db, ident, msg.address)
+        try:
+            account_id, first, others = acct.link_google(db, ident, msg.address)
+        except acct.AddressTaken:
+            raise HTTPException(409, "this browser's key is already the wallet of another account; sign out of "
+                                     "the other account or use another browser") from None
         set_cookie(response, sessions.create("user", address=msg.address, account_id=account_id,
                                              auth_method="google", hours=24 * 7))
         db.audit(msg.address, "login_google", msg.address, account_id=account_id, first=first)
@@ -313,7 +320,9 @@ def build_router(ctx: StudioContext) -> APIRouter:
         if first and ident.email:
             subj, text, html = welcome(ident.name, msg.address, body.lang)
             background.add_task(mailer.send, ident.email, subj, text, html)
-        return {"address": msg.address, "role": "user", "email": ident.email, "name": ident.name}
+        # a new key on this browser while the account already has a wallet: ask the person to restore the backup
+        return {"address": msg.address, "role": "user", "email": ident.email, "name": ident.name,
+                "new_wallet": bool(others), "wallets": others}
 
     @r.post("/v1/auth/demo")
     def demo_login(response: Response):
@@ -363,10 +372,9 @@ def build_router(ctx: StudioContext) -> APIRouter:
         if not row or not check_password(body.current, row["password_hash"]):
             ctx.throttle.fail(ip)
             raise HTTPException(401, "current password is wrong")
-        if len(body.new) < 10:
-            raise HTTPException(422, "new password must be at least 10 characters")
-        if body.new == body.current:
-            raise HTTPException(422, "new password must differ from the current one")
+        problem = password_problem(body.new, body.current)
+        if problem:
+            raise HTTPException(422, problem)
         db.exec("UPDATE studio.admin_users SET password_hash=%s, must_change=false WHERE username=%s",
                 (hash_password(body.new), sess.username))
         db.audit(sess.username, "change_password", sess.username)
@@ -411,6 +419,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
             "requested_by": row.get("requested_by"),
             "searches": res.get("searches") or [], "llm_providers_used": res.get("llm_providers_used") or [],
             "created_at": row.get("created_at"), "updated_at": row.get("updated_at"),
+            "team": res.get("team"),  # founding-team summary (studio/hr.py) once its report is done
         }
         if evidence:
             out["evidence"] = res.get("evidence") or []
@@ -454,6 +463,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
             pass
         if host in ("localhost",) or host.endswith((".local", ".internal", ".localhost")):
             raise HTTPException(422, "not a public website")
+        if body.team is not None and body.team.consent is not True:
+            raise HTTPException(422, "team.consent: confirm that the listed people agreed to this review")
         self_reported = body.metrics.model_dump(exclude_none=True) if body.metrics else None
         try:  # admins: no per-wallet or daily cap, but the queue-depth cap still applies
             vid = db.create_valuation_limited(
@@ -464,6 +475,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
             raise HTTPException(429, str(e)) from None
         if sess.is_admin:
             audit(sess, "valuation_requested", vid, url=url, self_reported=bool(self_reported))
+        if body.team is not None:  # founding team: queued now, runs after the research (studio/hr_store.py)
+            return {"id": vid, "team_id": create_team_for_valuation(ctx, sess, vid, url, body.team)}
         return {"id": vid}
 
     @r.get("/v1/studio/valuations")
@@ -584,6 +597,9 @@ def build_router(ctx: StudioContext) -> APIRouter:
         total = body.total_shares if body.total_shares is not None else round(mid / body.share_price_aud)
         if not 0 < total <= 10**15:
             raise HTTPException(422, "total_shares out of range")
+        for h in body.holders:  # same rule as the shareholder step in the browser
+            if round(h.pct, 2) != h.pct:
+                raise HTTPException(422, f"percentage for {h.name.strip() or 'a holder'}: use at most 2 decimals")
         try:
             alloc = captable.allocate([h.model_dump() for h in body.holders], total)
         except captable.CapTableError as e:
@@ -658,7 +674,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
                 "valuations": vals, "companies": comps, "mints": jsonable(mints),
                 "updates": pending_updates(db, ids),
                 "policies": divpol.pending_policies(db, ids),
-                "offerings": offer.pending_offerings(db, ids),
+                "offerings": offer.pending_offerings(db, ids, getattr(ctx, "offerings", None)),
                 "dividends": [{**jsonable(d), "total_maud": int(d["total_units"]) / 1e6} for d in divs]}
 
     @r.get("/v1/admin/companies")
@@ -960,6 +976,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
             wallet = captable.checksum(body.to_wallet)
         except captable.CapTableError as e:
             raise HTTPException(422, str(e)) from None
+        if not body.holder_name.strip():
+            raise HTTPException(422, "holder_name: enter a name")
         row = db.one("INSERT INTO studio.mints(company_id,to_wallet,holder_name,shares,reason,status,requested_by) "
                      "VALUES (%s,%s,%s,%s,%s,'pending',%s) RETURNING *",
                      (c["id"], wallet, body.holder_name.strip(), body.shares, body.reason, sess.actor))
@@ -1023,7 +1041,10 @@ def build_router(ctx: StudioContext) -> APIRouter:
         if c["status"] not in ONCHAIN_STATUSES or not c.get("local_token"):
             raise HTTPException(409, "company is not issued yet")
         try:
-            units = int(Decimal(str(body.total_maud)) * 1_000_000)
+            amount = Decimal(str(body.total_maud))
+            if amount != amount.quantize(Decimal("0.000001")):
+                raise HTTPException(422, "the amount can have at most 6 decimals")
+            units = int(amount * 1_000_000)
         except InvalidOperation:
             raise HTTPException(422, "bad total_maud") from None
         table, source, block = cap_table(c)

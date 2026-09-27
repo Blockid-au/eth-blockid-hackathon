@@ -142,6 +142,24 @@ class Settings:
     search_fetch_per_query: int = field(default_factory=lambda: min(int(_env("SEARCH_FETCH_PER_QUERY", "3")), 3))
     competitor_homepages_max: int = field(default_factory=lambda: int(_env("COMPETITOR_HOMEPAGES_MAX", "5")))
 
+    # --- People Analyst (founding-team review, agents/people.py; docs/LLM-ROUTING.md "People Analyst") ----------
+    # Its own LLM chain (the valuation chain above is unchanged): Claude via the host bridge first (best person
+    # disambiguation), then free SambaNova, then cheap DeepInfra models (both verified in /models on 2026-09-27).
+    hr_llm_provider_order: tuple[str, ...] = field(default_factory=lambda: tuple(
+        x.lower() for x in _csv("HR_LLM_PROVIDER_ORDER", "claude_bridge,sambanova,deepinfra")))
+    hr_sambanova_models: tuple[str, ...] = field(default_factory=lambda: _csv(
+        "HR_SAMBANOVA_MODELS", "DeepSeek-V3.1,DeepSeek-V3.2"))
+    hr_deepinfra_models: tuple[str, ...] = field(default_factory=lambda: _csv(
+        "HR_DEEPINFRA_MODELS", "deepseek-ai/DeepSeek-V4-Flash,Qwen/Qwen3-235B-A22B-Instruct-2507"))
+    hr_search_providers: tuple[str, ...] = field(default_factory=lambda: tuple(
+        x.lower() for x in _csv("HR_SEARCH_PROVIDERS", "claude,brave")))
+    hr_tier: str = field(default_factory=lambda: _env("HR_TIER", "cloud"))
+    hr_searches_per_person: int = field(default_factory=lambda: min(int(_env("HR_SEARCHES_PER_PERSON", "3")), 3))
+    hr_searches_per_team: int = field(default_factory=lambda: min(int(_env("HR_SEARCHES_PER_TEAM", "12")), 12))
+    hr_runs_per_day: int = field(default_factory=lambda: int(_env("HR_RUNS_PER_DAY", "5")))
+    hr_max_active: int = field(default_factory=lambda: int(_env("HR_MAX_ACTIVE", "5")))
+    hr_public_url: str = field(default_factory=lambda: _env("HR_PUBLIC_URL", "https://hr.blockid.au").rstrip("/"))
+
     # --- Brave Search ----------------------------------------------------------------------
     brave_api_key: str = field(default_factory=lambda: _env("BRAVE_API_KEY"))
     brave_max_rps: float = field(default_factory=lambda: float(_env("BRAVE_MAX_RPS", "1")))

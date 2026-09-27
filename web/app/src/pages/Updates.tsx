@@ -12,6 +12,7 @@ import { useAsync, useTitle } from "../lib/hooks";
 import { canonicalJson, parseLossless, plain } from "../lib/canonical";
 import { CHAINS } from "../wallet";
 import { shortAddr } from "../lib/addr";
+import { fromIso, lastFinishedEnd, monthEnd, periodProblem, periodStartOf, quarterEnd, readNumber } from "../lib/typed";
 
 const CADENCES: Cadence[] = ["monthly", "quarterly", "weekly", "annual"];
 
@@ -261,38 +262,95 @@ export function CompanyUpdateList({ ticker }: { ticker: string }) {
 }
 
 /* ---------- founder / company workspace: /c/:tk/updates ---------- */
-function lastMonthEnd(): string {
-  const d = new Date();
-  const e = new Date(d.getFullYear(), d.getMonth(), 0);
-  return `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, "0")}-${String(e.getDate()).padStart(2, "0")}`;
+/* An update of one cadence holds its days once it is sent: no other update of that cadence may share them (the
+ * dividend rule pays once per period). Drafts do not hold days. Same rule as studio/updates.py HOLDS_PERIOD. */
+const HOLDS: BizUpdate["status"][] = ["pending_approval", "publishing", "published", "failed"];
+const NONNEG: Metric[] = ["revenue", "cash", "customers", "headcount"];
+const MAX_ABS = 1e15;
+
+type KpiCheck = { v: number | null | undefined; err: DictKey | null; cleared: boolean };
+/** One KPI field: undefined = leave as is, null = cleared on purpose (removes the stored value), number = the value. */
+function checkKpi(m: Metric, raw: string, stored: number | undefined): KpiCheck {
+  const r = readNumber(raw);
+  if (r.kind === "empty") return stored != null ? { v: null, err: null, cleared: true } : { v: undefined, err: null, cleared: false };
+  if (r.kind === "bad") return { v: undefined, err: "fx2.kpi.bad", cleared: false };
+  if (Math.abs(r.n) >= MAX_ABS) return { v: undefined, err: "fx2.kpi.big", cleared: false };
+  if (NONNEG.includes(m) && r.n < 0) return { v: undefined, err: "fx2.kpi.neg", cleared: false };
+  if ((m === "customers" || m === "headcount") && r.dp > 0 && !Number.isInteger(r.n)) return { v: undefined, err: "fx2.kpi.whole", cleared: false };
+  return { v: r.n, err: null, cleared: false };
 }
 
-function PrepareForm({ c, onDone }: { c: CompanyDetail; onDone: (u: BizUpdate) => void }) {
+function PeriodPicker({ cadence, end, setEnd }: { cadence: Cadence; end: string; setEnd: (s: string) => void }) {
   const { t } = useI18n();
+  const last = lastFinishedEnd(cadence);
+  if (cadence === "weekly") {
+    return <label className="lf"><span>{t("fx2.upd.weekEnd")}</span><input type="date" value={end} max={last} onChange={(e) => setEnd(e.target.value)} /></label>;
+  }
+  if (cadence === "quarterly") {
+    const d = fromIso(end);
+    const year = d ? d.getFullYear() : Number(last.slice(0, 4));
+    const q = d ? Math.floor(d.getMonth() / 3) + 1 : 1;
+    const years = Array.from({ length: 8 }, (_, i) => Number(last.slice(0, 4)) - i);
+    return (
+      <div className="lf"><span>{t("fx2.upd.quarter")}</span>
+        <div className="row" style={{ gap: 6 }}>
+          <select aria-label={t("fx2.upd.quarter")} value={q} onChange={(e) => setEnd(quarterEnd(year, Number(e.target.value)))}>
+            {[1, 2, 3, 4].map((x) => <option key={x} value={x}>{t(("fx2.upd.q" + x) as DictKey)}</option>)}
+          </select>
+          <select aria-label={t("fx2.upd.year")} value={year} onChange={(e) => setEnd(quarterEnd(Number(e.target.value), q))}>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <label className="lf"><span>{t(cadence === "annual" ? "fx2.upd.yearEnd" : "fx2.upd.month")}</span>
+      <input type="month" value={end.slice(0, 7)} max={last.slice(0, 7)} onChange={(e) => setEnd(monthEnd(e.target.value))} />
+    </label>
+  );
+}
+
+function PrepareForm({ c, updates, onDone }: { c: CompanyDetail; updates: BizUpdate[]; onDone: (u: BizUpdate) => void }) {
+  const { t, date } = useI18n();
   const [cadence, setCadence] = useState<Cadence>("monthly");
-  const [end, setEnd] = useState(lastMonthEnd());
+  const [end, setEnd] = useState(lastFinishedEnd("monthly"));
   const [vals, setVals] = useState<Record<Metric, string>>(() => Object.fromEntries(METRICS.map((m) => [m, ""])) as Record<Metric, string>);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; s: string } | null>(null);
   const kp = useAsync(() => api.kpis(c.ticker), [c.ticker]);
-  const existing = useMemo(() => kp.data?.periods.find((p) => p.period_end === end)?.values, [kp.data, end]);
+  const existing = useMemo(() => kp.data?.periods.find((p) => p.period_end === end && (p.cadence ?? "monthly") === cadence)?.values, [kp.data, end, cadence]);
   useEffect(() => {
     setVals(Object.fromEntries(METRICS.map((m) => [m, existing?.[m] != null ? String(existing[m]) : ""])) as Record<Metric, string>);
   }, [existing]);
+  const day = (iso: string) => date(iso + "T00:00:00");
+  // period: lines up with the cadence, is over, and does not share days with an update that was sent
+  const prob = periodProblem(cadence, end);
+  const start = periodStartOf(cadence, end);
+  const same = updates.find((u) => u.cadence === cadence && u.period_end === end && HOLDS.includes(u.status));
+  const overlap = prob === "none" && !same ? updates.find((u) => u.cadence === cadence && u.period_end !== end && HOLDS.includes(u.status) && u.period_start <= end && u.period_end >= start) : undefined;
+  const periodErr = prob === "bad" ? t("fx2.upd.p.bad") : prob === "align_month" ? t("fx2.upd.p.month") : prob === "align_quarter" ? t("fx2.upd.p.quarter")
+    : prob === "future" ? t("fx2.upd.p.future", { d: day(end) })
+    : same ? t("fx2.upd.p.taken", { s: t(("upd.st." + same.status) as DictKey) })
+    : overlap ? t("fx2.upd.p.overlap", { p: overlap.period_label, a: day(overlap.period_start), b: day(overlap.period_end), s: t(("upd.st." + overlap.status) as DictKey) }) : "";
+  const checks = Object.fromEntries(METRICS.map((m) => [m, checkKpi(m, vals[m], existing?.[m])])) as Record<Metric, KpiCheck>;
+  const fieldErr = METRICS.some((m) => checks[m].err);
+  const kpis: Partial<Record<Metric, number | null>> = {};
+  for (const m of METRICS) if (checks[m].v !== undefined) kpis[m] = checks[m].v;
+  const left = METRICS.filter((m) => (checks[m].v !== undefined ? checks[m].v != null : existing?.[m] != null));
+  const pickCadence = (x: Cadence) => { setCadence(x); setEnd(lastFinishedEnd(x)); setMsg(null); };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const kpis: Partial<Record<Metric, number | null>> = {};
-    for (const m of METRICS) {
-      const v = vals[m].trim().replace(/,/g, "");
-      if (v !== "" && Number.isFinite(Number(v))) kpis[m] = Number(v);
-      else if (existing?.[m] != null) kpis[m] = null; // cleared -> remove the stored value
-    }
-    if (!Object.values(kpis).some((v) => v != null)) { setMsg({ ok: false, s: t("upd.f.need") }); return; }
+    setTried(true);
+    if (periodErr || fieldErr) { setMsg({ ok: false, s: t("fx2.fix") }); return; }
+    if (!left.length) { setMsg({ ok: false, s: t("upd.f.need") }); return; }
     setBusy(true); setMsg(null);
     try {
       const u = await api.prepareUpdate(c.ticker, { cadence, period_end: end, kpis, note: note.trim() });
       setMsg({ ok: true, s: t("upd.f.prepared") });
+      setTried(false);
       void kp.reload();
       onDone(u);
     } catch (x) { setMsg({ ok: false, s: errText(x, t) }); } finally { setBusy(false); }
@@ -303,20 +361,32 @@ function PrepareForm({ c, onDone }: { c: CompanyDetail; onDone: (u: BizUpdate) =
       <p className="sub">{t("upd.f.p")}</p>
       <div className="fgrid">
         <label className="lf"><span>{t("upd.f.cadence")}</span>
-          <select value={cadence} onChange={(e) => setCadence(e.target.value as Cadence)}>
+          <select value={cadence} onChange={(e) => pickCadence(e.target.value as Cadence)}>
             {CADENCES.map((x) => <option key={x} value={x}>{t(("upd.cad." + x) as DictKey)}</option>)}
           </select>
         </label>
-        <label className="lf"><span>{t("upd.f.end")}</span><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
-        {METRICS.map((m) => (
-          <label key={m} className="lf"><span>{t(("upd.m." + m) as DictKey)} <span className="muted-sm">({t(m === "customers" || m === "headcount" ? "upd.unit.count" : "upd.unit.aud")})</span></span>
-            <input type="number" inputMode="decimal" step="any" min={m === "net_profit" || m === "gross_profit" ? undefined : 0} value={vals[m]} onChange={(e) => setVals((v) => ({ ...v, [m]: e.target.value }))} />
-          </label>
-        ))}
+        <div className="stack" style={{ gap: 4 }}>
+          <PeriodPicker cadence={cadence} end={end} setEnd={(x) => { setEnd(x); setMsg(null); }} />
+          {periodErr ? <span className="err" role="alert">{periodErr}</span>
+            : start && <span className="muted-sm">{t("fx2.upd.p.range", { a: day(start), b: day(end) })}</span>}
+        </div>
+        {METRICS.map((m) => {
+          const ck = checks[m];
+          const id = `kpi-${m}`;
+          return (
+            <label key={m} className="lf"><span>{t(("upd.m." + m) as DictKey)} <span className="muted-sm">({t(m === "customers" || m === "headcount" ? "upd.unit.count" : "upd.unit.aud")})</span></span>
+              <input id={id} type="text" inputMode={m === "net_profit" || m === "gross_profit" ? "text" : "decimal"} autoComplete="off" value={vals[m]}
+                aria-invalid={ck.err ? true : undefined} aria-describedby={ck.err || ck.cleared ? id + "-msg" : undefined}
+                onChange={(e) => setVals((v) => ({ ...v, [m]: e.target.value }))} />
+              {ck.err ? <span id={id + "-msg"} className="err">{t(ck.err)}</span> : ck.cleared ? <span id={id + "-msg"} className="muted-sm">{t("fx2.kpi.cleared")}</span> : null}
+            </label>
+          );
+        })}
       </div>
       {existing && <span className="hint">{t("upd.f.loaded")}</span>}
       <label className="lf"><span>{t("upd.f.note")}</span><textarea value={note} maxLength={2000} placeholder={t("upd.f.notePh")} onChange={(e) => setNote(e.target.value)} /></label>
-      <button className="btn" type="submit" disabled={busy} style={{ justifySelf: "start" }}>{t("upd.f.prepare")}</button>
+      <button className="btn" type="submit" disabled={busy || !!periodErr || fieldErr} style={{ justifySelf: "start" }}>{t("upd.f.prepare")}</button>
+      {tried && !msg && (periodErr || fieldErr) && <p className="err" role="alert">{t("fx2.fix")}</p>}
       {msg && <p className={msg.ok ? "toast" : "err"} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
     </form>
   );
@@ -336,12 +406,14 @@ function DraftEditor({ u, onChanged }: { u: BizUpdate; onChanged: () => void }) 
   return (
     <div className="stack">
       {u.status === "rejected" && u.reason && <p className="banner warn" role="status">{t("upd.rejected", { r: u.reason })}</p>}
-      <label className="lf"><span>{t("upd.edit.title")}</span><input value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} /></label>
-      <label className="lf"><span>{t("upd.edit.summary")}</span><textarea value={summary} maxLength={2000} rows={3} onChange={(e) => setSummary(e.target.value)} /></label>
+      <label className="lf"><span>{t("upd.edit.title")}</span><input value={title} maxLength={200} aria-invalid={!title.trim() || undefined} onChange={(e) => setTitle(e.target.value)} />
+        {!title.trim() && <span className="err">{t("fx2.upd.titleEmpty")}</span>}</label>
+      <label className="lf"><span>{t("upd.edit.summary")}</span><textarea value={summary} maxLength={2000} rows={3} aria-invalid={!summary.trim() || undefined} onChange={(e) => setSummary(e.target.value)} />
+        {!summary.trim() && <span className="err">{t("fx2.upd.summaryEmpty")}</span>}</label>
       <div className="row">
-        <button className="btn ghost sm" type="button" disabled={busy || !dirty || !title.trim()} onClick={() => run(() => api.editUpdate(u.id, { title, summary }), t("upd.edit.saved"))}>{t("upd.edit.save")}</button>
+        <button className="btn ghost sm" type="button" disabled={busy || !dirty || !title.trim() || !summary.trim()} onClick={() => run(() => api.editUpdate(u.id, { title, summary }), t("upd.edit.saved"))}>{t("upd.edit.save")}</button>
         <span className="grow" />
-        <button className="btn gold sm" type="button" disabled={busy || !title.trim()} onClick={() => run(async () => { if (dirty) await api.editUpdate(u.id, { title, summary }); await api.submitUpdate(u.id); }, t("upd.sent"))}>{t("upd.send")} ◆</button>
+        <button className="btn gold sm" type="button" disabled={busy || !title.trim() || !summary.trim()} onClick={() => run(async () => { if (dirty) await api.editUpdate(u.id, { title, summary }); await api.submitUpdate(u.id); }, t("upd.sent"))}>{t("upd.send")} ◆</button>
       </div>
       {msg && <p className={msg.ok ? "toast" : "err"} role={msg.ok ? "status" : "alert"}>{msg.s}</p>}
     </div>
@@ -382,7 +454,7 @@ export function CompanyUpdates({ c, canManage, live }: { c: CompanyDetail; canMa
   useEffect(() => { if (!openId && manage) { const d = list.find((u) => u.status === "draft" || u.status === "rejected"); if (d) setOpenId(d.id); } }, [q.data]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="stack">
-      {manage && live && <PrepareForm c={c} onDone={(u) => { setOpenId(u.id); void q.reload(); }} />}
+      {manage && live && <PrepareForm c={c} updates={list} onDone={(u) => { setOpenId(u.id); void q.reload(); }} />}
       {manage && !live && <p className="quietline">{t("upd.f.onlylive")}</p>}
       {!manage && <p className="note">{t("upd.f.viewer")}</p>}
       <div className="pane">

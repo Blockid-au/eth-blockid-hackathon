@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  api, type CompanyOfferingView, type Offering, type OfferingPack, type OfferingProgress, type OfferingStatus, type OfferingTerms, type Reservation,
+  api, ApiError, type CompanyOfferingView, type Offering, type OfferingPack, type OfferingProgress, type OfferingStatus, type OfferingTerms, type Reservation,
 } from "../api";
 import { errText, useAuth } from "../auth";
 import { useI18n } from "../i18n";
@@ -13,6 +13,7 @@ import { useAsync, useTitle } from "../lib/hooks";
 import { GRADE_C } from "../lib/math";
 import { shortAddr } from "../lib/addr";
 import { demoApproveLink } from "../components/DemoGuide";
+import { readNumber, readWhole } from "../lib/typed";
 export { OfferingBadge } from "../components/OfferingBadge";
 
 /**
@@ -178,34 +179,55 @@ function TermsForm({ v, onSaved, onCancel }: { v: CompanyOfferingView; onSaved: 
   const [use, setUse] = useState(o?.use_of_funds ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const num = (x: string) => Number(x.trim().replace(/,/g, ""));
+  // the API's checks, repeated where each value is typed (studio/offerings.py check_terms)
+  const cap = v.defaults.max_holders;             // the share token's own cap on BlockID Chain (null = no limit)
+  const maxDays = v.defaults.max_days_open ?? 180;
+  const pr = readNumber(price);
+  const priceN = pr.kind === "ok" ? pr.n : NaN;
+  const priceErr: DictKey | null = pr.kind !== "ok" || pr.n <= 0 || pr.n > 1_000_000 ? "fx2.of.price" : null;
+  const sharesN = readWhole(shares);
+  const sharesErr: DictKey | null = sharesN == null || sharesN < 1 || sharesN > 1e12 ? "fx2.of.whole" : null;
+  const worth = !priceErr && !sharesErr ? Math.round(priceN * (sharesN as number) * 100) / 100 : NaN;
+  const mr = readNumber(min);
+  const minN = mr.kind === "empty" ? 0 : mr.kind === "ok" ? mr.n : NaN;
+  const minErr: DictKey | null = !Number.isFinite(minN) || minN < 0 ? "fx2.of.amount" : Number.isFinite(worth) && minN > worth ? "fx2.of.minOver" : null;
+  const perN = per.trim() ? readWhole(per) : sharesN;
+  const perErr: DictKey | null = perN == null || perN < 1 ? "fx2.of.whole" : sharesN != null && perN > sharesN ? "fx2.of.perOver" : null;
   const closeAt = new Date(closes);
+  const closeMs = closeAt.getTime();
+  const closeErr: DictKey | null = !Number.isFinite(closeMs) ? "fx2.of.closeBad" : closeMs <= Date.now() + 5 * 60e3 ? "fx2.of.closeSoon"
+    : closeMs > Date.now() + maxDays * 864e5 ? "fx2.of.closeFar" : null;
+  const holdersN = holders.trim() ? readWhole(holders) : null;
+  const holdersErr: DictKey | null = !holders.trim() ? null : holdersN == null || holdersN < 1 ? "fx2.of.whole"
+    : holdersN < v.defaults.holders ? "fx2.of.holdersLow" : cap != null && holdersN > cap ? "fx2.of.holdersHigh" : null;
+  const ok = !priceErr && !sharesErr && !minErr && !perErr && !closeErr && !holdersErr;
   const body: OfferingTerms = {
-    price_aud: num(price), shares_offered: Math.round(num(shares)), min_raise_aud: min.trim() ? num(min) : 0,
-    max_per_investor_shares: Math.round(num(per || shares)), closes_at: Number.isFinite(closeAt.getTime()) ? closeAt.toISOString() : "",
-    use_of_funds: use.trim(), max_holders: holders.trim() ? Math.round(num(holders)) : null,
+    price_aud: priceN, shares_offered: sharesN ?? 0, min_raise_aud: Number.isFinite(minN) ? minN : 0,
+    max_per_investor_shares: perN ?? 0, closes_at: Number.isFinite(closeMs) ? closeAt.toISOString() : "",
+    use_of_funds: use.trim(), max_holders: holdersN,
   };
-  const ok = body.price_aud > 0 && body.shares_offered > 0 && body.max_per_investor_shares > 0 && !!body.closes_at && closeAt.getTime() > Date.now();
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ok) { setErr(t("of.need")); return; }
+    if (!ok) { setErr(t("fx2.fix")); return; }
     setBusy(true); setErr("");
     try { onSaved(await api.saveOffering(v.ticker, body)); } catch (x) { setErr(errText(x, t)); } finally { setBusy(false); }
   };
+  const fe = (k: DictKey | null, vars?: Record<string, string | number>) => (k ? <span className="err">{t(k, vars)}</span> : null);
+  const vars = { a: Number.isFinite(worth) ? aud(worth, 2) : "–", n: fmt(sharesN ?? 0), d: maxDays, h: fmt(v.defaults.holders), c: cap != null ? fmt(cap) : "–" };
   return (
     <form className="stack" onSubmit={submit} noValidate>
       <div className="fgrid">
-        <label className="lf"><span>{t("of.f.price")}</span><input type="number" inputMode="decimal" min={0.0001} step="any" value={price} onChange={(e) => setPrice(e.target.value)} /><span className="muted-sm">{t("of.f.priceHint", { p: aud(v.defaults.price_aud, 4) })}</span></label>
-        <label className="lf"><span>{t("of.f.shares")}</span><input type="number" inputMode="numeric" min={1} step={1} value={shares} onChange={(e) => setShares(e.target.value)} /><span className="muted-sm">{t("of.f.sharesHint", { n: fmt(v.defaults.total_shares) })}</span></label>
-        <label className="lf"><span>{t("of.f.min")}</span><input type="number" inputMode="decimal" min={0} step="any" value={min} placeholder="0" onChange={(e) => setMin(e.target.value)} /><span className="muted-sm">{t("of.f.minHint")}</span></label>
-        <label className="lf"><span>{t("of.f.max")}</span><input type="number" inputMode="numeric" min={1} step={1} value={per} placeholder={shares} onChange={(e) => setPer(e.target.value)} /></label>
-        <label className="lf"><span>{t("of.f.close")}</span><input type="datetime-local" value={closes} onChange={(e) => setCloses(e.target.value)} /></label>
-        <label className="lf"><span>{t("of.f.holders")}</span><input type="number" inputMode="numeric" min={1} max={v.defaults.max_holders} step={1} value={holders} placeholder={String(v.defaults.max_holders)} onChange={(e) => setHolders(e.target.value)} /><span className="muted-sm">{t("of.f.holdersHint", { n: fmt(v.defaults.max_holders), h: fmt(v.defaults.holders) })}</span></label>
+        <label className="lf"><span>{t("of.f.price")}</span><input type="text" inputMode="decimal" value={price} aria-invalid={!!priceErr || undefined} onChange={(e) => setPrice(e.target.value)} />{fe(priceErr) ?? <span className="muted-sm">{t("of.f.priceHint", { p: aud(v.defaults.price_aud, 4) })}</span>}</label>
+        <label className="lf"><span>{t("of.f.shares")}</span><input type="text" inputMode="numeric" value={shares} aria-invalid={!!sharesErr || undefined} onChange={(e) => setShares(e.target.value)} />{fe(sharesErr) ?? <span className="muted-sm">{t("of.f.sharesHint", { n: fmt(v.defaults.total_shares) })}</span>}</label>
+        <label className="lf"><span>{t("of.f.min")}</span><input type="text" inputMode="decimal" value={min} placeholder="0" aria-invalid={!!minErr || undefined} onChange={(e) => setMin(e.target.value)} />{fe(minErr, vars) ?? <span className="muted-sm">{t("of.f.minHint")}</span>}</label>
+        <label className="lf"><span>{t("of.f.max")}</span><input type="text" inputMode="numeric" value={per} placeholder={shares} aria-invalid={!!perErr || undefined} onChange={(e) => setPer(e.target.value)} />{fe(perErr, vars)}</label>
+        <label className="lf"><span>{t("of.f.close")}</span><input type="datetime-local" value={closes} aria-invalid={!!closeErr || undefined} onChange={(e) => setCloses(e.target.value)} />{fe(closeErr, vars)}</label>
+        <label className="lf"><span>{t("of.f.holders")}</span><input type="text" inputMode="numeric" value={holders} placeholder={cap != null ? String(cap) : ""} aria-invalid={!!holdersErr || undefined} onChange={(e) => setHolders(e.target.value)} />{fe(holdersErr, vars) ?? <span className="muted-sm">{cap != null ? t("of.f.holdersHint", { n: fmt(cap), h: fmt(v.defaults.holders) }) : t("fx2.of.holdersNoCap", { h: fmt(v.defaults.holders) })}</span>}</label>
       </div>
       <label className="lf"><span>{t("of.f.use")}</span><textarea value={use} maxLength={2000} placeholder={t("of.f.usePh")} onChange={(e) => setUse(e.target.value)} /></label>
       {ok && <div className="pane"><b>{t("of.sum", { n: fmt(body.shares_offered), p: aud(body.price_aud, body.price_aud < 10 ? 4 : 2), max: aud(body.shares_offered * body.price_aud, 2), min: aud(body.min_raise_aud, 2), per: fmt(body.max_per_investor_shares), d: date(body.closes_at, true) })}</b></div>}
       <div className="row" style={{ gap: 8 }}>
-        <button className="btn" type="submit" disabled={busy}>{t("of.save")}</button>
+        <button className="btn" type="submit" disabled={busy || !ok}>{t("of.save")}</button>
         {onCancel && <button className="btn ghost" type="button" onClick={onCancel}>{t("of.keep")}</button>}
       </div>
       {err && <p className="err" role="alert">{err}</p>}
@@ -374,13 +396,22 @@ function ReserveForm({ o, onDone }: { o: Offering; onDone: (msg: string) => void
   const [err, setErr] = useState("");
   const price = Number(o.price_aud);
   const room = Math.max(0, Math.min(o.max_per_investor_shares - (o.mine_reserved_shares ?? 0), o.progress?.remaining_shares ?? o.shares_offered));
-  const n = Number(val.trim().replace(/,/g, ""));
-  const shares = mode === "shares" ? Math.floor(n) : Math.floor(n / price);
-  const valid = Number.isFinite(n) && n > 0 && shares >= 1;
+  // whole shares only, at most what is left for this investor, worth at least A$0.01 (the API checks the same)
+  const typed = readNumber(val);
+  const n = typed.kind === "ok" ? typed.n : NaN;
+  const shares = mode === "shares" ? (typed.kind === "ok" && typed.dp === 0 ? n : NaN) : Math.floor(n / price);
+  const minShares = price > 0 ? Math.max(1, Math.ceil(0.005 / price - 1e-9)) : 1;
+  const fieldErr: string | null = typed.kind === "empty" ? null
+    : typed.kind === "bad" || n <= 0 ? t("of.d.need")
+    : mode === "shares" && typed.dp > 0 ? t("fx2.of.wholeShares")
+    : !(shares >= 1) ? t("of.d.need")
+    : shares > room ? t("fx2.of.overRoom", { n: fmt(room) })
+    : Math.round(shares * price * 100) / 100 < 0.01 ? t("fx2.of.minCent", { n: fmt(minShares) }) : null;
+  const valid = typed.kind === "ok" && !fieldErr;
   if (room <= 0) return <p className="quietline">{(o.progress?.remaining_shares ?? 1) <= 0 ? t("of.d.soldout") : t("of.d.full")}</p>;
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid) { setErr(t("of.d.need")); return; }
+    if (!valid) { setErr(fieldErr ?? t("of.d.need")); return; }
     setBusy(true); setErr("");
     try {
       const r = await api.reserve(o.id, { ...(mode === "shares" ? { shares } : { amount_aud: n }), risk_ack: ack, ...(name.trim() ? { name: name.trim() } : {}) });
@@ -395,8 +426,9 @@ function ReserveForm({ o, onDone }: { o: Offering; onDone: (msg: string) => void
       </div>
       <div className="fgrid">
         <label className="lf"><span>{t(mode === "shares" ? "of.d.byShares" : "of.d.byAud")}</span>
-          <input type="number" inputMode={mode === "shares" ? "numeric" : "decimal"} min={mode === "shares" ? 1 : price} step={mode === "shares" ? 1 : "any"} value={val} onChange={(e) => setVal(e.target.value)} />
-          <span className="muted-sm">{valid ? t("of.d.eq", { n: fmt(shares), a: aud(shares * price, 2) }) : t("of.d.room", { n: fmt(room) })}</span>
+          <input type="text" inputMode={mode === "shares" ? "numeric" : "decimal"} value={val} aria-invalid={!!fieldErr || undefined} onChange={(e) => { setVal(e.target.value); setErr(""); }} />
+          {fieldErr ? <span className="err">{fieldErr}</span>
+            : <span className="muted-sm">{valid ? t("of.d.eq", { n: fmt(shares), a: aud(shares * price, 2) }) + " · " + t("fx2.of.canAdd", { n: fmt(room - shares) }) : t("of.d.room", { n: fmt(room) })}</span>}
         </label>
         <label className="lf"><span>{t("of.d.name")}</span><input value={name} maxLength={120} onChange={(e) => setName(e.target.value)} /></label>
       </div>
@@ -438,7 +470,19 @@ export function OfferingDetail({ id }: { id: string }) {
   const [msg, setMsg] = useState("");
   useTitle(q.data ? `${q.data.ticker} · ${t("of.i.h")}` : t("of.i.h"));
   if (q.loading && !q.data) return <Loading />;
-  if (!q.data) return <div className="wrap page"><ErrorBox error={q.error} retry={q.reload} /><Link className="btn ghost" to="/i/offerings">{t("of.i.back")}</Link></div>;
+  if (!q.data) {
+    const missing = q.error instanceof ApiError && (q.error.status === 404 || q.error.status === 422);
+    return (
+      <div className="wrap page inv">
+        {missing ? (
+          <div className="stack">
+            <p className="empty">{t("fx2.of.missing")}</p>
+            <Link className="btn" to="/i/offerings" style={{ justifySelf: "start" }}>{t("fx2.of.seeAll")}</Link>
+          </div>
+        ) : <><ErrorBox error={q.error} retry={q.reload} /><Link className="btn ghost" to="/i/offerings">{t("of.i.back")}</Link></>}
+      </div>
+    );
+  }
   const o = q.data;
   const p = o.progress;
   const open = o.status === "open" && Date.parse(o.closes_at) > Date.now();
@@ -502,6 +546,7 @@ export function OfferingQueueItem({ o, busy, act }: { o: Offering; busy: boolean
   const { t, fmt, date } = useI18n();
   const [reason, setReason] = useState("");
   const toOpen = o.status === "pending_approval";
+  const reg = o.register;
   return (
     <div className="pane">
       <div className="between">
@@ -522,8 +567,12 @@ export function OfferingQueueItem({ o, busy, act }: { o: Offering; busy: boolean
           </>
         ) : (
           <>
-            <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.releaseOffering(o.id, "released by admin"), t("of.ad.released"))}>{t("of.ad.release")}</button>
-            <button className="btn gold" type="button" disabled={busy} onClick={() => act(() => api.settleOffering(o.id), t("of.ad.settling"))}>{t("of.ad.settle")}</button>
+            {reg ? <span className={"muted-sm" + (reg.fits ? "" : " err")} role={reg.fits ? undefined : "alert"}>
+              {reg.cap != null ? t("fx2.of.reg", { n: fmt(reg.count), c: fmt(reg.cap), a: fmt(reg.after) }) : t("fx2.of.regNoCap", { n: fmt(reg.count), a: fmt(reg.after) })}
+              {!reg.fits && " " + t("fx2.of.regOver")}</span>
+              : o.register === null ? <span className="muted-sm">{t("fx2.of.regUnknown")}</span> : null}
+            <button className="btn danger sm" type="button" disabled={busy} onClick={() => act(() => api.releaseOffering(o.id, "released by admin"), t("of.ad.released"))}>{t(o.status === "failed" ? "fx2.of.releaseRest" : "of.ad.release")}</button>
+            <button className="btn gold" type="button" disabled={busy || (reg ? !reg.fits : false)} onClick={() => act(() => api.settleOffering(o.id), t("of.ad.settling"))}>{t("of.ad.settle")}</button>
           </>
         )}
       </div>

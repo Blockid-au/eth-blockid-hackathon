@@ -25,6 +25,30 @@ def _landed(token, ref: bytes, from_block: int):
     return logs[-1] if logs else None
 
 
+def facts(L, token, reg, frm: str, to: str) -> dict:
+    """The on-chain state a plain transfer is checked against (same keys as studio.services.transfer_facts)."""
+    return {
+        "balance_from": int(token.functions.balanceOf(frm).call()),
+        "balance_to": int(token.functions.balanceOf(to).call()),
+        "from_verified": bool(reg.functions.isVerified(frm).call()),
+        "to_verified": bool(reg.functions.isVerified(to).call()),
+        "frozen_from": bool(token.functions.frozen(frm).call()),
+        "frozen_to": bool(token.functions.frozen(to).call()),
+        "lockup_until": int(token.functions.lockupUntil().call()),
+        "holders": int(token.functions.shareholderCount().call()),
+        "max_holders": int(token.functions.maxShareholders().call()),
+        "now": int(L.w3.eth.get_block("latest")["timestamp"]),
+    }
+
+
+def blocker(L, token, reg, frm: str, to: str, n: int) -> str | None:
+    """forcedTransfer skips freeze / lock-up / sender KYC on chain; an approved studio transfer must not."""
+    from ..studio.services import REASON_TEXT, transfer_blocker
+
+    code = transfer_blocker(facts(L, token, reg, frm, to), n)
+    return None if code is None else f"{code}: {REASON_TEXT.get(code, code)}"
+
+
 def transfer(svc, transfer_id: int) -> None:
     with svc._exclusive(f"transfer:{transfer_id}") as ok:
         if ok:
@@ -49,9 +73,11 @@ def _transfer(svc, transfer_id: int) -> None:
         ref = _ref(transfer_id)
         lg = _landed(token, ref, c.get("local_block") or 0)
         if lg is None:
-            if int(token.functions.balanceOf(frm).call()) < n:
-                raise RuntimeError("sender no longer holds enough shares")
-            svc._kyc(L, reg, to, t.get("to_name") or "transferee", cid)
+            # the same rules as a plain transfer, checked again right before sending (things may have changed
+            # since the request was approved); the receiver is NOT auto-KYC'd: KYC is its own approved request
+            why = blocker(L, token, reg, frm, to, n)
+            if why:
+                raise RuntimeError(why)
             rec = L.transact(token.functions.forcedTransfer(frm, to, n, ref))
             tx, block = rec.tx_hash, rec.block
         else:

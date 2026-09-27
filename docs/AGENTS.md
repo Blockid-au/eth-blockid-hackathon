@@ -20,6 +20,7 @@ There are two graphs:
 | **competitor_discovery** | `local`, `cloud` | `web_search`, `fetch_url`, `store_evidence` | no | live: `competitors` |
 | **research** | `local`, `cloud` | `web_search`, `fetch_url`, `store_evidence` | no | live: `market`; legacy: `research` |
 | **valuation** | `local`, `cloud` | `svi_score`, `hash_report` | no | live: `svi`, `narrative`; legacy: `valuation` |
+| **people_analyst** | `local`, `cloud` | `web_search`, `fetch_url`, `store_evidence` | no (public professional info of consenting people; emails/phones redacted) | worker job `studio/hr_store.py` (hr.blockid.au) |
 | intake | `local` only | `read_dataroom`, `store_profile` | yes | legacy |
 | contract_builder | `cloud`, `cloud_max` | `render_params`, `forge_test`, `slither` | no | legacy |
 | registry | `local` only | `build_unsigned_tx` | yes | legacy |
@@ -100,6 +101,37 @@ approval of dividend amounts. Outputs are **unsigned** Safe Transaction Builder 
 
 Header `X-API-Key`. The live Studio API (`/v1/studio/...`, `/v1/admin/...`) is documented in
 [IMPLEMENTATION.md](IMPLEMENTATION.md).
+
+## People Analyst (`agents/people.py`, founding-team / person review — hr.blockid.au)
+
+Not a LangGraph graph: a worker job (`studio/hr_store.py` `HrRunner`, drained after the valuations on every worker
+pass). Plan: [PLAN-HR.md](PLAN-HR.md); endpoints: [IMPLEMENTATION.md](IMPLEMENTATION.md#founding-team-review-hrblockidau).
+
+```
+queued ──(linked valuation still queued/running? wait)──► running
+  per person: provided URLs (SSRF-safe fetch; LinkedIn listed, not fetched)
+  searches: ≤ 3 per person, ≤ 12 per team, round-robin in role order ("<name>" <company>, "<name>" <headline|role>,
+            "<name>" founder|advisor) on HR_SEARCH_PROVIDERS (claude, brave); 2 pages fetched + 3 snippets per search
+  evidence: stored per person (`hr:<team>:<person>`, SHA-256 of the stored, contact-redacted text)
+  1 LLM call per person  → PersonAnalysis (facts + verbatim quotes, CV profile, quality + fit sub-scores)
+  CODE verification      → fact kept only if quote on the stored page/snippet AND page names the person AND
+                           (page names the company / a self-reported organisation OR it is a founder-provided URL);
+                           else "unconfirmed"; sensitive categories dropped by keyword filter
+  1 LLM call per team    → TeamAnalysis (worked together, strengths, gaps, risks, questions, red flags)
+  CODE scoring           → person quality, fit, contribution, team score (below)
+done ──► linked valuation: founder_quality := team score (basis team_report), SVI re-scored deterministically
+```
+
+| Score | Formula (code) |
+|---|---|
+| Person quality | domain fit 25, track record 25, leadership & role fit 15, functional depth 15, verifiability 10, commitment 10; a sub-score with no verified cited fact and no founder-provided support is capped at 50 (verifiability never counts founder text) |
+| Fit (business or role) | skills 25, domain 20, stage & scale 15, seniority 15, track-record relevance 15, gaps 10 (gaps = must-have requirements: matched with evidence 1, partial 0.5, claimed without evidence 0.25, missing 0) |
+| Contribution | 0.5 × quality + 0.5 × fit (quality alone without a target) |
+| Team | 0.6 × role-weighted mean of contributions (CEO / lead founder 1.5, co-founder 1.2, executive 1.0, employee 0.7, advisor 0.4) + 0.4 × team component (complementarity 0.30, key roles 0.25, worked together 0.15, advisors/board 0.10, key-person concentration 0.20) − 5 per verified red flag (max 15) |
+
+Only the "worked together" component and red flags come from the model (capped / verified-fact-only); coverage,
+key roles, advisors and concentration are computed from roles, functions, equity and full-time flags. Every report
+records the model that answered each call (`method.models`, audit `person_analysed` / `team_analysed`).
 
 ## Adding a new agent
 
