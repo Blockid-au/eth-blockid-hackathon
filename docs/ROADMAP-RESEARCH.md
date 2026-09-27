@@ -49,6 +49,19 @@ Key research facts that shape the plan:
 15. **ZK selective disclosure.** Semaphore/Noir proofs of "verified AU/VN holder ≥ N shares" over a snapshot commitment, or Privado ID queries. The value is limited while balances are public. *Effort:* L. [Semaphore](https://docs.semaphore.pse.dev), [Privado/Billions](https://billions.network)
 16. **Production chain**: ≥ 4 independent validators, then HSK mainnet. **Open-source SDK** of the provenance + approval-gate pattern. *Effort:* L.
 
+## 2b. Business track (added 2026-09-27, plan only)
+
+The technical items above run next to a business track with scored stage gates. Full plan:
+[PLAN-BUSINESS.md](PLAN-BUSINESS.md) (VI summary: [PLAN-BUSINESS.vi.md](PLAN-BUSINESS.vi.md)); gate results go in `docs/GATES.md`.
+
+| Stage | Main work | Gate to leave it |
+|---|---|---|
+| S0 Hackathon (now) | stable demo, judging | **G0** judging result recorded, judging caps restored, traffic baseline exported |
+| S1 Foundation (~4 wks) | unified users + login/event/presence tracking + `/admin/analytics`; usage ledger; remove admin/admin; backups; legal pages; demo/prod split; metered AI API | **G1** 11-point readiness score |
+| S2 Free pilot (8–12 wks) | 10–20 real companies + recruiters; shadow invoices from a versioned price book; WTP interviews; Stripe in test mode | **G2** real MAU, activation, retention, WTP, shadow MRR |
+| S3 Paid beta (~3 mo) | Stripe live for HR + founder plans (non-regulated only); monthly real-user report; white-label LOI | **G3** MRR ≥ A$5k, churn < 5 %, AFSL/CSF partner signed |
+| S4 Scale / white label | tenants by host, partner billing, transaction fees via licensed partner, mainnet path (items 1, 9, 10, 12, 13, 16) | quarterly review |
+
 ## 3. Top 10 ranked by impact ÷ effort
 
 | # | Item | Impact | Effort |
