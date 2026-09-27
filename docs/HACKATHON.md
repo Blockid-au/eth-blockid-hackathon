@@ -21,9 +21,13 @@ answers become part of the recorded disclosure.
 - Repo guide: [README.md](../README.md) · Demo script: [DEMO.md](DEMO.md) · Security: [SECURITY.md](SECURITY.md) ·
   Facts: [FACTS.md](FACTS.md)
 
-**Results (live, 27 Sep 2026):** 14 companies tokenised (CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA), all
+**Results (testnet, 27 Sep 2026):** 14 sample listings tokenised (CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA), all
 anchored on 3 chains · 42 share-token contracts · A$87.1B marked valuation (median A$66.0M) · `/verify` 14 / 14 match
 on all three chains · 378 automated tests (341 pytest + 37 Foundry).
+
+> **About the data:** the listed companies are **sample listings** built from public information (e.g. Canva,
+> Airwallex) to run the full flow on testnet. They are not customers or partners, and their holders, updates and
+> offerings are sample data. There are no real users yet; real pilots will be added here as they sign up.
 
 Tracks entered: **Sydney Hackathon — AI x Ethereum & Agent Economy** · **Real-World Ethereum Applications** ·
 **HashKey Chain (RWA / AI Agents)**.
@@ -50,8 +54,8 @@ product where the hard problem is exactly the one the track names: **how do you 
 
 ### Real-World Ethereum Applications
 
-A live product for a real problem, not a mock: real websites crawled, real cited valuations, 14 companies issued
-with 42 token contracts, the cap table anchored on **Ethereum Hoodi** (`CapTableAnchor`
+Working software for a real problem: real websites crawled and real cited valuations, 14 sample listings (built from
+public information, not customers yet) issued with 42 token contracts, the cap table anchored on **Ethereum Hoodi** (`CapTableAnchor`
 `0xF3dC95D5d207dE9f2aC98184Fd32b45B72334263`), MetaMask add-token on every chain, and a public `/verify` page that
 anyone can use to check a valuation report against the chain without trusting us.
 
@@ -92,8 +96,8 @@ SVI report hash: `0x3c273fe671ed6024caede1240085a14a67c89a2f94ee08e0f82918af24ef
 
 Against the HSK judging criteria:
 
-- **Feasibility & real-world potential** — the platform is live, not a mock: real website crawling, real
-  valuations, real contracts on three chains, working approval queue, gasless dividend claims.
+- **Feasibility & real-world potential** — the software runs end to end, not a mock: real website crawling,
+  cited valuations, real contracts on three chains (the listed companies are sample data, no real users yet), working approval queue, gasless dividend claims.
 - **Meaningful user/market problem** — SMEs cannot afford valuations, registries or dividend administration.
 - **Technical & product innovation** — on-chain provenance + four-eyes approval of AI output as a reusable
   primitive for "AI agents × RWA", instead of trusting an agent with a key.

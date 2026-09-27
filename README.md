@@ -31,11 +31,16 @@ paid straight to their wallet.
 
 > **Testnet demo. Not an offer of securities.**
 
-## Results (live, 27 Sep 2026)
+## Results (testnet, 27 Sep 2026)
+
+> **About the data:** the listed companies are **sample listings** built from public information (e.g. Canva,
+> Airwallex) to run the full flow on testnet. They are not customers or partners, and their holders, updates and
+> offerings are sample data. There are no real users yet; real pilots will be added here as they sign up.
+
 
 | Metric | Value |
 |---|---|
-| Companies tokenised, all anchored on 3 chains | **14** — CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA |
+| Sample listings tokenised, all anchored on 3 chains | **14** — CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA |
 | Share-token contracts | **42** (14 companies × BlockID EVM + Ethereum Hoodi + HashKey Chain) |
 | Marked valuation | **A$87.1B** (median A$66.0M) |
 | [`/verify`](https://eth.blockid.au/verify/EBA) | **14 / 14** companies match on all three chains |

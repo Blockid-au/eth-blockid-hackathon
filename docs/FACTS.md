@@ -129,9 +129,14 @@ report hash `0xa1466362b035ecc804caf101986edc4de73697cacf54547226317616c3a73e33`
 
 ## Live results (27 Sep 2026)
 
+> **About the data:** the listed companies are **sample listings** built from public information (e.g. Canva,
+> Airwallex) to run the full flow on testnet. They are not customers or partners, and their holders, updates and
+> offerings are sample data. There are no real users yet; real pilots will be added here as they sign up.
+
+
 | Metric | Value |
 |---|---|
-| Companies tokenised (all anchored on 3 chains) | **14** — CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA |
+| Sample listings tokenised (all anchored on 3 chains) | **14** — CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA |
 | Share-token contracts | **42** (14 companies × BlockID + Hoodi + HashKey) |
 | Marked valuation | **A$87.1B** (median A$66.0M) |
 | `/verify` | **14 / 14** companies match on all three chains |
@@ -149,6 +154,7 @@ When numbers change, update this table first, then README "Results", the decks a
 | `keccak(valuation id)` as the anchored hash | keccak256 of the **canonical report JSON** (`studio/report_hash.py`) |
 | "Issuance Studio" or "Startup Passport" in user-facing copy | **BlockID Business Passport** |
 | "returns", "yield", "guaranteed", "earn", any promise of gains | plain facts: fair value, updates, dividends paid; always the legal line. "invest" / "investor" are allowed |
+| "N businesses listed", "real companies", "users", "customers" for the demo data | "**N sample listings** (built from public information, not customers)"; say "no real users yet" until pilots sign up. Real pilots are counted separately once they exist |
 | "offer" of shares to the public (except "not an offer" in the legal line) | "list your business", "businesses can offer shares with all the information investors need" (demo context) |
 | "AI", "agent", "LLM", "model" in public marketing copy (exception: "AI-analysed" is allowed in the elevator pitch only) | independent analysis, checked, regular updates |
 | Jargon on public pages: SVI, Merkle, issuer, mirror, anchor, relayer, "agents propose", four-eyes, ERC-3643, Hoodi, HashKey, SIWE, mAUD, gate, provenance | plain words: fair value, share register, recorded on blockchain, approved by a person, check the records. Technical names stay in docs, `/verify` and `/hsk` |
