@@ -1,199 +1,199 @@
 1
-00:00:00,650 --> 00:00:02,647
+00:00:00,550 --> 00:00:02,493
 Know the business you invest in.
 
 2
-00:00:02,647 --> 00:00:16,164
+00:00:02,493 --> 00:00:15,640
 BlockID Business Passport gives every shareholder, large or small, a live view of the business they own: updates and valuations analysed by AI and approved by people, a share register on blockchain as proof of ownership, and dividends paid straight to their wallet.
 
 3
-00:00:17,226 --> 00:00:18,569
-It's live today.
+00:00:16,494 --> 00:00:18,437
+It works today on testnet.
 
 4
-00:00:18,569 --> 00:00:19,983
-Press Try it now.
+00:00:18,437 --> 00:00:21,289
+Open the site: no sign-up, no wallet.
 
 5
-00:00:19,983 --> 00:00:22,004
-No sign-up, no wallet.
+00:00:21,289 --> 00:00:24,550
+You land in a demo investor account, with sample data.
 
 6
-00:00:22,004 --> 00:00:25,438
-You start as a demo investor, with real sample data.
-
-7
-00:00:26,482 --> 00:00:27,965
+00:00:25,406 --> 00:00:26,849
 Why does this matter?
 
-8
-00:00:27,965 --> 00:00:30,559
+7
+00:00:26,849 --> 00:00:29,371
 Investing in a business is hard to follow.
 
-9
-00:00:30,559 --> 00:00:32,545
+8
+00:00:29,371 --> 00:00:31,303
 The numbers are hard to trust.
 
-10
-00:00:32,545 --> 00:00:36,914
+9
+00:00:31,303 --> 00:00:35,553
 After you invest, you lose sight of sales, profit and new shares.
 
-11
-00:00:36,914 --> 00:00:41,084
+10
+00:00:35,553 --> 00:00:39,610
 Ownership sits in a spreadsheet, so your stake can shrink and nobody tells you.
 
-12
-00:00:41,084 --> 00:00:43,830
+11
+00:00:39,610 --> 00:00:42,281
 And dividends are slow, or never arrive.
 
-13
-00:00:43,830 --> 00:00:48,105
+12
+00:00:42,281 --> 00:00:46,440
 Good businesses struggle to raise money, and problems surface too late to fix.
 
-14
-00:00:49,154 --> 00:00:51,560
+13
+00:00:47,302 --> 00:00:49,642
 So we built one passport per business.
 
-15
-00:00:51,560 --> 00:00:57,004
+14
+00:00:49,642 --> 00:00:54,938
 Every investor can understand it, follow it, own it, get paid, and check it for themselves.
 
-16
-00:00:58,050 --> 00:00:59,206
+15
+00:00:55,806 --> 00:00:56,931
 Understand it.
 
-17
-00:00:59,206 --> 00:01:05,795
+16
+00:00:56,931 --> 00:01:03,340
 Paste a website and get a plain report in minutes: a business score from A to E, and a low, mid and high value.
 
-18
-00:01:05,795 --> 00:01:07,769
+17
+00:01:03,340 --> 00:01:05,260
 Every figure links to its source.
 
-19
-00:01:07,769 --> 00:01:09,720
+18
+00:01:05,260 --> 00:01:07,158
 No source, no number.
 
-20
-00:01:09,720 --> 00:01:12,571
+19
+00:01:07,158 --> 00:01:09,931
 And a person approves it before anyone sees it.
 
-21
-00:01:13,618 --> 00:01:19,096
+20
+00:01:10,790 --> 00:01:16,119
 Behind the report, AI agents read the website, find competitors and analyse the market.
 
-22
-00:01:19,096 --> 00:01:22,473
+21
+00:01:16,119 --> 00:01:19,403
 A finding that cites a page the agent never fetched is dropped.
 
-23
-00:01:22,473 --> 00:01:24,389
+22
+00:01:19,403 --> 00:01:21,267
 The agents hold no keys.
 
-24
-00:01:24,389 --> 00:01:26,141
+23
+00:01:21,267 --> 00:01:22,971
 They can only propose.
 
-25
-00:01:27,194 --> 00:01:28,023
+24
+00:01:23,830 --> 00:01:24,636
 Own it.
 
-26
-00:01:28,023 --> 00:01:34,472
+25
+00:01:24,636 --> 00:01:30,909
 Every holder, wallet and share count sits in one share register on blockchain, copied to Ethereum and HashKey Chain.
 
-27
-00:01:34,472 --> 00:01:38,864
+26
+00:01:30,909 --> 00:01:35,182
 New shares need a person's approval, and investors see the dilution first.
 
+27
+00:01:36,030 --> 00:01:40,995
+This is a sample listing for Airwallex, built from public information, on our test network.
+
 28
-00:01:39,930 --> 00:01:42,301
-This is Airwallex on our test network.
+00:01:40,995 --> 00:01:44,939
+Fifteen holders, read straight from the chain, not from a spreadsheet.
 
 29
-00:01:42,301 --> 00:01:46,822
-Fifteen verified holders, read straight from the chain, not from a spreadsheet.
-
-30
-00:01:47,890 --> 00:01:49,840
+00:01:45,806 --> 00:01:47,703
 Follow it, and get paid.
 
-31
-00:01:49,840 --> 00:01:54,373
+30
+00:01:47,703 --> 00:01:52,112
 The business shares its numbers, weekly, monthly, quarterly or yearly.
 
-32
-00:01:54,373 --> 00:02:00,682
+31
+00:01:52,112 --> 00:01:58,249
 The draft flags risks from the numbers, a person approves it, and every investor gets the same update at the same time.
 
-33
-00:02:00,682 --> 00:02:02,901
+32
+00:01:58,249 --> 00:02:00,408
 A dividend rule is approved once.
 
-34
-00:02:02,901 --> 00:02:07,854
+33
+00:02:00,408 --> 00:02:05,226
 After twenty-four hours to cancel, it is paid to every wallet, with no fees for holders.
 
-35
-00:02:08,906 --> 00:02:09,805
+34
+00:02:06,070 --> 00:02:06,945
 Check it.
 
-36
-00:02:09,805 --> 00:02:11,055
+35
+00:02:06,945 --> 00:02:08,160
 Don't trust us.
 
-37
-00:02:11,055 --> 00:02:15,261
+36
+00:02:08,160 --> 00:02:12,251
 Your browser hashes the report and compares it with the record on three blockchains.
 
-38
-00:02:15,261 --> 00:02:17,784
+37
+00:02:12,251 --> 00:02:14,706
 Change one number, and it turns red.
 
-39
-00:02:18,834 --> 00:02:22,034
+38
+00:02:15,558 --> 00:02:18,671
 Under the hood, only approved actions reach the chain.
 
-40
-00:02:22,034 --> 00:02:24,488
+39
+00:02:18,671 --> 00:02:21,058
 AI analysis runs with no keys.
 
-41
-00:02:24,488 --> 00:02:26,871
+40
+00:02:21,058 --> 00:02:23,376
 An admin wallet signs one approval.
 
-42
-00:02:26,871 --> 00:02:31,252
+41
+00:02:23,376 --> 00:02:27,637
 Only then does the isolated issuer, the only part with a key, act.
 
-43
-00:02:31,252 --> 00:02:35,060
+42
+00:02:27,637 --> 00:02:31,342
 Our AgentProvenance contract records who proposed and who approved.
 
-44
-00:02:35,060 --> 00:02:36,462
+43
+00:02:31,342 --> 00:02:32,705
 Agents propose.
 
-45
-00:02:36,462 --> 00:02:37,744
+44
+00:02:32,705 --> 00:02:33,951
 Humans approve.
 
-46
-00:02:37,744 --> 00:02:39,079
+45
+00:02:33,951 --> 00:02:35,251
 Chains prove.
 
+46
+00:02:36,110 --> 00:02:41,269
+The whole flow works on testnet today, with fourteen sample listings built from public information.
+
 47
-00:02:40,114 --> 00:02:43,501
-Business Passport is live today, on three blockchains.
+00:02:41,269 --> 00:02:43,212
+We have no real users yet.
 
 48
-00:02:43,501 --> 00:02:48,864
-Businesses pay a listing fee and a register subscription, plus small transfer and dividend fees.
+00:02:43,212 --> 00:02:48,087
+Next: our first pilot businesses, investor communities and licensed partners.
 
 49
-00:02:48,864 --> 00:02:53,373
-We're looking for pilot businesses, investor communities and licensed partners.
+00:02:48,087 --> 00:02:53,507
+Businesses will pay a listing fee, a register subscription, and small transfer and dividend fees.
 
 50
-00:02:53,373 --> 00:02:56,387
-Try it now, at eth dot blockid dot au.
+00:02:53,507 --> 00:02:56,019
+Try it at eth dot blockid dot au.

@@ -19,7 +19,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent
 NAME = "blockid-business-passport-3min"
-LEAD, TAIL, XF, END_HOLD = 0.6, 0.9, 0.5, 2.5
+LEAD, TAIL, XF, END_HOLD = 0.5, 0.8, 0.5, 2.0
 FFMPEG = ["sudo", "docker", "run", "--rm", "--user", f"{os.getuid()}:{os.getgid()}", "-v", f"{OUT}:/w",
           "jrottenberg/ffmpeg:6.1-alpine"]
 

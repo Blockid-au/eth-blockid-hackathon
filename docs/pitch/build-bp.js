@@ -87,12 +87,12 @@ async function img(file, box) {
   T(s, "Understand it  ·  Follow it  ·  Own it  ·  Get paid  ·  Check it", { x: 0.55, y: 5.95, w: 5.9, h: 0.6, fontSize: 15, bold: true, color: C.mint, align: "center", valign: "middle" });
   const hs = shot(s, I.hero, 6.6, 1.55, 6.25);
   const hy = 1.55 + hs.h + 0.3;
-  [["13", "businesses listed"], ["38", "share records on blockchain"], ["A$87B", "fair value checked by people"]].forEach(([n, l], i) => {
+  [["14", "sample listings (demo data)"], ["42", "share records on blockchain"], ["3", "blockchains, every record checkable"]].forEach(([n, l], i) => {
     const x = 6.6 + i * 2.13; rr(s, x, hy, 1.99, 1.05, C.card);
     T(s, n, { x: x + 0.15, y: hy + 0.08, w: 1.7, h: 0.5, fontFace: H, fontSize: 22, bold: true, color: i === 1 ? C.gold : C.teal });
     T(s, l, { x: x + 0.15, y: hy + 0.58, w: 1.75, h: 0.4, fontSize: 11, color: C.muted });
   });
-  T(s, "Live today at eth.blockid.au", { x: 6.6, y: hy + 1.2, w: 6.25, h: 0.35, fontSize: 13, color: C.dim, align: "center", italic: true });
+  T(s, "Working end to end on testnet at eth.blockid.au", { x: 6.6, y: hy + 1.2, w: 6.25, h: 0.35, fontSize: 13, color: C.dim, align: "center", italic: true });
   foot(s);
   s.addNotes("[0:00–0:20] Know the business you invest in. BlockID Business Passport gives every shareholder, large or small, a live view of the business they own: updates and valuations analysed by AI and approved by a person, a share register on blockchain as proof of ownership, and dividends paid straight to their wallet.");
 
@@ -161,7 +161,7 @@ async function img(file, box) {
   point(s, 7.65, 2.8, 5.0, "Recorded on blockchain and copied to two public blockchains.", C.purple);
   point(s, 7.65, 3.6, 5.0, "New shares need a person's approval — you see the dilution first.", C.purple);
   point(s, 7.65, 4.4, 5.0, "Hold your shares in your own wallet, or sign in with Google.", C.purple);
-  T(s, "13 businesses listed · 38 share records on blockchain", { x: 7.65, y: 5.5, w: 5.0, h: 0.8, fontSize: 15, bold: true, color: C.gold });
+  T(s, "14 sample listings · 42 share records on blockchain", { x: 7.65, y: 5.5, w: 5.0, h: 0.8, fontSize: 15, bold: true, color: C.gold });
   foot(s);
   s.addNotes("[1:25–1:45] Own it. When a business lists, its shares are recorded in a share register on blockchain and copied to two public blockchains. That record is your proof of ownership. New shares need a person's approval, and you see the dilution first. You can hold shares in your own wallet or simply sign in with Google.");
 
@@ -272,8 +272,8 @@ async function img(file, box) {
 
   // ============ 9. Live today + business model + ask
   s = newSlide();
-  head(s, 9, "Live today · The ask", "Live today. Looking for pilot businesses and partners.");
-  const st = [["13", "businesses listed"], ["38", "share records on blockchain"], ["A$87B", "fair value checked by people"], ["3", "blockchains, every record checkable"]];
+  head(s, 9, "Working today · The ask", "Working on testnet. Looking for our first pilot businesses."); 
+  const st = [["14", "sample listings built from public data"], ["42", "share records on blockchain"], ["3", "blockchains, every record checkable"], ["Next", "first real pilots in AU · VN"]];
   st.forEach((x, i) => {
     const X = 0.55 + i * 2.05; rr(s, X, 1.75, 1.9, 1.45, C.card);
     T(s, x[0], { x: X + 0.15, y: 1.83, w: 1.65, h: 0.7, fontFace: H, fontSize: 28, bold: true, color: i % 2 ? C.gold : C.teal });
@@ -306,7 +306,7 @@ async function img(file, box) {
   T(s, "Long Do · info@blockid.au", { x: 8.95, y: 5.85, w: 3.6, h: 0.35, fontSize: 13, color: C.muted });
   T(s, "linkedin.com/in/dovanlong", { x: 8.95, y: 6.17, w: 3.6, h: 0.35, fontSize: 11.5, color: C.dim });
   foot(s);
-  s.addNotes("[2:40–3:00] This is live today: thirteen businesses listed, thirty-eight share records on blockchain and eighty-seven billion dollars of fair value checked by people. Businesses pay a listing fee and a share-register subscription, plus a small fee per transfer and per dividend round. We're looking for pilot businesses, investor communities and licensed partners. Scan to try it, or scan to connect with me. Know the business you invest in. Thank you.");
+  s.addNotes("[2:40–3:00] The whole flow works today on testnet, with fourteen sample listings built from public information and forty-two share records on three blockchains. We have no real users yet: that is the next step. Businesses pay a listing fee and a share-register subscription, plus a small fee per transfer and per dividend round. We're looking for pilot businesses, investor communities and licensed partners. Scan to try it, or scan to connect with me. Know the business you invest in. Thank you.");
 
   const out = "out/BlockID-Business-Passport-3min.pptx";
   await pres.writeFile({ fileName: out });

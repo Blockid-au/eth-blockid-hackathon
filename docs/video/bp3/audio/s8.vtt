@@ -1,32 +1,32 @@
 1
-00:00:00,050 --> 00:00:03,250
+00:00:00,050 --> 00:00:03,163
 Under the hood, only approved actions reach the chain.
 
 2
-00:00:03,250 --> 00:00:05,704
+00:00:03,163 --> 00:00:05,550
 AI analysis runs with no keys.
 
 3
-00:00:05,704 --> 00:00:08,087
+00:00:05,550 --> 00:00:07,868
 An admin wallet signs one approval.
 
 4
-00:00:08,087 --> 00:00:12,468
+00:00:07,868 --> 00:00:12,129
 Only then does the isolated issuer, the only part with a key, act.
 
 5
-00:00:12,468 --> 00:00:16,276
+00:00:12,129 --> 00:00:15,834
 Our AgentProvenance contract records who proposed and who approved.
 
 6
-00:00:16,276 --> 00:00:17,678
+00:00:15,834 --> 00:00:17,197
 Agents propose.
 
 7
-00:00:17,678 --> 00:00:18,960
+00:00:17,197 --> 00:00:18,443
 Humans approve.
 
 8
-00:00:18,960 --> 00:00:20,295
+00:00:18,443 --> 00:00:19,743
 Chains prove.
 
