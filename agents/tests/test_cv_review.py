@@ -87,3 +87,24 @@ def test_year_only_dates_do_not_count_as_overlap():
     roles = [{"org": "A", "start": "2015-01", "end": "2016-12", "kind": "employee"},
              {"org": "B", "start": "2016-01", "end": "present", "kind": "employee"}]
     assert cvr.timeline(roles)["overlaps"] == 1
+
+
+def test_cv_parts_move_the_progress_ring_not_the_eta():
+    from blockid_agents.studio.hr_store import HrProgress
+
+    class DB:
+        def exec(self, *_a):
+            return 1
+
+    tr = HrProgress(DB(), "t_x", 1)
+    tr.plan([{"id": 1, "full_name": "Jane Nguyen", "cv": CV}], fetches=1, searches=3, team=False)
+    base, eta = tr.p["pct"], tr.p["eta_s"]
+    tr.cv(1, "read", {"words": 10})
+    assert tr.p["pct"] == base  # the instant part carries no weight
+    tr.cv(1, "timeline", {"stats": {}})
+    tr.cv(1, "timeline", {"stats": {}})  # a repeat does not count twice
+    mid = tr.p["pct"]
+    tr.cv(1, "insights", {})
+    assert base < mid < tr.p["pct"] <= 99
+    assert tr.p["eta_s"] <= eta
+    assert tr.p["partial"]["people"][0]["cv"].keys() == {"read", "timeline", "insights"}

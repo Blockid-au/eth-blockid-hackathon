@@ -56,6 +56,7 @@ STEP_MAX_S = 180.0  # one step longer than this stops the heartbeat (a hung call
 # the gateway's per-call deadlines end a hung model call well before this)
 MAX_REQUEUES = 1
 FEED_MAX = 60
+CV_PART_S, CV_PARTS = 30.0, ("timeline", "insights")  # progress weight of each model-made CV review part
 DEFAULT_STEP_S = {"fetch": 4.0, "search": 15.0, "person_model": 90.0, "team_model": 45.0}
 DEFAULT_TEAM_PEOPLE = 3  # DEFAULT_STEP_S["team_model"] is for a team of this size (scaled per person)
 PER_PERSON_KINDS = ("team_model",)  # timed per person of the run, multiplied by the team size
@@ -297,6 +298,7 @@ class HrProgress(analyst.Tracker):
             "partial": {"people": [{**x, "status": "waiting", "facts": [], "score": None, "fit": None,
                                     "grade": None, "cv": None} for x in (prev.get("partial") or {}).get("people") or []]}}
         self.planned = {k: 0 for k in DEFAULT_STEP_S}
+        self.cv_plan = self.cv_done = 0.0  # seconds-weight of the CV review parts (see _estimate)
         self.done = {k: 0 for k in DEFAULT_STEP_S}
         self.cur_kind: str | None = None
         self.cur_t0 = 0.0
@@ -310,6 +312,7 @@ class HrProgress(analyst.Tracker):
     def plan(self, people: list[dict], *, fetches: int, searches: int, team: bool) -> None:
         with self.lock:
             self.planned.update(fetch=fetches, search=searches, person_model=len(people), team_model=int(team))
+            self.cv_plan = CV_PART_S * len(CV_PARTS) * sum(1 for p in people if len((p.get("cv") or "").strip()) >= 200)
             self.n_people = max(1, len(people))
             self.st = per_step(self.stats, self.n_people)
             self.med = {k: v[1] for k, v in self.st.items()}
@@ -370,6 +373,8 @@ class HrProgress(analyst.Tracker):
         with self.lock:
             for x in self.p["partial"]["people"]:
                 if x["id"] == pid:
+                    if part in CV_PARTS and part not in (x.get("cv") or {}):
+                        self.cv_done = min(self.cv_plan, self.cv_done + CV_PART_S)
                     x["cv"] = {**(x.get("cv") or {}), part: data}
         self.save()
 
@@ -403,7 +408,8 @@ class HrProgress(analyst.Tracker):
             done += min(0.9, elapsed / med[self.cur_kind]) * med[self.cur_kind]
         if total <= 0:
             return self.p["pct"], None, None
-        pct = max(int(self.p["pct"]), min(99, int(2 + 97 * done / total)))
+        # CV review parts run next to the research: they move the ring, not the ETA
+        pct = max(int(self.p["pct"]), min(99, int(2 + 97 * (done + self.cv_done) / (total + self.cv_plan))))
         eta = max(3.0, total - done)
         rng = []
         for i in (0, 2):

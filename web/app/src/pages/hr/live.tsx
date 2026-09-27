@@ -84,12 +84,16 @@ function FeedIcon({ level }: { level: HrFeedItem["level"] }) {
 function PersonLive({ p, role }: { p: HrPartialPerson; role?: string }) {
   const { t, fmt } = useI18n();
   const facts = p.facts ?? [];
+  const cv = (p as HrPartialPerson & { cv?: CvLive | null }).cv;
+  // before the model reads the sources, a CV review in progress is the work being done for this person
+  const cvBusy = p.status === "waiting" && !!cv?.read && !(cv.timeline && cv.insights);
+  const st = cvBusy ? "working" : p.status;
   return (
-    <article className={"hx-pl " + p.status} aria-label={p.name}>
+    <article className={"hx-pl " + st} aria-label={p.name}>
       <header>
         <span className="hx-av" aria-hidden="true">{initials(p.name)}</span>
         <span className="nm"><b>{p.name}</b>{role && <small>{role}</small>}</span>
-        <span className={"hx-st " + p.status}>{p.status === "working" && <i aria-hidden="true" />}{t(("hr2.run.ps." + p.status) as DictKey)}</span>
+        <span className={"hx-st " + st}>{st === "working" && <i aria-hidden="true" />}{cvBusy ? t("hr3.ps.cv") : t(("hr2.run.ps." + p.status) as DictKey)}</span>
       </header>
       {(p.score != null || p.fit != null) && (
         <div className="hx-pl-sc">
@@ -97,7 +101,7 @@ function PersonLive({ p, role }: { p: HrPartialPerson; role?: string }) {
           {p.score != null && <span><small>{t("hr2.run.quality")}</small><b className="num">{fmt(Math.round(p.score))}</b></span>}
         </div>
       )}
-      <CvLivePanel cv={(p as HrPartialPerson & { cv?: CvLive | null }).cv} status={p.status} />
+      <CvLivePanel cv={cv} status={p.status} />
       {facts.length > 0 ? (
         <ul className="hx-pl-facts">
           {facts.slice(0, 3).map((f) => (

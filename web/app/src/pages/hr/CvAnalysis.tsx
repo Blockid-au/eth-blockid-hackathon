@@ -237,7 +237,7 @@ export function CvLivePanel({ cv, status }: { cv: CvLive | null | undefined; sta
         <Step busy={busy} done={!!ins} label={t("hr3.live.ins")} sub={ins ? t("hr3.live.ins.s", { k: fmt(ins.skills.length), a: fmt(ins.achievements.length) }) : t("hr3.live.wait")}>
           {ins && ins.skills.length > 0 && <span className="chips">{ins.skills.slice(0, 6).map((s) => <i key={s.name} className={"l-" + s.level}>{s.name}</i>)}</span>}
         </Step>
-        <Step busy={busy} done={!!cl} label={t("hr3.live.cl")} sub={cl ? t("hr3.claims.sum", { n: fmt(cl.filter((c) => c.status === "confirmed").length), m: fmt(cl.length) }) : t("hr3.live.cl.wait")} />
+        <Step busy={status === "working"} done={!!cl} label={t("hr3.live.cl")} sub={cl ? t("hr3.claims.sum", { n: fmt(cl.filter((c) => c.status === "confirmed").length), m: fmt(cl.length) }) : t("hr3.live.cl.wait")} />
       </ol>
     </section>
   );
