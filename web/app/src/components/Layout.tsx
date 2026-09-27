@@ -152,6 +152,7 @@ export function Nav() {
           <NavLink to="/i/offerings">{t("nav.offerings")}</NavLink>
           <Link to="/#how">{t("nav.how")}</Link>
           <NavLink to="/verify">{t("nav.verify")}</NavLink>
+          <NavLink to="/docs">{t("nav.docs")}</NavLink>
           <span className="navsep" aria-hidden="true" />
           <NavLink to="/start">{t("nav.studio")}</NavLink>
           <MyCompaniesNav list={mine} />
@@ -179,8 +180,8 @@ export function Footer() {
         <span>BlockID · eth.blockid.au</span>
         <span>
           {t("foot.deck")}:{" "}
-          <a href="/deck/BlockID-Startup-Passport-3min.pdf" download>PDF</a>{" · "}
-          <a href="/deck/BlockID-Startup-Passport-3min.pptx" download>PPTX</a>{" · "}
+          <a href="/deck/BlockID-Business-Passport-3min.pdf" download>PDF</a>{" · "}
+          <a href="/deck/BlockID-Business-Passport-3min.pptx" download>PPTX</a>{" · "}
           <a href="/deck/BlockID-Startup-Passport-pitch.pdf" download>{t("foot.deckFull")}</a>
         </span>
         <span className="foot-contact">

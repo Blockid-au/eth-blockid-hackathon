@@ -14,6 +14,7 @@ const AdminPage = lazy(() => import("./pages/Admin"));
 const HskPage = lazy(() => import("./pages/Hsk"));
 const VerifyPage = lazy(() => import("./pages/Verify"));
 const InvestorPage = lazy(() => import("./pages/Investor"));
+const DocsPage = lazy(() => import("./pages/Docs"));
 
 export function App() {
   const { pathname } = useLocation();
@@ -37,6 +38,7 @@ export function App() {
             <Route path="/hsk" element={<HskPage />} />
             <Route path="/verify" element={<VerifyPage />} />
             <Route path="/verify/:ticker" element={<VerifyPage />} />
+            <Route path="/docs" element={<DocsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
