@@ -13,6 +13,7 @@ import { shortAddr } from "../lib/addr";
 import { CompanyUpdateList, UpdateFeed, UpdatePage } from "./Updates";
 import { DividendLedgerCard, UpcomingDividends } from "./Dividends";
 import { StatusBar } from "../components/StatusBar";
+import { MyReservations, OfferingDetail, OfferingsList } from "./Offerings";
 
 /**
  * Investor portal: what you own, what it is worth at the latest approved price, and the dividends you received.
@@ -21,10 +22,12 @@ import { StatusBar } from "../components/StatusBar";
  *   /i/h/:tk      one of your holdings;  /i/demo/:tk  one holding of the sample portfolio
  *   /i/u/:id      one published business update (with "Check this update")
  *   /i/account    how you signed in, your wallet, key backup / restore
+ *   /i/offerings  share offerings (simulated);  /i/offerings/:id  one offering: information pack, reserve, withdraw
  */
 export default function InvestorPage() {
   const { view, tk } = useParams();
   if (view === "account") return <Account />;
+  if (view === "offerings") return tk ? <OfferingDetail id={tk} /> : <OfferingsList />;
   if (view === "u" && tk) return <UpdatePage id={tk} />;
   if (view === "demo") return <Portfolio demo tk={tk} />;
   if (view === "h" && tk) return <Portfolio tk={tk} />;
@@ -58,6 +61,7 @@ function Portfolio({ demo = false, tk }: { demo?: boolean; tk?: string }) {
       <PortfolioStatus h={h} mine={mine} />
       {!me && <SignInCard />}
       {empty ? <Empty /> : <Summary h={h} base={base} />}
+      {mine && <MyReservations />}
       {!empty && h.positions.length > 0 && <DividendLedgerCard demo={!mine} />}
       {!empty && h.positions.length > 0 && <UpdateFeed demo={!mine} />}
       {empty && <SampleBelow />}

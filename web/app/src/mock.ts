@@ -353,6 +353,11 @@ const routes: [string, RegExp, H][] = [
     if (!out.some((c) => c.ticker === "HAR") && letters.startsWith("HAR")) out.push({ ticker: "HAR", available: false, rule: "Taken (Harvest Agri)" });
     return { candidates: out.sort((a, b2) => Number(b2.available) - Number(a.available)) };
   }],
+  ["GET", /^\/v1\/studio\/tickers\/check/, (_m, b) => {
+    const tk = String(b?.ticker ?? "").toUpperCase();
+    const reason = !/^[A-Z]{3}$/.test(tk) ? "format" : ["AUD", "USD", "ASX"].includes(tk) ? "reserved" : find(tk) || tk === "HAR" ? "taken" : null;
+    return { ticker: tk, ok: reason === null, reason, suggestions: reason ? ["HBL", "HLG", "HRB"].filter((x) => !find(x)) : [] };
+  }],
   ["POST", /^\/v1\/studio\/companies$/, (_m, b) => {
     needUser();
     const v = vals.get(b?.valuation_id);

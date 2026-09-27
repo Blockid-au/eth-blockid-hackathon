@@ -116,6 +116,10 @@ EVENT_TEXT = {
     "mint_requested": "mint requested",
     "rejected": "rejected",
     "update_published": "business update published",
+    "offering_opened": "share offering opened",
+    "offering_closed": "share offering closed",
+    "offering_released": "share offering closed without reaching its minimum",
+    "offering_settled": "share offering completed",
 }
 
 
@@ -142,6 +146,20 @@ def event_text(e: dict) -> str:
                 + (f" for {d['period']}" if d.get("period") else "") + (f", paid from {when}" if when else ""))
     if e["kind"] == "dividend_vetoed" and d.get("total_units"):
         return f"announced dividend of {int(d['total_units']) / 1e6:,.2f} mAUD cancelled by the company"
+    if e["kind"] == "offering_opened" and d.get("shares"):
+        when = str(d.get("closes_at") or "")[:10]
+        return (f"share offering opened: {int(d['shares']):,} shares at A${float(d.get('price_aud') or 0):,.4f}"
+                .rstrip("0").rstrip(".") + (f", closes {when}" if when else "") + " (simulated)")
+    if e["kind"] == "offering_closed":
+        return (f"share offering closed: {int(d.get('shares') or 0):,} shares reserved by "
+                f"{int(d.get('investors') or 0):,} investors, waiting for approval to issue them")
+    if e["kind"] == "offering_released":
+        if d.get("by_admin"):
+            return "share offering closed by the platform; all reservations released"
+        return "share offering closed without reaching its minimum; all reservations released"
+    if e["kind"] == "offering_settled" and d.get("shares") is not None:
+        return (f"share offering completed: {int(d['shares']):,} new shares issued to "
+                f"{int(d.get('investors') or 0):,} investors (simulated payment)")
     if e["kind"] == "dividend_created" and d.get("total_units"):
         return f"dividend round {int(d['total_units']) / 1e6:,.2f} mAUD"
     return base

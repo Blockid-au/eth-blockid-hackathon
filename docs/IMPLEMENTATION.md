@@ -197,6 +197,12 @@ Design tokens, copy, flows and charts: copy the prototype.
 | POST `/v1/companies/{tk}/dividends/{id}/veto` | company admin | cancel an announced (`scheduled`) payment before `pay_after` |
 | GET `/v1/me/dividends`, `/v1/demo/dividends` | user / public | paid ledger + upcoming across holdings (CSV built in the browser) |
 | POST `/v1/admin/dividends/run-automation` | platform admin | one automation pass now |
+| GET/PUT `/v1/companies/{tk}/offering`, POST `.../offering/submit\|cancel\|close` | company admin | simulated share offering (studio/offerings.py): terms (price per share, default = latest approved price; shares offered; minimum to raise; most per investor; closing date; use of funds; optional holder cap), information pack built by code and fixed with a sha256 at submit, close early |
+| POST `/v1/admin/offerings/{id}/approve\|reject\|close\|settle\|release`, POST `/v1/admin/offerings/run-automation` | platform admin | queue "Offerings" ◆: open the offering; after close, approve settlement (one `studio.mints` row per investor with `offering_id`, then ONE issuer `POST /settle-offering`) or release every reservation |
+| GET `/v1/offerings`, `/v1/offerings/{id}` | public | open + finished offerings with progress and the pack; drafts only for company admins; `mine` when signed in |
+| POST `/v1/offerings/{id}/reservations` `{shares\|amount_aud, risk_ack, name?}`, POST `.../reservations/{rid}/withdraw` | signed-in wallet (demo account included, no signature) | DB commitment, first come first served under a row lock; per-investor, remaining and holder caps (`MAX_SHAREHOLDERS`, default 500) checked server-side; withdraw while open and within 5 days (whichever ends first) |
+| GET `/v1/me/reservations` | user | reservations with status (reserved / withdrawn / released / allocated) |
+| issuer POST `/settle-offering {offering_id}` | API only | one job: mint every `approved` allocation (KYC + gas via the mint path, never twice: chain checked first), reservations -> allocated, offering -> settled, event `offering_settled`, then one re-sync of the public copies |
 
 Automatic dividends (studio/dividend_policy.py): a background thread in the API (every `DIVIDEND_AUTOMATION_SECONDS`,
 default 60, 0 = off; the worker cannot reach the issuer) declares one `studio.dividends` row per published update whose
@@ -204,5 +210,12 @@ cadence matches an active policy (`source='policy'`, `status='scheduled'`, `appr
 the cap table at declaration, `pay_after = now + veto_hours`; no profit -> `skipped`), then flips due rows to `approved`
 and calls the issuer's existing `POST /dividend`. Events `dividend_declared`, `dividend_vetoed`. BlockID Chain only.
 
-Admin queues are now: Valuations ◆, Issuance ◆, Chain sync, Mints ◆, Dividends ◆, Dividend rules ◆, Updates ◆, Transfers & KYC.
+Simulated share offering (studio/offerings.py, UPGRADE-INVESTOR-PLAN 3f without contracts): "Simulated: no money moves on
+testnet". Statuses draft -> pending_approval -> open -> awaiting_settlement -> settling -> settled, or released (minimum not
+reached at close: every reservation released automatically), rejected / cancelled / failed (settlement can be approved
+again). A background thread in the API (every `OFFERING_AUTOMATION_SECONDS`, default 60, 0 = off) closes offerings whose
+closing date has passed. Events `offering_opened`, `offering_closed`, `offering_released`, `offering_settled`; every decision
+is audited. Tables `studio.offerings`, `studio.reservations`, `studio.mints.offering_id`.
+
+Admin queues are now: Valuations ◆, Issuance ◆, Chain sync, Mints ◆, Dividends ◆, Dividend rules ◆, Updates ◆, Offerings ◆, Transfers & KYC.
 Seed scripts: `scripts/seed-demo-account.py` (demo wallet holdings + dividend), `scripts/seed-updates.py CNV EBA` (3 monthly updates).

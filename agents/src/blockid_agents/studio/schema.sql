@@ -95,3 +95,35 @@ ALTER TABLE studio.dividends ADD COLUMN IF NOT EXISTS approved_by text;
 ALTER TABLE studio.dividends ADD COLUMN IF NOT EXISTS note text;
 CREATE UNIQUE INDEX IF NOT EXISTS dividends_update_uidx ON studio.dividends (update_id) WHERE update_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS dividends_status_idx ON studio.dividends (status, pay_after);
+-- simulated share offering (studio/offerings.py, docs/UPGRADE-INVESTOR-PLAN.md 3f): terms + information pack approved by a
+-- platform admin, reservations are DB commitments (no money moves on testnet), settlement = ONE issuer job that mints
+-- every allocation through studio.mints (offering_id set), then one re-sync of the public copies.
+CREATE TABLE IF NOT EXISTS studio.offerings (
+  id serial PRIMARY KEY, company_id int NOT NULL REFERENCES studio.companies(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','pending_approval','rejected','cancelled','open',
+    'awaiting_settlement','settling','settled','released','failed')),
+  price_aud numeric NOT NULL CHECK (price_aud > 0), shares_offered bigint NOT NULL CHECK (shares_offered > 0),
+  min_raise_aud numeric NOT NULL DEFAULT 0 CHECK (min_raise_aud >= 0),
+  max_per_investor_shares bigint NOT NULL CHECK (max_per_investor_shares > 0), max_holders int,
+  closes_at timestamptz NOT NULL, cooling_off_days int NOT NULL DEFAULT 5,
+  use_of_funds text NOT NULL DEFAULT '', pack jsonb, pack_hash text, reason text, close_reason text,
+  created_by text, submitted_at timestamptz, approved_by text, approved_at timestamptz, opened_at timestamptz,
+  closed_at timestamptz, closed_by text, settle_approved_by text, settle_approved_at timestamptz, settled_at timestamptz,
+  error text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+-- at most one offering in progress per company
+CREATE UNIQUE INDEX IF NOT EXISTS offerings_active_uidx ON studio.offerings (company_id)
+  WHERE status IN ('draft','pending_approval','rejected','open','awaiting_settlement','settling','failed');
+CREATE INDEX IF NOT EXISTS offerings_status_idx ON studio.offerings (status, closes_at);
+CREATE TABLE IF NOT EXISTS studio.reservations (
+  id serial PRIMARY KEY, offering_id int NOT NULL REFERENCES studio.offerings(id) ON DELETE CASCADE,
+  company_id int NOT NULL REFERENCES studio.companies(id) ON DELETE CASCADE,
+  wallet text NOT NULL, account_id int, name text NOT NULL DEFAULT '',
+  shares bigint NOT NULL CHECK (shares > 0), amount_aud numeric NOT NULL,
+  status text NOT NULL DEFAULT 'reserved' CHECK (status IN ('reserved','withdrawn','released','allocated')),
+  risk_ack_at timestamptz NOT NULL, cooling_off_until timestamptz NOT NULL, withdrawn_at timestamptz, mint_id int,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS reservations_offering_idx ON studio.reservations (offering_id, status);
+CREATE INDEX IF NOT EXISTS reservations_wallet_idx ON studio.reservations (lower(wallet));
+ALTER TABLE studio.mints ADD COLUMN IF NOT EXISTS offering_id int;
+CREATE UNIQUE INDEX IF NOT EXISTS mints_offering_wallet_uidx ON studio.mints (offering_id, lower(to_wallet))
+  WHERE offering_id IS NOT NULL;

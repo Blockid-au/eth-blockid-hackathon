@@ -202,9 +202,13 @@ def main() -> int:
     for r in refs:
         name, fx = r["company"], fixtures[r["company"]]
         row = {"company": name, "reference_aud": ref_aud(r), "reference_date": r["date"], "reference_url": r["url"]}
-        with tempfile.TemporaryDirectory() as tmp:
-            deps = live_deps(Path(tmp)) if a.live else offline_deps(name, fx, Path(tmp))
-            res = run_one(deps, f"bt-{name.lower().replace(' ', '-')}", fx["url"])
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                deps = live_deps(Path(tmp)) if a.live else offline_deps(name, fx, Path(tmp))
+                res = run_one(deps, f"bt-{name.lower().replace(' ', '-')}", fx["url"])
+        except Exception as e:  # noqa: BLE001 - one company failing (e.g. robots.txt) must not end the run
+            print(f"{name}: FAILED {type(e).__name__}: {str(e)[:160]}", file=sys.stderr)
+            continue
         tri = res["svi"]["triangulation"]
         row.update(value_aud=tri["value_aud"], low_aud=tri["low_aud"], high_aud=tri["high_aud"],
                    confidence=tri["confidence"], searches=len(res["searches"]),

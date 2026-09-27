@@ -35,6 +35,10 @@ class TransferReq(BaseModel):
     transfer_id: int
 
 
+class OfferingReq(BaseModel):
+    offering_id: int
+
+
 class KycReq(BaseModel):
     kyc_id: int
 
@@ -131,6 +135,12 @@ def create_app(service=None, cfg: IssuerConfig | None = None) -> FastAPI:
     def dividend(r: DividendReq) -> dict:
         s = svc()
         return submit("dividend", lambda: s.dividend(r.dividend_id), dividend_id=r.dividend_id)
+
+    @app.post("/settle-offering", status_code=202, dependencies=[Depends(auth)])
+    def settle_offering(r: OfferingReq) -> dict:
+        """ONE job for a whole share offering: mint every approved allocation, then one re-sync (HSK gas is scarce)."""
+        s = svc()
+        return submit("settle-offering", lambda: s.settle_offering(r.offering_id), offering_id=r.offering_id)
 
     @app.post("/drip", status_code=202, dependencies=[Depends(auth)])
     def drip(r: DripReq) -> dict:

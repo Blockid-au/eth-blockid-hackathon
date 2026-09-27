@@ -801,3 +801,20 @@ a.upd-card:hover { border-color: var(--accent); }
 form.panel > .field input { flex: 1 1 240px; }
 form.panel > .field .btn { flex: 0 1 auto; }
 @media (max-width: 480px) { form.panel > .field .btn { flex: 1 1 100%; white-space: normal; } }
+
+/* ---------- simulated share offering (pages/Offerings.tsx) ---------- */
+.of-bar { position: relative; height: 10px; border-radius: 999px; background: var(--sunken); }
+.of-bar i { display: block; height: 100%; max-width: 100%; border-radius: 999px; background: var(--accent); transition: width .35s ease; }
+.of-bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); opacity: .5; }
+.of-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .82rem; color: var(--muted); }
+.of-dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; margin: 0; font-size: .9rem; }
+.of-dl dt { color: var(--muted); }
+.of-dl dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.of-risks { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .9rem; }
+.of-upd { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.of-upd li { display: grid; gap: 2px; min-width: 0; }
+.of-upd li.between { display: flex; }
+.of-badge { display: inline-flex; align-items: center; gap: 6px; justify-self: start; font: 600 .72rem/1 var(--body); border-radius: 999px; padding: 4px 9px; background: var(--accent-soft); color: var(--accent-deep); white-space: nowrap; }
+.of-badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.of-ack { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; cursor: pointer; }
+.of-ack input { width: 18px; height: 18px; margin-top: 2px; flex: none; accent-color: var(--accent); }

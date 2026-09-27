@@ -3,6 +3,7 @@ import { invEn, invVi } from "./dict.investor";
 import { updEn, updVi } from "./dict.updates";
 import { divEn, divVi } from "./dict.dividends";
 import { v3En, v3Vi } from "./dict.v3";
+import { ofEn, ofVi } from "./dict.offerings";
 
 /** App strings added on top of the prototype copy. VI must cover every EN key (checked by the type). */
 const appEn = {
@@ -1319,6 +1320,6 @@ const appVi: Record<AppKey, string> = {
   "ad.d.audit": "Mọi thao tác admin: ai làm và khi nào.",
 };
 
-export const en = { ...protoEn, ...appEn, ...invEn, ...updEn, ...divEn, ...v3En };
+export const en = { ...protoEn, ...appEn, ...invEn, ...updEn, ...divEn, ...v3En, ...ofEn };
 export type DictKey = keyof typeof en;
-export const vi: Record<DictKey, string> = { ...protoVi, ...appVi, ...invVi, ...updVi, ...divVi, ...v3Vi };
+export const vi: Record<DictKey, string> = { ...protoVi, ...appVi, ...invVi, ...updVi, ...divVi, ...v3Vi, ...ofVi };

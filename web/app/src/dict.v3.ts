@@ -75,6 +75,16 @@ export const v3En = {
   "lb.quiet.link": "Top up",
   "in.chip.sample": "Sample data",
   "in.chip.demo": "Demo account · shared with every visitor",
+  "tk.checking": "Checking {t}…",
+  "tk.ok": "{t} is free to use.",
+  "tk.taken": "{t} is already used by another company. Choose another code.",
+  "tk.reserved": "{t} is a reserved word. Choose another code.",
+  "tk.format": "Use exactly 3 letters A–Z.",
+  "tk.try": "Free codes:",
+  "tk.stale": "{t} is no longer free. Pick another code before you add shareholders.",
+  "tk.first": "Choose a share code first.",
+  "tk.back": "Back to share code",
+  "tk.name": "Enter the company name.",
 } as const;
 
 export const v3Vi: Record<keyof typeof v3En, string> = {
@@ -153,4 +163,14 @@ export const v3Vi: Record<keyof typeof v3En, string> = {
   "lb.quiet.link": "Nạp thêm",
   "in.chip.sample": "Dữ liệu mẫu",
   "in.chip.demo": "Tài khoản demo · dùng chung cho mọi khách",
+  "tk.checking": "Đang kiểm tra {t}…",
+  "tk.ok": "{t} dùng được.",
+  "tk.taken": "{t} đã có công ty khác dùng. Hãy chọn mã khác.",
+  "tk.reserved": "{t} là từ bị cấm dùng. Hãy chọn mã khác.",
+  "tk.format": "Dùng đúng 3 chữ cái A–Z.",
+  "tk.try": "Mã còn trống:",
+  "tk.stale": "{t} không còn trống. Hãy chọn mã khác trước khi khai báo cổ đông.",
+  "tk.first": "Hãy chọn mã cổ phần trước.",
+  "tk.back": "Quay lại chọn mã",
+  "tk.name": "Nhập tên công ty.",
 };

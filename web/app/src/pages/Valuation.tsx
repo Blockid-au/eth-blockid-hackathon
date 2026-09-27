@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { DictKey } from "../dict";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useI18n } from "../i18n";
@@ -254,6 +254,29 @@ function TickerStep({ name, setName, ticker, setTicker }: { name: string; setNam
   const [cands, setCands] = useState<TickerCandidate[] | null>(null);
   const [err, setErr] = useState("");
   const [custom, setCustom] = useState("");
+  // result of the server check for the code being tried (a candidate, a typed code, or the saved draft)
+  const [chk, setChk] = useState<{ tk: string; state: "checking" | "ok" | "bad"; reason?: string | null; alts?: string[] } | null>(null);
+  const seq = useRef(0);
+
+  /** Accept a code only after the server says it is valid, not reserved and not used by another company. */
+  const tryCode = useCallback(async (tk: string) => {
+    const my = ++seq.current;
+    setChk({ tk, state: "checking" });
+    try {
+      const r = await api.checkTicker(tk, name.trim());
+      if (my !== seq.current) return;
+      setChk({ tk, state: r.ok ? "ok" : "bad", reason: r.reason, alts: r.suggestions });
+      setTicker(r.ok ? tk : "");
+    } catch (e) {
+      if (my !== seq.current) return;
+      setChk(null);
+      setErr(errText(e, t));
+    }
+  }, [name, setTicker, t]);
+
+  // a code saved in this browser earlier may have been taken since: check it again
+  useEffect(() => { if (ticker && /^[A-Z]{3}$/.test(ticker)) void tryCode(ticker); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!name.trim()) return;
     let live = true;
@@ -263,9 +286,9 @@ function TickerStep({ name, setName, ticker, setTicker }: { name: string; setNam
         if (!live) return;
         setCands(r.candidates);
         setErr("");
-        if (!ticker || !r.candidates.some((c) => c.ticker === ticker)) {
+        if (!custom && (!ticker || !r.candidates.some((c) => c.ticker === ticker && c.available))) {
           const first = r.candidates.find((c) => c.available);
-          if (first && !custom) setTicker(first.ticker);
+          if (first) void tryCode(first.ticker);
         }
       } catch (e) {
         if (live) setErr(errText(e, t));
@@ -273,21 +296,43 @@ function TickerStep({ name, setName, ticker, setTicker }: { name: string; setNam
     }, 400);
     return () => { live = false; clearTimeout(id); };
   }, [name]); // eslint-disable-line react-hooks/exhaustive-deps
-  const bad = custom !== "" && !/^[A-Z]{3}$/.test(custom);
+
+  const onCustom = (raw: string) => {
+    const x = raw.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
+    setCustom(x);
+    if (x.length === 3) void tryCode(x);
+    else {
+      seq.current++;
+      setChk(x ? { tk: x, state: "bad", reason: "format" } : null);
+      if (x) setTicker("");
+      else { const first = cands?.find((c) => c.available); if (first) void tryCode(first.ticker); }
+    }
+  };
+  const bad = chk?.state === "bad";
+  const msg = !chk ? "" : chk.state === "checking" ? t("tk.checking", { t: chk.tk }) : chk.state === "ok" ? t("tk.ok", { t: chk.tk })
+    : chk.reason === "taken" ? t("tk.taken", { t: chk.tk }) : chk.reason === "reserved" ? t("tk.reserved", { t: chk.tk }) : t("tk.format");
   return (
     <div className="cols">
       <div className="card">
-        <label className="lf"><span>{t("v.tk.cname")}</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} /></label>
+        <label className="lf"><span>{t("v.tk.cname")}</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} aria-invalid={!name.trim()} /></label>
+        {!name.trim() && <span className="hint bad">{t("tk.name")}</span>}
         <div className="tickers" role="group" aria-label={t("s4.h")}>
           {cands?.map((c) => (
-            <button key={c.ticker} type="button" className="tk" aria-pressed={c.ticker === ticker} disabled={!c.available} onClick={() => { setCustom(""); setTicker(c.ticker); }} title={c.available ? c.rule : t("v.tk.taken")}>{c.ticker}</button>
+            <button key={c.ticker} type="button" className="tk" aria-pressed={c.ticker === ticker} disabled={!c.available} onClick={() => { setCustom(""); void tryCode(c.ticker); }} title={c.available ? c.rule : t("v.tk.taken")}>{c.ticker}</button>
           ))}
           {!cands && !err && <span className="note">{t("common.loading")}</span>}
         </div>
         <label className="lf"><span>{t("v.tk.custom")}</span>
-          <input className={"tkinput" + (bad ? " bad" : "")} value={custom} maxLength={3} aria-invalid={bad} onChange={(e) => { const x = e.target.value.toUpperCase().replace(/[^A-Z]/g, ""); setCustom(x); if (/^[A-Z]{3}$/.test(x)) setTicker(x); }} />
+          <input className={"tkinput" + (bad && custom ? " bad" : "")} value={custom} maxLength={3} aria-invalid={bad && !!custom} aria-describedby="tk-msg" onChange={(e) => onCustom(e.target.value)} />
         </label>
-        {bad && <span className="hint bad">{t("v.tk.bad")}</span>}
+        {msg && (
+          <p id="tk-msg" className={"hint" + (bad ? " bad" : chk?.state === "ok" ? " ok" : "")} role={bad ? "alert" : "status"}>
+            {chk?.state === "ok" ? "✓ " : bad ? "✗ " : ""}{msg}
+            {bad && (chk?.alts?.length ?? 0) > 0 && (
+              <> {t("tk.try")}{" "}{chk!.alts!.map((a) => <button key={a} type="button" className="linkbtn mono" onClick={() => { setCustom(""); void tryCode(a); }}>{a}</button>).reduce<ReactNode[]>((acc, el, i) => (i ? [...acc, " · ", el] : [el]), [])}</>
+            )}
+          </p>
+        )}
         {err && <p className="err" role="alert">{err}</p>}
         <p className="sub"><span>{t("s4.name")}</span>: <b>{name || "…"} ORD ({ticker || "???"})</b></p>
       </div>
@@ -323,6 +368,14 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
   const [stage, setStage] = useState<"" | "creating" | "submitting" | "opening">("");
   const [err, setErr] = useState("");
   const [touched, setTouched] = useState(false);
+  // re-check the share code: another company may have taken it since step 4
+  const [tkBad, setTkBad] = useState<string | null>(null);
+  useEffect(() => {
+    if (!/^[A-Z]{3}$/.test(ticker)) { setTkBad(null); return; }
+    let live = true;
+    api.checkTicker(ticker, name).then((r) => { if (live) setTkBad(r.ok ? null : ticker); }).catch(() => { /* the server checks again on create */ });
+    return () => { live = false; };
+  }, [ticker, name]);
 
   const upd = (id: number, k: keyof Row, val: string) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [k]: val } : r)));
   const pcts = rows.map((r) => Number(r.pct) || 0);
@@ -341,7 +394,8 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
     if (!(Number(r.pct) > 0)) return "%";
     return "";
   });
-  const valid = ok && T >= 1 && rowErr.every((e) => !e) && /^[A-Z]{3}$/.test(ticker) && name.trim().length > 0;
+  const tickerReady = /^[A-Z]{3}$/.test(ticker) && !tkBad && name.trim().length > 0;
+  const valid = ok && T >= 1 && rowErr.every((e) => !e) && tickerReady;
   const folded = foldParts(rows.map((r, i) => ({ name: r.name || "—", v: Math.max(pcts[i], 0) })), t("c.other"));
   const parts = folded.map((p) => ({ ...p, tip: `${p.name} · ${fmt(p.v, 2)}%` }));
 
@@ -382,6 +436,12 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
 
   return (
     <>
+      {!tickerReady && (
+        <p className="quietline bad" role="alert">
+          <span>{tkBad ? t("tk.stale", { t: tkBad }) : !name.trim() ? t("tk.name") : t("tk.first")}</span>
+          <Link to={valPath(v.id, 4)}>{t("tk.back")} →</Link>
+        </p>
+      )}
       <div className="cols">
         <div className="card">
           <div className="field" style={{ alignItems: "center" }}>

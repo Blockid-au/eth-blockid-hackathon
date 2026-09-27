@@ -96,6 +96,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     are injectable for tests; by default they are built from settings."""
     from .studio.company_admins import build_company_admins_router
     from .studio.dividend_policy import build_dividend_policy_router, interval_from_env
+    from .studio.offerings import build_offerings_router
     from .studio.routes import build_router
     from .studio.transfers import build_transfer_router
     from .studio.updates import build_updates_router
@@ -109,12 +110,16 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
         """Automatic dividends: declare for newly published updates, pay once the veto window has passed
         (studio/dividend_policy.py). Runs in the API because only the API can reach the issuer.
         DIVIDEND_AUTOMATION_SECONDS=0 disables it."""
-        auto = app.state.studio.automation
+        from .studio.offerings import interval_from_env as offering_interval
+
+        auto, offers = app.state.studio.automation, app.state.studio.offerings
         auto.start(interval_from_env())
+        offers.start(offering_interval())  # closes offerings whose closing date has passed (OFFERING_AUTOMATION_SECONDS)
         try:
             yield
         finally:
             auto.stop()
+            offers.stop()
 
     app = FastAPI(title="BlockID Agents API", version="0.2.0", docs_url="/docs" if dev else None,
                   redoc_url="/redoc" if dev else None, openapi_url="/openapi.json" if dev else None, lifespan=lifespan)
@@ -150,6 +155,7 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     app.include_router(build_company_admins_router(ctx))
     app.include_router(build_updates_router(ctx))
     app.include_router(build_dividend_policy_router(ctx, ctx.automation))
+    app.include_router(build_offerings_router(ctx, ctx.offerings))
 
 
     def auth(x_api_key: str = Header(default="")) -> None:

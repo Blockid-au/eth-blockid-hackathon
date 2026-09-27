@@ -63,12 +63,12 @@ export function coReach(c: CompanyDetail): number {
 }
 
 /** Workspace sections in pager order (after the flow steps). */
-export const WS = ["overview", "updates", "cap-table", "transfers", "mint", "dividends", "activity", "team"] as const;
+export const WS = ["overview", "updates", "offering", "cap-table", "transfers", "mint", "dividends", "activity", "team"] as const;
 export type WsSection = (typeof WS)[number];
 export const coPath = (tk: string, seg: string) => `/c/${tk}/${seg}`;
 
 /* ---------- admin queues, in the order a company moves through the flow ---------- */
-export type QueueKey = "valuations" | "issuance" | "sync" | "mints" | "dividends" | "policies" | "updates";
+export type QueueKey = "valuations" | "issuance" | "sync" | "mints" | "dividends" | "policies" | "updates" | "offerings";
 export const QUEUES: { key: QueueKey; gate: boolean }[] = [
   { key: "valuations", gate: true },
   { key: "issuance", gate: true },
@@ -77,6 +77,7 @@ export const QUEUES: { key: QueueKey; gate: boolean }[] = [
   { key: "dividends", gate: true },
   { key: "policies", gate: true },
   { key: "updates", gate: true },
+  { key: "offerings", gate: true },
 ];
 export function queueItems(a: Approvals | undefined) {
   const cos = a?.companies ?? [];
@@ -88,12 +89,13 @@ export function queueItems(a: Approvals | undefined) {
     dividends: a?.dividends ?? [],
     policies: a?.policies ?? [],
     updates: a?.updates ?? [],
+    offerings: a?.offerings ?? [],
   };
 }
 export function queueCounts(a: Approvals | undefined): Record<QueueKey, number> & { total: number } {
   const q = queueItems(a);
-  const r = { valuations: q.valuations.length, issuance: q.issuance.length, sync: q.sync.length, mints: q.mints.length, dividends: q.dividends.length, policies: q.policies.length, updates: q.updates.length };
-  return { ...r, total: r.valuations + r.issuance + r.sync + r.mints + r.dividends + r.policies + r.updates };
+  const r = { valuations: q.valuations.length, issuance: q.issuance.length, sync: q.sync.length, mints: q.mints.length, dividends: q.dividends.length, policies: q.policies.length, updates: q.updates.length, offerings: q.offerings.length };
+  return { ...r, total: r.valuations + r.issuance + r.sync + r.mints + r.dividends + r.policies + r.updates + r.offerings };
 }
 
 /** Admin deep link for a gate, with the founder page to return to after the decision. */

@@ -23,6 +23,8 @@ import { CO_SEG, CO_STEP, coGate, coReach, coStep, LIVE, valPath, WS, type WsSec
 import { ErrorFix } from "../components/ErrorFix";
 import { CompanyUpdates } from "./Updates";
 import { CompanyDividends } from "./Dividends";
+import { CompanyOffering } from "./Offerings";
+import { OfferingBadge } from "../components/OfferingBadge";
 
 const TRANSIENT: CoStatus[] = ["pending_issue", "issuing", "issued", "pending_anchor", "anchoring", "partially_anchored"];
 const RUNNING: CoStatus[] = ["issuing", "anchoring"];
@@ -248,6 +250,14 @@ function useEventDetail() {
         return d.total_units != null ? `${fmt(Number(d.total_units) / 1e6, 2)} mAUD` : null;
       case "dividend_declared":
         return d.total_units != null ? t("evd.declared", { n: fmt(Number(d.total_units) / 1e6, 2), d: d.pay_after ? date(String(d.pay_after), true) : "–" }) + (d.period ? ` · ${String(d.period)}` : "") : null;
+      case "offering_opened":
+        return d.shares != null ? t("evd.of.opened", { n: fmt(Number(d.shares)), p: aud(Number(d.price_aud ?? 0), 4), d: d.closes_at ? date(String(d.closes_at)) : "–" }) : null;
+      case "offering_closed":
+        return t("evd.of.closed", { n: fmt(Number(d.shares ?? 0)), k: fmt(Number(d.investors ?? 0)) });
+      case "offering_released":
+        return d.released != null ? t("evd.of.released", { k: fmt(Number(d.released)) }) : null;
+      case "offering_settled":
+        return t("evd.of.settled", { n: fmt(Number(d.shares ?? 0)), k: fmt(Number(d.investors ?? 0)) });
       case "sync_failed": case "sync_skipped":
         return [ch, d.error ? String(d.error) : ""].filter(Boolean).join(": ") || null;
       case "refreshed":
@@ -333,7 +343,7 @@ const ORDER: Sec[] = ["issue", "sync", "wallet", ...WS];
 export default function CompanyPage() {
   const { ticker: raw = "", section } = useParams();
   const ticker = raw.toUpperCase();
-  const { t, fmt, money } = useI18n();
+  const { t, fmt, money, date } = useI18n();
   const { me } = useAuth();
   const mine = useMyCompanies();
   const loc = useLocation();
@@ -403,7 +413,7 @@ export default function CompanyPage() {
     if (!live) return t("ws.needlive");
     if (s === "transfers") return localToken ? (me ? null : t("ws.needsign")) : t("ws.needlive");
     if (s === "mint" || s === "dividends") return canRequest ? null : t("ws.needauth");
-    if (s === "team") return canManage ? null : t("ws.needauth");
+    if (s === "team" || s === "offering") return canManage ? null : t("ws.needauth");
     return null;
   };
   const sec: Sec = (ORDER as string[]).includes(section ?? "") && !why(section as Sec) ? (section as Sec) : (section ? "overview" : CO_SEG[step] as Sec);
@@ -419,7 +429,7 @@ export default function CompanyPage() {
       <FlowRail cur={flowN ?? 0} reach={Math.max(reach, 6)} gates={["ok", coGate(c)]}
         href={(n) => (n <= 3 ? (c.valuation_id ? valPath(c.valuation_id, Math.max(2, n)) : null) : n <= 5 ? null : `/c/${c.ticker}/${CO_SEG[n]}`)} />
       <RailGroup title={t("flow.ph.d")} aside={<span className="mono">{c.ticker}</span>}>
-        {WS.map((s) => <RailItem key={s} to={why(s) ? null : `/c/${c.ticker}/${s}`} current={sec === s} hint={why(s) ?? undefined} gate={s === "mint" || s === "dividends"}>{t(("ws." + s) as DictKey)}</RailItem>)}
+        {WS.map((s) => <RailItem key={s} to={why(s) ? null : `/c/${c.ticker}/${s}`} current={sec === s} hint={why(s) ?? undefined} gate={s === "mint" || s === "dividends" || s === "offering"}>{t(("ws." + s) as DictKey)}</RailItem>)}
         <RailItem to={`/verify/${c.ticker}`}>{t("ws.verify")} <span aria-hidden="true">↗</span></RailItem>
       </RailGroup>
     </>
@@ -456,11 +466,14 @@ export default function CompanyPage() {
           {c.grade && <span className="gchip lg" style={{ background: `var(${GRADE_C[c.grade] ?? "--c6"})` }} aria-label={`${t("ad.c.grade")} ${c.grade}`}>{c.grade}</span>}
         </h1>
         <span className="row" style={{ gap: 8 }}>
+          {c.offering?.status === "open" && <Link to={`/i/offerings/${c.offering.id}`} aria-label={t("of.badge.see")}><OfferingBadge /></Link>}
           {c.website && <a href={c.website} target="_blank" rel="noopener noreferrer" className="muted-sm">{c.website.replace(/^https?:\/\//, "")}</a>}
         </span>
       </div>
-      <StatusBar status={t(sbKey)} tone={sbTone} step={sbStep} done={sbDone} since={sbTone === "run" ? c.sync?.started_at ?? null : null}
-        meta={sbTone === "run" || sec === "overview" ? t(nextAct.k, { tk: c.ticker }) : null} next={sbNext} />
+      {sec !== "offering" && (  /* the offering section shows its own status line */
+        <StatusBar status={t(sbKey)} tone={sbTone} step={sbStep} done={sbDone} since={sbTone === "run" ? c.sync?.started_at ?? null : null}
+          meta={sbTone === "run" || sec === "overview" ? t(nextAct.k, { tk: c.ticker }) : null} next={sbNext} />
+      )}
       <StepHead eyebrow={flowN ? t("flow.stepof", { n: flowN, p: t("flow.ph.c") }) : t("ws.h")} title={flowN ? t(("step." + flowN) as DictKey) : t(("ws." + sec) as DictKey)} desc={t((flowN ? "flow.d" + flowN : "ws.d." + sec) as DictKey)} />
       {flash && <p className="toast" role="status">{flash}</p>}
       {c.error && c.status !== "rejected" && !(sec === "sync" && Object.keys(c.sync?.errors ?? {}).length) && !(sec === "issue" && c.status === "failed") && (
@@ -503,6 +516,9 @@ export default function CompanyPage() {
 
       {sec === "overview" && (
         <>
+          {c.offering?.status === "open" && (
+            <p className="quietline"><OfferingBadge /><span>{t("of.co.open", { d: date(c.offering.closes_at, true) })}</span><Link to={`/i/offerings/${c.offering.id}`}>{t("of.badge.see")} →</Link></p>
+          )}
           <div className="kpis">
             <div className="kpi"><small>{t("c.k.val")}</small><b>{money(c.valuation_aud)}</b><span>{t("c.k.valsub", { s: c.svi != null ? fmt(Number(c.svi), 1) : "–", g })}</span></div>
             <div className="kpi"><small>{t("k.shares")}</small><b>{fmt(c.total_shares)}</b><span>{t("c.k.sharesub", { tk: c.ticker })}</span></div>
@@ -515,6 +531,7 @@ export default function CompanyPage() {
         </>
       )}
       {sec === "updates" && <CompanyUpdates c={c} canManage={canManage} live={live} />}
+      {sec === "offering" && <CompanyOffering ticker={c.ticker} />}
       {sec === "cap-table" && <CapTable rows={holders} ticker={c.ticker} source={c.cap_table_source} block={c.cap_table_block} />}
       {sec === "transfers" && <TransferPanel c={c} onDone={() => void q.reload()} />}
       {sec === "mint" && <MintForm c={c} onSent={() => void q.reload()} />}

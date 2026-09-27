@@ -198,6 +198,31 @@ class Store:
     def update_dividend(self, dividend_id: int, **fields) -> None:
         self._update("studio.dividends", _DIVIDEND_COLS, dividend_id, fields, touch=False)
 
+    # ------------------------------------------------------------------ share offerings (studio/offerings.py)
+    def offering(self, offering_id: int) -> dict | None:
+        return self._one("SELECT * FROM studio.offerings WHERE id = %s", (offering_id,))
+
+    def offering_mints(self, offering_id: int) -> list[dict]:
+        return self._all("SELECT * FROM studio.mints WHERE offering_id = %s ORDER BY id", (offering_id,))
+
+    def fail_offering(self, offering_id: int, error: str) -> None:
+        """Settlement failed: unfinished allocations -> failed (approving the settlement again retries them)."""
+        with self._conn() as c, c.transaction():
+            c.execute("UPDATE studio.mints SET status = 'failed' WHERE offering_id = %s AND status IN "
+                      "('approved', 'minting')", (offering_id,))
+            c.execute("UPDATE studio.offerings SET status = 'failed', error = %s, updated_at = now() "
+                      "WHERE id = %s AND status = 'settling'", (error[:1000], offering_id))
+
+    def finish_offering(self, offering_id: int) -> None:
+        """Every allocation minted: reservations -> allocated (with their mint), offering -> settled."""
+        with self._conn() as c, c.transaction():
+            c.execute("UPDATE studio.reservations r SET status = 'allocated', mint_id = m.id, updated_at = now() "
+                      "FROM studio.mints m WHERE r.offering_id = %s AND r.status = 'reserved' "
+                      "AND m.offering_id = r.offering_id AND lower(m.to_wallet) = lower(r.wallet) "
+                      "AND m.status = 'minted'", (offering_id,))
+            c.execute("UPDATE studio.offerings SET status = 'settled', settled_at = now(), error = NULL, "
+                      "updated_at = now() WHERE id = %s AND status = 'settling'", (offering_id,))
+
     # ------------------------------------------------------------------ company admins (issuer/roles.py)
     def company_admin(self, company_id: int, address: str) -> dict | None:
         return self._one("SELECT * FROM studio.company_admins WHERE company_id = %s AND lower(address) = lower(%s)",

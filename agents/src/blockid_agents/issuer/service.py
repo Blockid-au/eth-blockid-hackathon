@@ -633,27 +633,10 @@ class Service:
         try:
             if not c or not c.get("local_token") or not c.get("local_registry"):
                 raise RuntimeError("company not issued on BlockID Chain")
-            L, cid = self.local, c["id"]
+            L = self.local
             reg = L.contract("IdentityRegistry", c["local_registry"])
             token = L.contract("BlockIDShareToken", c["local_token"])
-            to = cs(m["to_wallet"])
-            ref = k(f"studio-mint:{mint_id}")
-            # a retried mint (failed -> re-approved) may have landed before the failure: never issue twice
-            rec = self._landed_issue(token, ref, c.get("local_block") or 0)
-            if rec is None:
-                self._kyc(L, reg, to, m["holder_name"], cid)
-                self._drip_if_needed(to, cid)
-                rec = L.transact(token.functions.issue(to, int(m["shares"]), ref))
-            else:
-                log.warning("mint %s already on chain in %s; not re-sent", mint_id, rec.tx_hash)
-            # holders row follows the chain balance (idempotent across retries)
-            have = sum(int(h["shares"]) for h in st.holders(cid) if h["wallet"].lower() == to.lower())
-            delta = int(token.functions.balanceOf(to).call()) - have
-            if delta > 0:
-                st.add_holder_shares(cid, to, m["holder_name"], delta)
-            st.update_mint(mint_id, status="minted", tx_hash=rec.tx_hash)
-            self._event(cid, "minted", LOCAL, rec, mint_id=mint_id, wallet=to, name=m["holder_name"],
-                        shares=int(m["shares"]), reason=m.get("reason"))
+            self._issue_mint(c, reg, token, m)
         except Exception as e:
             log.exception("mint %s failed", mint_id)
             st.update_mint(mint_id, status="failed")
@@ -661,6 +644,77 @@ class Service:
                 st.update_company(c["id"], error=f"mint {mint_id}: {_err(e)}")
             return
         self.reanchor(c["id"])
+
+    def _issue_mint(self, c: dict, reg, token, m: dict) -> Receipt:
+        """Issue one claimed mint row on BlockID Chain (KYC + gas first) and record it; never issues twice."""
+        st, L, cid, mint_id = self.store, self.local, c["id"], m["id"]
+        to = cs(m["to_wallet"])
+        ref = k(f"studio-mint:{mint_id}")
+        # a retried mint (failed -> re-approved) may have landed before the failure: never issue twice
+        rec = self._landed_issue(token, ref, c.get("local_block") or 0)
+        if rec is None:
+            self._kyc(L, reg, to, m["holder_name"], cid)
+            self._drip_if_needed(to, cid)
+            rec = L.transact(token.functions.issue(to, int(m["shares"]), ref))
+        else:
+            log.warning("mint %s already on chain in %s; not re-sent", mint_id, rec.tx_hash)
+        # holders row follows the chain balance (idempotent across retries)
+        have = sum(int(h["shares"]) for h in st.holders(cid) if h["wallet"].lower() == to.lower())
+        delta = int(token.functions.balanceOf(to).call()) - have
+        if delta > 0:
+            st.add_holder_shares(cid, to, m["holder_name"], delta)
+        st.update_mint(mint_id, status="minted", tx_hash=rec.tx_hash)
+        extra = {"offering_id": m["offering_id"]} if m.get("offering_id") else {}
+        self._event(cid, "minted", LOCAL, rec, mint_id=mint_id, wallet=to, name=m["holder_name"],
+                    shares=int(m["shares"]), reason=m.get("reason"), **extra)
+        return rec
+
+    # ================================================================== share offering settlement (ONE job)
+    def settle_offering(self, offering_id: int) -> None:
+        with self._exclusive(f"offering:{offering_id}") as ok:
+            if ok:
+                self._settle_offering(offering_id)
+
+    def _settle_offering(self, oid: int) -> None:
+        """Mint every approved allocation of a settling offering on BlockID Chain, then re-sync the public copies
+        ONCE (one Hoodi + one HSK round for the whole offering). Only 'approved' mint rows are executed; rows already
+        minted are skipped and a retried row is checked on chain first, so a repeated call never issues twice."""
+        st = self.store
+        o = st.offering(oid)
+        if not o or o["status"] != "settling":
+            log.warning("offering %s is %s, not settling; skipped", oid, o["status"] if o else "missing")
+            return
+        c = st.company(o["company_id"])
+        issued = []
+        try:
+            if not c or not c.get("local_token") or not c.get("local_registry"):
+                raise RuntimeError("company not issued on BlockID Chain")
+            L = self.local
+            reg = L.contract("IdentityRegistry", c["local_registry"])
+            token = L.contract("BlockIDShareToken", c["local_token"])
+            for m in st.offering_mints(oid):
+                if m["status"] == "minted":
+                    issued.append(m)
+                    continue
+                claimed = st.claim_mint(m["id"])  # approved -> minting; anything else is not ours to execute
+                if not claimed:
+                    continue
+                self._issue_mint(c, reg, token, claimed)
+                issued.append({**claimed, "status": "minted"})
+            left = [m for m in st.offering_mints(oid) if m["status"] != "minted"]
+            if left:
+                raise RuntimeError(f"{len(left)} allocation(s) not issued (status {sorted({m['status'] for m in left})})")
+        except Exception as e:  # noqa: BLE001 - recorded on the offering; the admin can approve settlement again
+            log.exception("offering %s settlement failed", oid)
+            st.fail_offering(oid, _err(e))
+            return
+        shares = sum(int(m["shares"]) for m in issued)
+        st.finish_offering(oid)
+        self._event(c["id"], "offering_settled", None, None, offering_id=oid, shares=shares, investors=len(issued),
+                    mint_ids=[m["id"] for m in issued], price_aud=str(o["price_aud"]),
+                    reserved_aud=str((Decimal(str(o["price_aud"])) * shares).quantize(Decimal("0.01"))),
+                    simulated=True)
+        self.reanchor(c["id"])  # one mirror + root refresh per chain for the whole offering
 
     # ================================================================== dividend (BlockID Chain, DemoAUD)
     @staticmethod

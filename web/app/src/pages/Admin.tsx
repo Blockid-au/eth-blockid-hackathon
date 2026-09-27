@@ -4,7 +4,7 @@ import { safeNext } from "../components/DemoGuide";
 import { useI18n } from "../i18n";
 import { errText, useAuth } from "../auth";
 import {
-  api, ApiError, type AdminCompany, type ApprovalCompany, type Approvals, type AdminWallets, type AuditRow, type BizUpdate, type CompanySummary, type DividendPolicy, type DividendReq, type IssuerWallet, type MintReq, type Stats, type Valuation,
+  api, ApiError, type AdminCompany, type ApprovalCompany, type Approvals, type AdminWallets, type AuditRow, type BizUpdate, type Offering, type CompanySummary, type DividendPolicy, type DividendReq, type IssuerWallet, type MintReq, type Stats, type Valuation,
 } from "../api";
 import { GradeChart, KTile, Ranges, StepArea } from "../components/charts";
 import { MarkPanel } from "../components/MarkPanel";
@@ -25,6 +25,7 @@ import { CompanyAdminsPanel } from "../components/CompanyAdmins";
 import { ErrorFix } from "../components/ErrorFix";
 import { StatusPill, UpdateView } from "./Updates";
 import { PolicyPill, PolicySummary } from "./Dividends";
+import { OfferingQueueItem } from "./Offerings";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
@@ -397,13 +398,14 @@ function PolicyItem({ p, busy, act }: { p: DividendPolicy; busy: boolean; act: A
   );
 }
 
-type AnyItem = Valuation | ApprovalCompany | MintReq | DividendReq | BizUpdate | DividendPolicy;
+type AnyItem = Valuation | ApprovalCompany | MintReq | DividendReq | BizUpdate | DividendPolicy | Offering;
 const keyOf = (q: QueueKey, x: AnyItem): string =>
   q === "valuations" || q === "updates" ? (x as Valuation | BizUpdate).id : q === "issuance" || q === "sync" ? (x as ApprovalCompany).ticker : String((x as MintReq).id);
 function itemLabel(q: QueueKey, x: AnyItem): string {
   if (q === "valuations") return (x as Valuation).url.replace(/^https?:\/\//, "");
   if (q === "updates") return `${(x as BizUpdate).ticker} · ${(x as BizUpdate).title}`;
   if (q === "policies") return `${(x as DividendPolicy).ticker ?? ""} · ${(x as DividendPolicy).company_name ?? ""}`;
+  if (q === "offerings") return `${(x as Offering).ticker ?? ""} · ${(x as Offering).company_name ?? ""} · #${(x as Offering).id}`;
   if (q === "issuance" || q === "sync") return `${(x as ApprovalCompany).ticker} · ${(x as ApprovalCompany).name}`;
   return `${(x as MintReq).ticker ?? ""} #${(x as MintReq).id}`;
 }
@@ -481,6 +483,7 @@ function QueueView({ q, ap, wallets, onChanged }: { q: QueueKey; ap: Async<Appro
           {q === "dividends" && <DividendItem key={keyOf(q, cur)} d={cur as DividendReq} busy={busy} act={act} />}
           {q === "updates" && <UpdateItem key={keyOf(q, cur)} u={cur as BizUpdate} busy={busy} act={act} />}
           {q === "policies" && <PolicyItem key={keyOf(q, cur)} p={cur as DividendPolicy} busy={busy} act={act} />}
+          {q === "offerings" && <OfferingQueueItem key={keyOf(q, cur)} o={cur as Offering} busy={busy} act={act} />}
           {items.length > 1 && (
             <div className="pane">
               <h4>{t(("ad.q." + q) as DictKey)} · {items.length}</h4>
@@ -778,7 +781,7 @@ function AuditTab() {
 }
 
 /* ================= console ================= */
-const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "policies", "updates", "transfers", "companies", "wallets", "audit"] as const;
+const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "policies", "updates", "offerings", "transfers", "companies", "wallets", "audit"] as const;
 type Section = (typeof SECTIONS)[number];
 
 function Console({ onPwRequired }: { onPwRequired: () => void }) {
@@ -804,7 +807,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const refreshAll = () => { void stats.reload(); void cos.reload(); void ap.reload(); void tr.reload(); };
   const title: Record<Section, string> = {
     inbox: t("ad.nav.inbox"), dashboard: t("ad.t.ov"), valuations: t("ad.q.valuations"), issuance: t("ad.q.issuance"), sync: t("ad.q.sync"),
-    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), policies: t("ad.q.policies"), updates: t("ad.q.updates"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"),
+    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), policies: t("ad.q.policies"), updates: t("ad.q.updates"), offerings: t("ad.q.offerings"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"),
   };
   const isQueue = (QUEUES.map((x) => x.key) as string[]).includes(section);
   const rail = (

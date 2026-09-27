@@ -177,6 +177,8 @@ export interface CompanySummary {
   error?: string | null;
   error_info?: ErrorInfo | null;
   valuation_id?: string | null;
+  /** an open share offering of this business (simulated on testnet) */
+  offering?: OfferingBadge | null;
 }
 export interface CapRow {
   name: string;
@@ -283,6 +285,57 @@ export interface Approvals {
   updates?: BizUpdate[];
   /** dividend policies waiting for a platform admin (empty for company admins) */
   policies?: DividendPolicy[];
+  /** share offerings waiting for a platform admin: to open, or to settle (empty for company admins) */
+  offerings?: Offering[];
+}
+
+/* ---------- simulated share offering (studio/offerings.py) ---------- */
+export type OfferingStatus = "draft" | "pending_approval" | "rejected" | "cancelled" | "open" | "awaiting_settlement" | "settling" | "settled" | "released" | "failed";
+export interface OfferingBadge { id: number; status: OfferingStatus; closes_at: string }
+export interface OfferingTerms {
+  price_aud: number; shares_offered: number; min_raise_aud: number; max_per_investor_shares: number;
+  closes_at: string; use_of_funds: string; max_holders?: number | null;
+}
+export interface OfferingProgress {
+  reserved_shares: number; investors: number; remaining_shares: number; reserved_aud: number;
+  pct_of_offer: number; pct_of_min: number; min_reached: boolean;
+}
+export interface PackHolder { name: string; shares: number; pct: number }
+export interface OfferingPack {
+  version: number;
+  company: { ticker: string; name: string; website?: string | null };
+  terms: OfferingTerms & { max_raise_aud: number; cooling_off_days: number; max_holders: number; price_vs_mark_pct: number | null };
+  valuation: { value_aud: number; price_aud: number; as_of?: string | null; grade?: string | null; low_aud?: number | null; mid_aud?: number | null; high_aud?: number | null; confidence?: "high" | "medium" | "low" | null; report_date?: string | null; report_hash?: string | null; valuation_id?: string | null };
+  updates: { id: string; title: string; cadence: string; period_label: string; published_at?: string | null; summary: string; content_hash?: string | null }[];
+  cap_table: { before: { total_shares: number; holders: number; top: PackHolder[] }; after: { total_shares: number; new_shares: number; new_pct: number; top: PackHolder[] } };
+  risks: string[];
+  notices: string[];
+  simulated: boolean;
+  assembled_at: string;
+}
+export type ReservationStatus = "reserved" | "withdrawn" | "released" | "allocated";
+export interface Reservation {
+  id: number; offering_id: number; company_id: number; wallet: string; name: string; shares: number; amount_aud: number;
+  status: ReservationStatus; risk_ack_at: string; cooling_off_until: string; withdrawn_at?: string | null; mint_id?: number | null;
+  created_at: string; can_withdraw?: boolean;
+  // /v1/me/reservations
+  ticker?: string; company_name?: string; offering_status?: OfferingStatus; closes_at?: string; price_aud?: number;
+}
+export interface Offering extends OfferingTerms {
+  id: number; company_id: number; status: OfferingStatus; cooling_off_days: number; max_raise_aud: number;
+  pack?: OfferingPack | null; pack_hash?: string | null; reason?: string | null; close_reason?: string | null;
+  submitted_at?: string | null; approved_at?: string | null; opened_at?: string | null; closed_at?: string | null;
+  settle_approved_at?: string | null; settled_at?: string | null; error?: string | null; created_by?: string | null;
+  created_at?: string; updated_at?: string;
+  // public / queue views
+  ticker?: string; company_name?: string; website?: string | null; grade?: string | null; holder_limit?: number;
+  progress?: OfferingProgress; mine?: Reservation[]; mine_reserved_shares?: number; you_hold?: boolean;
+}
+export interface CompanyOfferingView {
+  ticker: string; company_id: number; name: string; you: string; live: boolean;
+  defaults: { price_aud: number; cooling_off_days: number; holders: number; max_holders: number; total_shares: number };
+  offering: Offering | null; pack: OfferingPack | null; progress: OfferingProgress | null; reservations: Reservation[];
+  history: (Offering & { progress: OfferingProgress })[];
 }
 
 /* ---------- automatic dividends (studio/dividend_policy.py) ---------- */
@@ -493,6 +546,8 @@ export const api = {
   decide: (id: string, approved: boolean, overrides?: Record<string, number>) =>
     request<Valuation>("POST", `/v1/studio/valuations/${enc(id)}/decision`, overrides ? { approved, overrides } : { approved }),
   suggestTickers: (name: string) => request<{ candidates: TickerCandidate[] }>("GET", `/v1/studio/tickers/suggest?name=${enc(name)}`),
+  checkTicker: (ticker: string, name = "") =>
+    request<{ ticker: string; ok: boolean; reason: "format" | "reserved" | "taken" | null; suggestions: string[] }>("GET", `/v1/studio/tickers/check?ticker=${enc(ticker)}&name=${enc(name)}`),
   createCompany: (body: { valuation_id: string; name: string; ticker: string; share_price_aud?: number; total_shares?: number; holders: HolderIn[] }) =>
     request<CompanyDetail & { id: number }>("POST", "/v1/studio/companies", body),
   submitCompany: (id: number) => request<CompanySummary>("POST", `/v1/studio/companies/${id}/submit`),
@@ -546,5 +601,20 @@ export const api = {
   approvePolicy: (id: number) => request<DividendPolicy>("POST", `/v1/admin/dividend-policies/${id}/approve`),
   rejectPolicy: (id: number, reason: string) => request<DividendPolicy>("POST", `/v1/admin/dividend-policies/${id}/reject`, { reason }),
   myDividends: () => request<DividendLedger>("GET", "/v1/me/dividends"),
+  // simulated share offering
+  companyOffering: (ticker: string) => request<CompanyOfferingView>("GET", `/v1/companies/${enc(ticker)}/offering`),
+  saveOffering: (ticker: string, body: OfferingTerms) => request<CompanyOfferingView>("PUT", `/v1/companies/${enc(ticker)}/offering`, body),
+  offeringAction: (ticker: string, action: "submit" | "cancel" | "close") => request<CompanyOfferingView>("POST", `/v1/companies/${enc(ticker)}/offering/${action}`),
+  offerings: () => request<{ offerings: Offering[]; simulated: boolean }>("GET", "/v1/offerings"),
+  offering: (id: number | string) => request<Offering>("GET", `/v1/offerings/${enc(String(id))}`),
+  reserve: (id: number, body: { shares?: number; amount_aud?: number; risk_ack: boolean; name?: string }) =>
+    request<{ reservation: Reservation; offering: Offering }>("POST", `/v1/offerings/${id}/reservations`, body),
+  withdrawReservation: (id: number, rid: number) => request<{ reservation: Reservation }>("POST", `/v1/offerings/${id}/reservations/${rid}/withdraw`),
+  myReservations: () => request<{ reservations: Reservation[] }>("GET", "/v1/me/reservations"),
+  approveOffering: (id: number) => request<Offering>("POST", `/v1/admin/offerings/${id}/approve`),
+  rejectOffering: (id: number, reason: string) => request<Offering>("POST", `/v1/admin/offerings/${id}/reject`, { reason }),
+  closeOfferingAdmin: (id: number) => request<unknown>("POST", `/v1/admin/offerings/${id}/close`),
+  settleOffering: (id: number) => request<{ id: number; status: string; investors: number; shares: number }>("POST", `/v1/admin/offerings/${id}/settle`),
+  releaseOffering: (id: number, reason: string) => request<unknown>("POST", `/v1/admin/offerings/${id}/release`, { reason }),
   demoDividends: () => request<DividendLedger>("GET", "/v1/demo/dividends"),
 };

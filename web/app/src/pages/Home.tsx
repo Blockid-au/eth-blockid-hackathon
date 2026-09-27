@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { OfferingBadge } from "../components/OfferingBadge";
 import { useI18n } from "../i18n";
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -150,6 +151,7 @@ function LiveStats() {
                     {c.grade && <span className="gchip" style={{ background: `var(${GRADE_C[c.grade] ?? "--c6"})` }} aria-label={`${t("ad.c.grade")} ${c.grade}`}>{c.grade}</span>}
                   </div>
                   <span style={{ fontWeight: 600 }}>{c.name}</span>
+                  {c.offering?.status === "open" && <OfferingBadge />}
                   <div className="top">
                     <span className="num">{money(c.valuation_aud)}</span>
                     <span className={"chg " + arrow(p)}>{chg(p)}</span>

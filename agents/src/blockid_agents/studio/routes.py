@@ -37,6 +37,7 @@ from .company_admins import CompanyAuthz, seed_owner
 from .gas import GasDripper
 from .updates import pending_updates
 from . import dividend_policy as divpol
+from . import offerings as offer
 from . import accounts as acct
 from .mailer import Mailer, welcome
 from .auth import (
@@ -157,6 +158,7 @@ class StudioContext:
     url_checker: Callable[[str], dict] = urlcheck.check_url  # tests swap in a fake
     rpc_transport: httpx.AsyncBaseTransport | None = None  # tests
     automation: Any = None  # dividend_policy.DividendAutomation, set by build_router
+    offerings: Any = None  # offerings.OfferingService, set by build_router
     _runner: Any = None
 
     @property
@@ -520,6 +522,22 @@ def build_router(ctx: StudioContext) -> APIRouter:
         taken = [x["ticker"] for x in ctx.need_db().all("SELECT ticker FROM studio.companies")]
         return {"candidates": tickers.suggest(name, taken)}
 
+    @r.get("/v1/studio/tickers/check")
+    def check_ticker(ticker: str = Query(max_length=16), name: str = Query(default="", max_length=200),
+                     sess: Session = Depends(require_user)):
+        """Share code check before the shareholder step: 3 letters, not reserved, not used by another company."""
+        tk = ticker.strip().upper()
+        taken = [x["ticker"] for x in ctx.need_db().all("SELECT ticker FROM studio.companies")]
+        reason = None
+        if not tickers.TICKER_RE.match(tk):
+            reason = "format"
+        elif tk in tickers.BLOCKLIST:
+            reason = "reserved"
+        elif tk in {t.upper() for t in taken}:
+            reason = "taken"
+        alts = [c["ticker"] for c in tickers.suggest(name or tk, taken) if c["available"]][:3] if reason else []
+        return {"ticker": tk, "ok": reason is None, "reason": reason, "suggestions": alts}
+
     def company_row(cid: int) -> dict:
         row = ctx.need_db().one("SELECT * FROM studio.companies WHERE id=%s", (cid,))
         if not row:
@@ -559,6 +577,8 @@ def build_router(ctx: StudioContext) -> APIRouter:
         tk = body.ticker.strip().upper()
         if not tickers.valid(tk):
             raise HTTPException(422, "ticker must be 3 letters A-Z and not reserved")
+        if db.one("SELECT id FROM studio.companies WHERE ticker=%s", (tk,)):
+            raise HTTPException(409, f"share code {tk} is already used by another company; choose another")
         if not 0 < body.share_price_aud <= 1_000_000:
             raise HTTPException(422, "share_price_aud must be > 0")
         total = body.total_shares if body.total_shares is not None else round(mid / body.share_price_aud)
@@ -638,6 +658,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
                 "valuations": vals, "companies": comps, "mints": jsonable(mints),
                 "updates": pending_updates(db, ids),
                 "policies": divpol.pending_policies(db, ids),
+                "offerings": offer.pending_offerings(db, ids),
                 "dividends": [{**jsonable(d), "total_maud": int(d["total_units"]) / 1e6} for d in divs]}
 
     @r.get("/v1/admin/companies")
@@ -774,7 +795,9 @@ def build_router(ctx: StudioContext) -> APIRouter:
         rows = db.all("SELECT * FROM studio.companies WHERE status = ANY(%s) ORDER BY valuation_aud DESC",
                       (list(ONCHAIN_STATUSES),))
         marks, holders, now = load_marks([c["id"] for c in rows]), holder_counts(), _utcnow()
-        return [metrics.company_summary(c, marks.get(c["id"], []), holders.get(c["id"], 0), now) for c in rows]
+        live_offers = offer.open_offerings(db)
+        return [{**metrics.company_summary(c, marks.get(c["id"], []), holders.get(c["id"], 0), now),
+                 "offering": live_offers.get(c["id"])} for c in rows]
 
     def holdings_for(wallets: list[str]) -> dict:
         """Positions of these wallets in every on-chain company, read from the chain (DB fallback)."""
@@ -873,6 +896,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
         return sorted(rows, key=lambda x: -x["shares"]), source, block
 
     ctx.automation = divpol.DividendAutomation(ctx, cap_table)
+    ctx.offerings = offer.OfferingService(ctx, cap_table)
 
     @r.get("/v1/companies/{tk}")
     def company_detail(tk: str, request: Request):
@@ -907,6 +931,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
             "error_info": company_error_info({**c, "sync": syncstate.view(c)}),
             "valuation_report_hash": c.get("valuation_report_hash"),
             "created_at": c.get("created_at"), "updated_at": c.get("updated_at"),
+            "offering": offer.open_offerings(db, [c["id"]]).get(c["id"]),
         })
         return out
 
