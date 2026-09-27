@@ -1,4 +1,4 @@
-# BlockID Startup Passport: feature gallery
+# BlockID Business Passport: feature gallery
 
 A walkthrough of every feature in the live testnet demo at **https://eth.blockid.au**, plus the BlockID Chain explorer at **https://scan.blockid.au**.
 

@@ -1,6 +1,6 @@
 # Architecture
 
-BlockID Startup Passport — *Agents propose. Humans approve. Chains prove.* Detailed, code-verified diagrams:
+BlockID Business Passport — *Agents propose. Humans approve. Chains prove.* Detailed, code-verified diagrams:
 [ARCHITECTURE-DIAGRAMS.md](ARCHITECTURE-DIAGRAMS.md). Canonical facts: [FACTS.md](FACTS.md).
 
 ## 1. Overview (live deployment, single host)

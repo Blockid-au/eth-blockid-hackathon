@@ -21,9 +21,9 @@ answers become part of the recorded disclosure.
 - Repo guide: [README.md](../README.md) · Demo script: [DEMO.md](DEMO.md) · Security: [SECURITY.md](SECURITY.md) ·
   Facts: [FACTS.md](FACTS.md)
 
-**Results (live, 26 Sep 2026):** 10 companies tokenised (ARW, GAA, SFT, MOM, ART, BVN, EHE, SVI, VBC, EBA), all
-anchored on 3 chains · 30 share-token contracts · A$5.63B marked valuation (median A$71.1M) · `/verify` 10 / 10 match
-on all three chains · 147 automated tests (110 pytest + 37 Foundry).
+**Results (live, 27 Sep 2026):** 14 companies tokenised (CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA), all
+anchored on 3 chains · 42 share-token contracts · A$87.1B marked valuation (median A$66.0M) · `/verify` 14 / 14 match
+on all three chains · 378 automated tests (341 pytest + 37 Foundry).
 
 Tracks entered: **Sydney Hackathon — AI x Ethereum & Agent Economy** · **Real-World Ethereum Applications** ·
 **HashKey Chain (RWA / AI Agents)**.
@@ -50,8 +50,8 @@ product where the hard problem is exactly the one the track names: **how do you 
 
 ### Real-World Ethereum Applications
 
-A live product for a real problem, not a mock: real websites crawled, real cited valuations, 10 companies issued
-with 30 token contracts, the cap table anchored on **Ethereum Hoodi** (`CapTableAnchor`
+A live product for a real problem, not a mock: real websites crawled, real cited valuations, 14 companies issued
+with 42 token contracts, the cap table anchored on **Ethereum Hoodi** (`CapTableAnchor`
 `0xF3dC95D5d207dE9f2aC98184Fd32b45B72334263`), MetaMask add-token on every chain, and a public `/verify` page that
 anyone can use to check a valuation report against the chain without trusting us.
 
@@ -238,8 +238,8 @@ Honest scope statement:
     public **`/verify`** page with a tamper test;
   - a **3-search research budget** with the Claude web-search bridge, and the **SambaNova → Claude bridge →
     DeepInfra** LLM chain (benchmark in [LLM-ROUTING.md](LLM-ROUTING.md));
-  - 10 companies issued and anchored on three chains (30 token contracts);
-  - English documentation for judges: README, this document, DEMO, FEATURES (39 screenshots), 12 architecture
+  - 14 companies issued and anchored on three chains (42 token contracts);
+  - English documentation for judges: README, this document, DEMO, FEATURES (40 screenshots), 12 architecture
     diagrams, user guide, 3-minute pitch deck and demo video.
 
 ## 9. Roadmap

@@ -25,22 +25,22 @@ paid straight to their wallet.
 | Verify any company (browser-side hash check) | https://eth.blockid.au/verify/EBA |
 | BlockID EVM explorer (Blockscout) | https://scan.blockid.au |
 | HashKey Chain page | https://eth.blockid.au/hsk |
-| Pitch deck (3 min) | [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx) |
-| Demo video (59 s) | [docs/video/blockid-startup-passport-demo.mp4](docs/video/blockid-startup-passport-demo.mp4) · 3-min video: https://eth.blockid.au/deck/blockid-business-passport-3min-captions.mp4 |
+| Pitch deck (3 min) | [PDF](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pptx) |
+| Video | 3-min: https://eth.blockid.au/deck/blockid-business-passport-3min-captions.mp4 · 59 s demo: https://eth.blockid.au/demo.mp4 |
 | Hackathon write-up · demo script | [docs/HACKATHON.md](docs/HACKATHON.md) · [docs/DEMO.md](docs/DEMO.md) |
 
 > **Testnet demo. Not an offer of securities.**
 
-## Results (live, 26 Sep 2026)
+## Results (live, 27 Sep 2026)
 
 | Metric | Value |
 |---|---|
-| Companies tokenised, all anchored on 3 chains | **12** — CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, DPT, SVI, VBC, EBA |
-| Share-token contracts | **36** (12 companies × BlockID EVM + Ethereum Hoodi + HashKey Chain) |
-| Marked valuation | **A$87.0B** (median A$71.1M) |
-| [`/verify`](https://eth.blockid.au/verify/EBA) | **12 / 12** companies match on all three chains |
-| Automated tests | **180** — 143 backend (pytest, incl. Postgres flows) + 37 contracts (Foundry) |
-| Docs | 12 architecture diagrams · 39-screen feature gallery · 3-minute pitch deck |
+| Companies tokenised, all anchored on 3 chains | **14** — CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA |
+| Share-token contracts | **42** (14 companies × BlockID EVM + Ethereum Hoodi + HashKey Chain) |
+| Marked valuation | **A$87.1B** (median A$66.0M) |
+| [`/verify`](https://eth.blockid.au/verify/EBA) | **14 / 14** companies match on all three chains |
+| Automated tests | **378** — 341 backend (pytest, incl. Postgres flows) + 37 contracts (Foundry) |
+| Docs | 12 architecture diagrams · 39-screen feature gallery · 3-minute pitch deck and video |
 
 Live numbers: `GET https://eth.blockid.au/api/v1/platform/stats`. Every token and contract, with supply checked
 on-chain: [docs/DEPLOYMENTS.md](docs/DEPLOYMENTS.md). Platform contracts: `CapTableAnchor` on
@@ -139,9 +139,9 @@ company https://eth.blockid.au/c/CNV · proof https://eth.blockid.au/verify/CNV.
 
 | Doc | What is inside |
 |---|---|
-| **Pitch deck (3 min)** — [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Startup-Passport-3min.pptx) · full deck [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-pitch.pdf) ([source](docs/pitch/)) | 7 slides, one key point each: hook, problem → solution, how it works, valuation, one approval → 3 chains, verify, live results / ask; timed speaker notes |
-| **Pitch video (2:56, narrated)** — [MP4](https://eth.blockid.au/deck/blockid-startup-passport-pitch-3min.mp4) · [with captions](https://eth.blockid.au/deck/blockid-startup-passport-pitch-3min-captions.mp4) · [SRT](https://eth.blockid.au/deck/blockid-startup-passport-pitch-3min.srt) ([build](docs/video/pitch3/)) | The 3-minute deck with English voice-over, ready to upload |
-| [User guide](docs/USER-GUIDE.md) | Task-by-task guide with screenshots: value a startup, tokenise, approve, MetaMask, new rounds, dividends, transfers/KYC, verify, operations |
+| **Pitch deck (3 min)** — [PDF](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pdf) · [PPTX](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pptx) ([source](docs/pitch/build-bp.js)) · earlier Startup Passport deck [PDF](https://eth.blockid.au/deck/BlockID-Startup-Passport-pitch.pdf) | 9 slides: investor problem, the five things every investor gets, understand / own / follow / get paid / check it, how it is built, live today and the ask |
+| **Pitch video (3:00, narrated)** — [MP4](https://eth.blockid.au/deck/blockid-business-passport-3min.mp4) · [with captions](https://eth.blockid.au/deck/blockid-business-passport-3min-captions.mp4) · [SRT](https://eth.blockid.au/deck/blockid-business-passport-3min.srt) ([build](docs/video/bp3/)) | The Business Passport deck plus live-app screens, English voice-over |
+| [User guide](docs/USER-GUIDE.md) | Task-by-task guide with screenshots: value a business, tokenise, approve, MetaMask, new rounds, dividends, transfers/KYC, verify, operations |
 | [Feature gallery](docs/FEATURES.md) | Every feature with screenshots from the live app (desktop, mobile, EN/VI) |
 | [Deployments and tokens](docs/DEPLOYMENTS.md) | Every company token and contract on BlockID Chain, Hoodi and HashKey testnet, supply checked on-chain (generated) |
 | [LLM routing](docs/LLM-ROUTING.md) | Free-first model chain (SambaNova → Claude subscription → DeepInfra) with the benchmark behind it |
@@ -292,7 +292,7 @@ Prerequisites: [Foundry](https://book.getfoundry.sh), Python 3.11+, `jq`.
 ```bash
 make contracts-deps              # OpenZeppelin v5.4.0 + forge-std into contracts/lib
 pip install -e "agents[dev]"     # Python agents, API, issuer (a virtualenv is recommended)
-make test                        # forge test (37 Solidity tests incl. fuzz) + pytest (110 passed; 7 Postgres
+make test                        # forge test (37 Solidity tests incl. fuzz) + pytest (279 passed; 62 Postgres
                                  # tests skip without TEST_DATABASE_URL)
 make demo                        # offline legacy data-room flow: profile → research → SVI → approval gates →
                                  # contract params → cap table → unsigned Safe batch → dividend Merkle round

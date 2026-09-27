@@ -1,6 +1,6 @@
 # Deployments and tokens
 
-_Generated 2026-09-26 07:55 UTC by `scripts/export-deployments.py` from Postgres + live on-chain reads. Do not edit by hand; re-run the script._
+_Generated 2026-09-27 11:50 UTC by `scripts/export-deployments.py` from Postgres + live on-chain reads. Do not edit by hand; re-run the script._
 
 ## Networks
 
@@ -28,6 +28,8 @@ Each company is issued on BlockID Chain (live token, KYC-gated) and mirrored to 
 | **SVI** | Startupvalueindex | anchored | 2 | 57,200,000 | [`0xa3E0…d8b6`](https://scan.blockid.au/token/0xa3E09b2EC28777668a8Cad6932f69Bb5DFB5d8b6) | [`0x718a…E454`](https://hoodi.etherscan.io/token/0x718a30741C341DB88C06b4C025579BbC817fE454) | [`0xe466…60e2`](https://testnet-explorer.hskchain.net/token/0xe46635467184157e7618489e650AF686F36060e2) | ✅ equal on 3 chains |
 | **DPT** | Deputy | anchored | 3 | 60,600,000 | [`0xfa17…e285`](https://scan.blockid.au/token/0xfa176608B8B51a8db620Da116E6753785803e285) | [`0xfa17…e285`](https://hoodi.etherscan.io/token/0xfa176608B8B51a8db620Da116E6753785803e285) | [`0xb8F9…1204`](https://testnet-explorer.hskchain.net/token/0xb8F909F8A2d8FdB41dBa2CaEe6b99A274da51204) | ✅ equal on 3 chains |
 | **CNV** | Canva | anchored | 5 | 70,512,750,000 | [`0x209D…Cc30`](https://scan.blockid.au/token/0x209D5009b93ec4be4C399544b8eB74a21A89Cc30) | [`0x5279…38B4`](https://hoodi.etherscan.io/token/0x527985c7A65Aeb8c0e4fb0c73d7Dfef3B9e238B4) | [`0x3709…d2b9`](https://testnet-explorer.hskchain.net/token/0x370977A0303D5F7047dF28875c18044CACd8d2b9) | ✅ equal on 3 chains |
+| **BLC** | Blockid | anchored | 3 | 3,712,000 | [`0xE281…4Ee3`](https://scan.blockid.au/token/0xE2818A32F2e52dB040D272a9350Dd705356d4Ee3) | [`0x38DF…C0Fc`](https://hoodi.etherscan.io/token/0x38DFf5A120908640613a36d7C5056EC7F377C0Fc) | [`0x41eA…e6d7`](https://testnet-explorer.hskchain.net/token/0x41eAeFdf3f31dd692De39B124D1F5BB15761e6d7) | ✅ equal on 3 chains |
+| **AST** | Australiablockchain | anchored | 2 | 63,200,000 | [`0xFb9c…eDc3`](https://scan.blockid.au/token/0xFb9c93d126B0C4e11B94070C540807f006FdeDc3) | [`0x02e7…dd28`](https://hoodi.etherscan.io/token/0x02e70420f4A735a6329fdeD334F0E8F5EE8cdd28) | [`0x9679…108E`](https://testnet-explorer.hskchain.net/token/0x9679E00E17eF6ec5b7d5181A02D35e798C0f108E) | ✅ equal on 3 chains |
 
 ### Full addresses
 
@@ -69,6 +71,12 @@ Each company is issued on BlockID Chain (live token, KYC-gated) and mirrored to 
 | CNV | Share token | `0x209D5009b93ec4be4C399544b8eB74a21A89Cc30` | `0x527985c7A65Aeb8c0e4fb0c73d7Dfef3B9e238B4` | `0x370977A0303D5F7047dF28875c18044CACd8d2b9` |
 | CNV | Identity registry | `0x527985c7A65Aeb8c0e4fb0c73d7Dfef3B9e238B4` | `0x0FD3CB2b336973E7bfb8E82c9302aF8793B4FaD1` | `0x6462D6D073B27e3eC29ff4a40CE5FD87430767cb` |
 | CNV | Dividend distributor | `0x9b11fE156f84a786Da14C7486960ccBc4b11bA30` | – | – |
+| BLC | Share token | `0xE2818A32F2e52dB040D272a9350Dd705356d4Ee3` | `0x38DFf5A120908640613a36d7C5056EC7F377C0Fc` | `0x41eAeFdf3f31dd692De39B124D1F5BB15761e6d7` |
+| BLC | Identity registry | `0xca36181FC85f6d0a08A861CA8B2a0E77C1573f4E` | `0x3366de4CDcb568e836e1b3FC03617FB803DdA64C` | `0x5389b38Bed58AEA88Fba56eE698875766898faA7` |
+| BLC | Dividend distributor | `0x8fC9f399D31E335Ba2cB024C3901f23f9cE58AC2` | – | – |
+| AST | Share token | `0xFb9c93d126B0C4e11B94070C540807f006FdeDc3` | `0x02e70420f4A735a6329fdeD334F0E8F5EE8cdd28` | `0x9679E00E17eF6ec5b7d5181A02D35e798C0f108E` |
+| AST | Identity registry | `0xBE31C101f3ed0441180826CA465891b327C6f1B5` | `0x4E8181da4F882F6e9EabED96b0EA87A8E32cC2E2` | `0xe8552c7fc89498Ec17954449236d59E8746ee4e9` |
+| AST | Dividend distributor | `0x9730F1fD5b7b5F1EFFf36357917500f3d61bE6C3` | – | – |
 
 ## Platform and demo contracts
 
@@ -116,6 +124,6 @@ Each company is issued on BlockID Chain (live token, KYC-gated) and mirrored to 
 ## BlockID Chain gas
 
 - `eth_gasPrice` = 0 wei; node `minimum-gas-prices = 0ablkd`.
-- feemarket: `no_base_fee=False`, `base_fee=0.000000000000000007`, `min_gas_price=0.000000000000000000`.
+- feemarket: `no_base_fee=True`, `base_fee=0.000000000000000000`, `min_gas_price=0.000000000000000000`.
 - Native token: **BLKD** (base denom `ablkd`, 18 decimals).
-- Governance proposal #1 “BlockID EVM: zero gas fees”: VOTING_PERIOD (voting ends 2026-09-27 04:08 UTC).
+- Governance proposal #1 “BlockID EVM: zero gas fees”: PASSED (voting ends 2026-09-27 04:08 UTC).

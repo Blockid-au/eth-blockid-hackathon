@@ -1,4 +1,4 @@
-# BlockID Startup Passport: user guide
+# BlockID Business Passport: user guide
 
 > **Testnet only. Not an offer of securities.** Every token, balance and dividend in this guide lives on test
 > networks and has no monetary value.
@@ -10,7 +10,7 @@ see [DEPLOYMENTS.md](DEPLOYMENTS.md).
 **Contents**
 
 1. [Before you start](#1-before-you-start)
-2. [Value a startup](#2-value-a-startup)
+2. [Value a business](#2-value-a-business)
 3. [Tokenise the company](#3-tokenise-the-company)
 4. [Admin: approve, issue, sync](#4-admin-approve-issue-sync)
 5. [Shareholders: see and hold your shares](#5-shareholders-see-and-hold-your-shares)
@@ -80,7 +80,7 @@ Every task has its own screen and URL, so you can reload, bookmark or send a lin
 
 ---
 
-## 2. Value a startup
+## 2. Value a business
 
 **Where:** https://eth.blockid.au/start (step 1) · **Who:** anyone with a wallet (3 valuations per wallet per day).
 

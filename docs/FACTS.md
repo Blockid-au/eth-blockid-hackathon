@@ -127,15 +127,15 @@ Worked example — **EBA (ETH BlockID Australia)**: BlockID `0x95A5a4b82897087B2
 Hoodi `0x1a305fdD461002BD6136476A69F3a268F79aAb3b` · HashKey `0x041Eb1B727c4cdDfc8D46f1fBCb812E1c94fbc90` ·
 report hash `0xa1466362b035ecc804caf101986edc4de73697cacf54547226317616c3a73e33`.
 
-## Live results (26 Sep 2026)
+## Live results (27 Sep 2026)
 
 | Metric | Value |
 |---|---|
-| Companies tokenised (all anchored on 3 chains) | **12** — CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, DPT, SVI, VBC, EBA |
-| Share-token contracts | **36** (12 companies × BlockID + Hoodi + HashKey) |
-| Marked valuation | **A$87.0B** (median A$71.1M) |
-| `/verify` | **12 / 12** companies match on all three chains |
-| Automated tests | **180** — 143 backend (pytest, incl. Postgres flows) + 37 contracts (Foundry) |
+| Companies tokenised (all anchored on 3 chains) | **14** — CNV, ARW, GAA, SFT, MOM, ART, BVN, EHE, AST, DPT, SVI, VBC, BLC, EBA |
+| Share-token contracts | **42** (14 companies × BlockID + Hoodi + HashKey) |
+| Marked valuation | **A$87.1B** (median A$66.0M) |
+| `/verify` | **14 / 14** companies match on all three chains |
+| Automated tests | **378** — 341 backend (pytest, incl. Postgres flows) + 37 contracts (Foundry) |
 | Docs | 12 architecture diagrams · 39-screen feature gallery · 3-minute pitch deck |
 
 When numbers change, update this table first, then README "Results", the decks and FEATURES.md.

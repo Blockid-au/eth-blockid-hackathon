@@ -9,7 +9,6 @@ import threading
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
-import pytest
 from eth_account import Account
 from psycopg.types.json import Jsonb
 from test_company_admins import OUTSIDER, OWNER, TOKEN, ca  # noqa: F401 (fixture)
