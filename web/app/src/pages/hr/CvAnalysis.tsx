@@ -23,6 +23,17 @@ function Stat({ v, l, tone }: { v: ReactNode; l: string; tone?: "warn" | "ok" })
   return <div className={"hx-cvstat" + (tone ? " " + tone : "")}><b className="num">{v}</b><small>{l}</small></div>;
 }
 
+/** Main roles overlapping another by more than 3 months, counting only roles whose dates carry a month
+    (a year-only end like "2013" reads as December and would flag normal job changes). */
+function preciseOverlaps(roles: CvRoleR[]): number {
+  const precise = (x: string) => /present|current|nay|hiện/i.test(x) || /\b(19|20)\d\d[-/.]\d{1,2}\b|\b\d{1,2}[-/.](19|20)\d\d\b|[a-z]{3,}\.? ?(19|20)\d\d/i.test(x);
+  const main = roles.filter((r) => ["employee", "founder", "freelance"].includes(r.kind) && precise(r.start) && precise(r.end))
+    .map((r) => [monthOf(r.start)!, monthOf(r.end, true)!] as const).filter(([a, z]) => a != null && z != null).sort((x, y) => x[0] - y[0]);
+  let n = 0;
+  for (let k = 1; k < main.length; k++) if (main.slice(0, k).some(([, z]) => main[k][0] < z - 2)) n++;
+  return n;
+}
+
 /** Horizontal career chart: one bar per role on a shared year axis; breaks of 6+ months shaded. */
 function Gantt({ tl }: { tl: CvTimeline }) {
   const { t, fmt } = useI18n();
@@ -106,7 +117,7 @@ export function CvAnalysis({ rv, ix }: { rv: CvReview | null | undefined; ix: Sr
   const { t, fmt } = useI18n();
   const dur = useDur();
   if (!rv) return <div className="hp-card"><h2>{t("hr3.tab")}</h2><p className="hp-lead">{t("hr3.none")}</p></div>;
-  const tl = rv.timeline, ins = rv.insights, st = tl?.stats;
+  const tl = rv.timeline, ins = rv.insights, st = tl?.stats ? { ...tl.stats, overlaps: preciseOverlaps(tl.roles) } : undefined;
   const claims = rv.claims?.length ? rv.claims : ins?.claims ?? [];
   return (
     <>
@@ -198,30 +209,35 @@ export function CvAnalysis({ rv, ix }: { rv: CvReview | null | undefined; ix: Sr
   );
 }
 
+/** One step of the live panel (module level: a component defined inside the panel would remount on every
+    once-a-second re-render of the run screen and restart its fade-in). */
+function Step({ done, busy, label, sub, children }: { done: boolean; busy: boolean; label: string; sub?: string; children?: ReactNode }) {
+  return (
+    <li className={done ? "done" : busy ? "now" : "todo"}>
+      <span className="dot" aria-hidden="true">{done ? Icon.met : busy ? <i /> : null}</span>
+      <div><b>{label}</b>{sub && <small>{sub}</small>}{children}</div>
+    </li>
+  );
+}
+
 /** Live panel inside a person card on the run screen: four steps that tick off as each part lands. */
 export function CvLivePanel({ cv, status }: { cv: CvLive | null | undefined; status: string }) {
   const { t, fmt } = useI18n();
   if (!cv?.read) return null;
   const r = cv.read, tl = cv.timeline, ins = cv.insights, cl = cv.claims;
   const busy = status === "working" || status === "waiting";
-  const Step = ({ done, label, sub, children }: { done: boolean; label: string; sub?: string; children?: ReactNode }) => (
-    <li className={done ? "done" : busy ? "now" : "todo"}>
-      <span className="dot" aria-hidden="true">{done ? Icon.met : busy ? <i /> : null}</span>
-      <div><b>{label}</b>{sub && <small>{sub}</small>}{children}</div>
-    </li>
-  );
   return (
     <section className="hx-cvlive" aria-label={t("hr3.live.h")} aria-live="polite">
       <h3>{t("hr3.live.h")}</h3>
       <ol>
-        <Step done label={t("hr3.live.read")} sub={t("hr3.live.read.s", { w: fmt(r.words), s: fmt(r.sections.length) }) + (r.years ? " · " + r.years[0] + "–" + r.years[1] : "")} />
-        <Step done={!!tl} label={t("hr3.live.tl")} sub={tl ? t("hr3.live.tl.s", { n: fmt(tl.stats.roles), y: fmt(tl.stats.years), g: fmt(tl.stats.gaps.length) }) : t("hr3.live.wait")}>
+        <Step busy={busy} done label={t("hr3.live.read")} sub={t("hr3.live.read.s", { w: fmt(r.words), s: fmt(r.sections.length) }) + (r.years ? " · " + r.years[0] + "–" + r.years[1] : "")} />
+        <Step busy={busy} done={!!tl} label={t("hr3.live.tl")} sub={tl ? t("hr3.live.tl.s", { n: fmt(tl.stats.roles), y: fmt(tl.stats.years), g: fmt(tl.stats.gaps.length) }) : t("hr3.live.wait")}>
           {tl && <ul className="mini">{tl.roles.slice(0, 3).map((x, i) => <li key={i}>{x.title || "–"} · <span>{x.org}</span></li>)}</ul>}
         </Step>
-        <Step done={!!ins} label={t("hr3.live.ins")} sub={ins ? t("hr3.live.ins.s", { k: fmt(ins.skills.length), a: fmt(ins.achievements.length) }) : t("hr3.live.wait")}>
+        <Step busy={busy} done={!!ins} label={t("hr3.live.ins")} sub={ins ? t("hr3.live.ins.s", { k: fmt(ins.skills.length), a: fmt(ins.achievements.length) }) : t("hr3.live.wait")}>
           {ins && ins.skills.length > 0 && <span className="chips">{ins.skills.slice(0, 6).map((s) => <i key={s.name} className={"l-" + s.level}>{s.name}</i>)}</span>}
         </Step>
-        <Step done={!!cl} label={t("hr3.live.cl")} sub={cl ? t("hr3.claims.sum", { n: fmt(cl.filter((c) => c.status === "confirmed").length), m: fmt(cl.length) }) : t("hr3.live.cl.wait")} />
+        <Step busy={busy} done={!!cl} label={t("hr3.live.cl")} sub={cl ? t("hr3.claims.sum", { n: fmt(cl.filter((c) => c.status === "confirmed").length), m: fmt(cl.length) }) : t("hr3.live.cl.wait")} />
       </ol>
     </section>
   );

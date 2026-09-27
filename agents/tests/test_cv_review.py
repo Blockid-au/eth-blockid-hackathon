@@ -78,3 +78,12 @@ def test_short_cv_skips_review(tmp_path):
     res = pa.analyse({"id": "t_cv3", "mode": "person", "name": "Jane Nguyen"}, [{**JANE, "cv": "CEO at AgriTrace"}],
                      deps_for(tmp_path))
     assert "cv_review" not in res["people"][0]
+
+
+def test_year_only_dates_do_not_count_as_overlap():
+    roles = [{"org": "Atlassian", "start": "06/2013", "end": "06/2016", "kind": "employee"},
+             {"org": "FPT", "start": "2011", "end": "2013", "kind": "employee"}]
+    assert cvr.timeline(roles)["overlaps"] == 0
+    roles = [{"org": "A", "start": "2015-01", "end": "2016-12", "kind": "employee"},
+             {"org": "B", "start": "2016-01", "end": "present", "kind": "employee"}]
+    assert cvr.timeline(roles)["overlaps"] == 1

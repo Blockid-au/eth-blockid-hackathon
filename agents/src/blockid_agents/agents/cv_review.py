@@ -159,6 +159,12 @@ def _month(s: str, *, end: bool = False) -> int | None:
     return int(y.group(0)) * 12 + m - 1
 
 
+def _precise(s: str) -> bool:
+    s = (s or "").strip().lower()
+    return s in ("present", "current", "now", "nay", "hiện tại", "today") or bool(
+        re.search(r"\b(?:19|20)\d\d[-/.]\d{1,2}\b|\b\d{1,2}[-/.](?:19|20)\d\d\b|[a-z]{3,}\.? ?(?:19|20)\d\d", s))
+
+
 def _label(m: int) -> str:
     return f"{m // 12}-{m % 12 + 1:02d}"
 
@@ -188,9 +194,10 @@ def timeline(roles: list[dict]) -> dict:
              "months": merged[k + 1][0] - merged[k][1] - 1}
             for k in range(len(merged) - 1) if merged[k + 1][0] - merged[k][1] - 1 >= GAP_MONTHS]
     main = [(a, z, i) for a, z, i in spans if roles[i].get("kind") in ("employee", "founder", "freelance")]
-    overlaps = 0
-    for k in range(1, len(main)):
-        if any(main[k][0] < main[j][1] - 2 for j in range(k)):  # > 3 months of two main jobs at once
+    exact = [(a, z, i) for a, z, i in main if _precise(roles[i].get("start", "")) and _precise(roles[i].get("end", ""))]
+    overlaps = 0  # only month-precise dates: a year-only end ("2013") reads as December and flags a normal move
+    for k in range(1, len(exact)):
+        if any(exact[k][0] < exact[j][1] - 2 for j in range(k)):  # > 3 months of two main jobs at once
             overlaps += 1
     tenures = [roles[i]["months"] for _, _, i in main if roles[i].get("months")]
     now = _month("present") or 0
@@ -241,7 +248,7 @@ class CVReview:
         if part == "timeline":
             t = data["stats"]
             self.tr.note(f"Career timeline ready: {t['roles']} role(s), about {t['years']:g} years"
-                         + (f", {len(t['gaps'])} break(s) of {GAP_MONTHS}+ months" if t["gaps"] else ", no long breaks"),
+                         + (f", breaks of {GAP_MONTHS}+ months: {len(t['gaps'])}" if t["gaps"] else ", no long breaks"),
                          level="found", person=self.name)
         else:
             self.tr.note(f"CV insights ready: {len(data['skills'])} skills, {len(data['achievements'])} measurable "
