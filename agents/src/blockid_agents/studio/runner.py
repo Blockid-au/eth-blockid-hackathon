@@ -61,9 +61,11 @@ class ValuationRunner:
         row0 = self.db.get_valuation(vid) or {}
         team_scored = (((row0.get("result") or {}).get("qualitative") or {}).get("founder_quality") or {}
                        ).get("basis") == "team_report"  # the checkpoint predates the team blend: use the stored result
-        if self.graph.get_state(cfg).interrupts and not team_scored:
+        # valuation v5: projections / admin assumptions changed after the run -> the stored result is newer
+        v5_rerun = bool(((row0.get("result") or {}).get("valuation_inputs") or {}).get("rerun_at"))
+        if self.graph.get_state(cfg).interrupts and not team_scored and not v5_rerun:
             out = self.graph.invoke(Command(resume=decision), cfg)
-            patch = {k: out[k] for k in ("svi", "qualitative") if approved and out.get(k)}
+            patch = {k: out[k] for k in ("svi", "qualitative", "valuation_inputs") if approved and out.get(k)}
         else:  # checkpoint unavailable (e.g. separate SQLite files): re-score from the stored result
             row = self.db.get_valuation(vid) or {}
             res = {**(row.get("result") or {}), "self_reported": row.get("self_reported")}

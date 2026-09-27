@@ -237,7 +237,10 @@ def apply_self_reported(p: StartupProfile, self_reported: dict | None) -> list[s
     """Founder-provided figures override what the website stated. Returns the metric fields overridden."""
     if not self_reported:
         return []
-    sr = SelfReportedMetrics.model_validate(self_reported)  # re-checked: state may come from a stored row
+    # re-checked: state may come from a stored row. Evaluation v5 inputs (SelfReportedMetricsV2) carry extra keys
+    # that do not map to profile metrics; only the v1 keys are applied here.
+    sr = SelfReportedMetrics.model_validate({k: v for k, v in self_reported.items()
+                                             if k in SelfReportedMetrics.model_fields})
     used = []
     for k, v in sr.model_dump(exclude_none=True).items():
         if k in SELF_REPORTED_TO_METRIC:

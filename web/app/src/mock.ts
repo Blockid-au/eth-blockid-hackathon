@@ -10,6 +10,7 @@ import { hrApplyToVal, hrForValuation, hrHandle, hrInit, NO_MATCH } from "./mock
 import { aiHealth, aiPause, aiResume } from "./mock.ai";
 import { opsRoutes } from "./mock.ops";
 import { jobsRoutes } from "./mock.jobs";
+import { NO_V5, v5Decorate, v5Handle, v5Init, v5Track } from "./mock.v5";
 
 const DAY = 864e5;
 const NOW = Date.now();
@@ -33,6 +34,7 @@ const actor = () => session?.address ?? session?.username ?? "anon";
 const needUser = () => { if (!session) throw new ApiError(401, "Not signed in"); };
 const needAdmin = () => { needUser(); if (session!.role !== "admin") throw new ApiError(403, "admin only"); if (session!.must_change) throw new ApiError(403, "password change required"); };
 hrInit({ actor: () => actor(), needUser: () => needUser(), isAdmin: () => session?.role === "admin", valUrl: (id) => vals.get(id)?.v.url ?? null });
+v5Init({ actor: () => actor(), isAdmin: () => session?.role === "admin" });
 
 /* ---------------- companies ---------------- */
 const NAMES = ["Maya Chen", "Tom Nguyen", "Seed Fund I", "ESOP pool", "Angels", "Priya Shah", "Liam O'Brien", "Hana Sato", "Kiwi Ventures", "Quoc Tran", "Ava Rossi", "Noah Kim", "Southern Cross Capital", "Mai Pham"];
@@ -192,6 +194,7 @@ function progress(x: Val) {
     { name: "Portside Labs", url: "https://portside.example", raised_aud: null, note: "Private", sources: 1, basis: "model_suggested_verified" },
   ];
   if (done >= 5) v.svi = markSelfReported(sviFor(host), v.self_reported);
+  if (v.svi) v5Decorate(v);  // no-op unless the valuation was started with v5 inputs (mock.v5.ts)
   const warn: string[] = [];
   if (v.self_reported) warn.push(SR_WARNING);
   if (done >= 3 && host.includes("nosearch")) warn.push("Search unavailable: competitors suggested by the model and verified by fetching their websites");
@@ -309,6 +312,7 @@ const routes: [string, RegExp, H][] = [
     needUser();
     const id = Math.random().toString(36).slice(2, 10);
     const x = newVal(id, String(b?.url ?? ""), Date.now(), actor());
+    v5Track(id, b?.metrics);
     const sr = (b?.metrics ?? null) as SelfReported | null;
     x.v.self_reported = sr && Object.keys(sr).length ? { ...sr } : null;
     if (b?.team?.people?.length) {
@@ -507,6 +511,8 @@ export async function handle(method: string, path: string, body: unknown): Promi
   const q = qs ? Object.fromEntries(new URLSearchParams(qs)) : null;
   const hr = hrHandle(method, p, body ?? q);
   if (hr !== NO_MATCH) return hr;
+  const v5 = v5Handle(method, p, body ?? q);
+  if (v5 !== NO_V5) return v5;
   for (const [m, re, h] of routes) {
     if (m !== method) continue;
     const mm = p.match(re);

@@ -49,6 +49,25 @@ VALUATION_METHOD = (
     "cited multiple (x (1 - private-company discount)), and the stage benchmark x factor (weight 0.1 with another "
     "method, 0 when > 5x away) - range widened to at least +/-10/20/35% for high/medium/low confidence."
 )
+VALUATION_METHOD_V5 = (
+    " v5 reports (svi.triangulation.version = 'v5'): the stage (tools/stage) and a valuation class (idea, pre-seed, "
+    "seed, Series A, growth, profitable SME, listed) select up to 11 standard methods - own market price, revenue "
+    "multiple, EBITDA multiple (listed peers, 25% marketability discount), precedent transactions, discounted cash "
+    "flow (CAPM or venture discount rate, Gordon or exit-multiple terminal value, mid-year), First Chicago scenarios, "
+    "VC method, Payne scorecard, Berkus, risk factor summation and the stage benchmark. Each method is rebuilt from "
+    "the numbers stored in its inputs; its weight = the stage x method matrix x evidence-quality factors "
+    "(params_by_version); a method more than 3x from the weighted median of the methods gets weight 0 (a verified own "
+    "price at most 24 months old is never excluded); the blend is the weighted mean, widened to at least "
+    "+/-10/20/35% by confidence. Values based on management projections are labelled as such."
+)
+
+
+def _params_by_version() -> dict:
+    from ..tools.valuation_params import PARAMS, thaw
+
+    return {k: {kk: thaw(vv) for kk, vv in v.items() if kk != "projection"} for k, v in PARAMS.items()}
+
+
 PUBLIC_RPC = {"hoodi": "https://ethereum-hoodi-rpc.publicnode.com", "hsk": "https://testnet.hsk.xyz"}
 EXPLORERS = {
     "blockid": "https://scan.blockid.au/token/{}",
@@ -64,7 +83,8 @@ def formula() -> dict:
         "current_formula": svi_tools.FORMULA_VERSION,
         "grade_bands": GRADE_BANDS,
         "stage_pre_revenue_range_aud": {k: list(v) for k, v in svi_tools.STAGE_PRE_REVENUE_RANGE.items()},
-        "valuation_method": VALUATION_METHOD,
+        "valuation_method": VALUATION_METHOD + VALUATION_METHOD_V5,
+        "params_by_version": _params_by_version(),
         "hash": "report_hash = keccak256(utf8(canonical_json({url, profile, competitors, market, svi, "
                 "self_reported}))) — keys sorted recursively, separators (',', ':'), no ASCII escaping",
     }
@@ -98,7 +118,9 @@ def recompute(report: dict) -> dict:
 
     # Reports keep the formula version they were valued with; try the current rules first, then the
     # earlier ones, and say which version reproduces the stored numbers.
-    candidates = [("v3", _range_v3(s.get("triangulation"), s.get("method") or ""))] if s.get("triangulation") else []
+    tri = s.get("triangulation") if isinstance(s.get("triangulation"), dict) else None
+    tri_ver = "v5" if (tri or {}).get("version") == "v5" else "v3"  # v5: tools/valuation_v5.recompute_v5
+    candidates = [(tri_ver, _range_v3(tri, s.get("method") or ""))] if tri else []
     candidates += [("v2", _range_v2(rev, factor, market, stage, profile.get("sector") or "")),
                   ("v1b", _range_v1(rev, factor, market, stage, spread=True)),
                   ("v1", _range_v1(rev, factor, market, stage, spread=False))]
@@ -122,6 +144,8 @@ def recompute(report: dict) -> dict:
            "low": round(low, -3), "mid": round(mid, -3), "high": round(high, -3),
            "method": method, "formula_version": version, "current_formula": svi_tools.FORMULA_VERSION,
            "weights_version": wver, "weights": dict(weights), "contributions": contributions}
+    if version == "v5":  # per-method values rebuilt from the stored inputs (football field on /verify)
+        out["methods"] = _methods_v5(tri)
     out["matches_report"] = {
         "index": s.get("index") is not None and abs(_num(s.get("index")) - index) < 0.005,
         "band": s.get("band") == out["band"],
@@ -157,6 +181,15 @@ def _range_v3(tri: dict, method: str):
     except Exception:  # noqa: BLE001 - malformed stored inputs -> no match
         return 0.0, 0.0, 0.0, method
     return r["low"], r["mid"], r["high"], method
+
+
+def _methods_v5(tri: dict) -> list[dict]:
+    from ..tools.valuation_v5 import recompute_v5
+
+    try:
+        return recompute_v5(tri)["methods"]
+    except Exception:  # noqa: BLE001 - malformed stored inputs
+        return []
 
 
 def _range_v2(rev, factor, market: dict, stage, sector):

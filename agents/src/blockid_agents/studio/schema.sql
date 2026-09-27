@@ -246,3 +246,37 @@ CREATE TABLE IF NOT EXISTS studio.ops_checks_state (check_id text PRIMARY KEY, s
 CREATE TABLE IF NOT EXISTS studio.ops_mail_log (id bigserial PRIMARY KEY, at timestamptz NOT NULL DEFAULT now(),
   kind text NOT NULL, to_addr text NOT NULL, subject text NOT NULL, ok boolean NOT NULL, error text);
 CREATE INDEX IF NOT EXISTS ops_mail_log_at_idx ON studio.ops_mail_log (at DESC);
+-- valuation v5 (docs/PLAN-VALUATION-V5.md §6.3, §7, §8.3; studio/projections.py, studio/finalise.py). Unused while
+-- VALUATION_V5=0. `final` = the frozen value / price / share count the company and offerings read (ValuationFinal).
+ALTER TABLE studio.valuations ADD COLUMN IF NOT EXISTS final jsonb;
+CREATE TABLE IF NOT EXISTS studio.valuation_projections (
+  id serial PRIMARY KEY, valuation_id text NOT NULL REFERENCES studio.valuations(id) ON DELETE CASCADE,
+  status text NOT NULL CHECK (status IN ('draft','confirmed','superseded')),
+  filename text, content_type text, size_bytes int, sha256 text NOT NULL, file bytea,
+  parsed jsonb NOT NULL DEFAULT '{}', checks jsonb NOT NULL DEFAULT '[]', template_version int,
+  uploaded_by text NOT NULL, attested_by text, attested_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS valuation_projections_vid ON studio.valuation_projections (valuation_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS studio.valuation_price_requests (
+  id serial PRIMARY KEY, valuation_id text NOT NULL REFERENCES studio.valuations(id) ON DELETE CASCADE,
+  status text NOT NULL CHECK (status IN ('pending','approved','rejected','cancelled')),
+  recommended_price_aud numeric NOT NULL, requested_price_aud numeric NOT NULL, deviation_pct numeric NOT NULL,
+  reason text NOT NULL, note text, requested_by text NOT NULL, requested_role text, report_hash text NOT NULL,
+  low_override jsonb,
+  decided_by text, decided_at timestamptz, decision_reason text, created_at timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS valuation_price_requests_pending ON studio.valuation_price_requests (valuation_id)
+  WHERE status = 'pending';
+CREATE TABLE IF NOT EXISTS studio.valuation_assumption_changes (
+  id serial PRIMARY KEY, valuation_id text NOT NULL REFERENCES studio.valuations(id) ON DELETE CASCADE,
+  path text NOT NULL, old jsonb, new jsonb, reason text NOT NULL, actor text NOT NULL,
+  status text NOT NULL CHECK (status IN ('applied','pending','rejected')), approved_by text, decided_at timestamptz,
+  report_hash_before text, report_hash_after text, at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS valuation_assumption_changes_vid ON studio.valuation_assumption_changes (valuation_id, id);
+-- evaluation v5 (studio/evaluation.py, docs/EVALUATION-V5-API.md): founder-uploaded documents as TEXT only (the
+-- browser parses the file; sha256 = the original bytes), contacts redacted; parsed = CSV metrics / verified deck claims
+CREATE TABLE IF NOT EXISTS studio.valuation_documents (id serial PRIMARY KEY,
+  valuation_id text NOT NULL REFERENCES studio.valuations(id) ON DELETE CASCADE,
+  kind text NOT NULL CHECK (kind IN ('deck','metrics_csv','financials')), filename text NOT NULL,
+  sha256 text NOT NULL, text_sha256 text, text text NOT NULL DEFAULT '', parsed jsonb NOT NULL DEFAULT '{}',
+  uploaded_by text, created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS valuation_documents_vid_idx ON studio.valuation_documents (valuation_id);

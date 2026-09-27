@@ -26,8 +26,9 @@ from ..agents import dividend as dividend_agent
 from ..agents.site_intake import SiteError, normalize_url
 from ..config import Settings
 from ..issuer import syncstate
-from ..schemas import QualitativeScores, SelfReportedMetrics
+from ..schemas import QualitativeScores, SelfReportedMetrics, SelfReportedMetricsV2
 from ..tools import captable
+from ..tools.stage import v5_enabled as stage_is_v5
 from ..tools import ticker as tickers
 from ..tools.merkle import build_distribution
 from . import metrics
@@ -98,7 +99,8 @@ class CheckUrlBody(Body):
 
 class ValuationBody(Body):
     url: str = Field(max_length=500)
-    metrics: SelfReportedMetrics | None = None  # optional founder-provided figures (labelled self-reported)
+    # optional founder-provided figures (labelled self-reported); the v2 keys are accepted only with VALUATION_V5=1
+    metrics: SelfReportedMetricsV2 | None = None
     team: TeamStart | None = None  # optional founding team (studio/hr.py): runs after research, feeds founder_quality
 
 
@@ -501,6 +503,9 @@ def build_router(ctx: StudioContext) -> APIRouter:
         if body.team is not None and body.team.consent is not True:
             raise HTTPException(422, "team.consent: confirm that the listed people agreed to this review")
         self_reported = body.metrics.model_dump(exclude_none=True) if body.metrics else None
+        v2_only = sorted(set(self_reported or {}) - set(SelfReportedMetrics.model_fields))
+        if v2_only and not stage_is_v5():
+            raise HTTPException(422, f"metrics: unknown field(s) {v2_only} (extended inputs need evaluation v5)")
         try:  # admins: no per-wallet or daily cap, but the queue-depth cap still applies
             vid = db.create_valuation_limited(
                 url, sess.actor, per_wallet=None if sess.is_admin else s.valuations_per_day,
@@ -628,9 +633,16 @@ def build_router(ctx: StudioContext) -> APIRouter:
             raise HTTPException(422, "ticker must be 3 letters A-Z and not reserved")
         if db.one("SELECT id FROM studio.companies WHERE ticker=%s", (tk,)):
             raise HTTPException(409, f"share code {tk} is already used by another company; choose another")
-        if not 0 < body.share_price_aud <= 1_000_000:
+        price = body.share_price_aud
+        from . import finalise as fin  # valuation v5 (VALUATION_V5=1): defaults come from the finalised value
+
+        g = fin.company_create_guard(db, v, body)
+        if g is not None:
+            price, mid = g["share_price_aud"], g["valuation_aud"]
+        if not 0 < price <= 1_000_000:
             raise HTTPException(422, "share_price_aud must be > 0")
-        total = body.total_shares if body.total_shares is not None else round(mid / body.share_price_aud)
+        total = (g["total_shares"] if g is not None else body.total_shares if body.total_shares is not None
+                 else round(mid / price))
         if not 0 < total <= 10**15:
             raise HTTPException(422, "total_shares out of range")
         for h in body.holders:  # same rule as the shareholder step in the browser
@@ -650,7 +662,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
                     "share_price_aud,total_shares,status,created_by) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'draft',%s) "
                     "RETURNING *",
                     (tk, body.name.strip(), v["url"], v["id"], svi.get("index"), _grade(svi.get("band")),
-                     Decimal(str(mid)), Decimal(str(body.share_price_aud)), total, sess.actor),
+                     Decimal(str(mid)), Decimal(str(price)), total, sess.actor),
                 ).fetchone()
                 for h in alloc:
                     c.execute("INSERT INTO studio.holders(company_id,name,wallet,pct,shares) VALUES (%s,%s,%s,%s,%s)",

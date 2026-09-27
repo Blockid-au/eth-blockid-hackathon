@@ -18,6 +18,9 @@ import { allocate, colorAt, foldParts } from "../lib/math";
 import { SAMPLE, SAMPLE_EVIDENCE } from "../lib/sample";
 import { SR_FIELDS, type SrField } from "../lib/selfReported";
 import { addrError, isAddressValid } from "../wallet";
+import { readV5 } from "../components/v5/types";
+import { Report5 } from "./valuation5/Report5";
+import { FinalHint, useFinal } from "./valuation5/Finalise";
 
 const ACTIVE = ["queued", "running", "waiting_approval"];
 
@@ -128,9 +131,12 @@ function AdminReview({ v, svi, onDone }: { v: Val; svi: Svi; onDone: (x: Val) =>
   );
 }
 
-function Report({ v, evidence, isAdmin, onDecided, onTeamDone }: { v: Val; evidence: Evidence[] | undefined; isAdmin: boolean; onDecided: (x: Val) => void; onTeamDone?: () => void }) {
+function Report({ v, evidence, isAdmin, canEdit, onDecided, onTeamDone, reload }: { v: Val; evidence: Evidence[] | undefined; isAdmin: boolean; canEdit?: boolean; onDecided: (x: Val) => void; onTeamDone?: () => void; reload?: () => void }) {
   const { t, fmt, money, date } = useI18n();
   const svi = v.svi!;
+  const v5 = readV5(v);  // v5 data only when VALUATION_V5 produced it; otherwise the report below is unchanged
+  if (v5) return <Report5 v={v} x={v5} evidence={evidence} isAdmin={isAdmin} canEdit={!!canEdit} onTeamDone={onTeamDone} reload={reload ?? (() => undefined)}
+    adminSlot={isAdmin && v.status === "waiting_approval" ? <AdminReview v={v} svi={svi} onDone={onDecided} /> : null} />;
   const rows = dimRows(svi, t);
   const g = bandGrade(svi);
   const comps = (v.competitors ?? []).slice(0, 8);
@@ -364,8 +370,11 @@ let rowSeq = 1;
 function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string; ticker: string; defaultWallet?: string | null }) {
   const { t, fmt, money } = useI18n();
   const nav = useNavigate();
-  const mid = Math.round(v.svi!.valuation_mid_aud);
+  const tok = useFinal(v, !!readV5(v)?.tri);
+  const fin = tok?.final_state === "valid" ? tok.final : null;  // frozen v5 proposal: share count + price come from it
+  const mid = fin ? fin.total_shares : Math.round(v.svi!.valuation_mid_aud);
   const [total, setTotal] = useState<string>(String(mid));
+  useEffect(() => { if (fin) setTotal(String(fin.total_shares)); }, [fin?.total_shares]); // eslint-disable-line react-hooks/exhaustive-deps
   const [rows, setRows] = useState<Row[]>(() => [{ id: rowSeq++, name: "", wallet: defaultWallet ?? "", pct: "100" }]);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<"" | "creating" | "submitting" | "opening">("");
@@ -428,7 +437,7 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
     setBusy(true); setErr(""); setStage("creating");
     try {
       const holders = rows.map((r, i) => ({ name: r.name.trim(), wallet: isAddressValid(r.wallet)!, pct: Math.round(pcts[i] * 100) / 100 }));
-      const c = await api.createCompany({ valuation_id: v.id, name: name.trim(), ticker, share_price_aud: 1, total_shares: T, holders });
+      const c = await api.createCompany({ valuation_id: v.id, name: name.trim(), ticker, share_price_aud: fin ? fin.price_per_share_aud : 1, total_shares: T, holders });
       const tk = c.ticker ?? ticker;
       setStage("submitting");
       try {
@@ -460,10 +469,10 @@ function HoldersStep({ v, name, ticker, defaultWallet }: { v: Val; name: string;
         <div className="card">
           <div className="field" style={{ alignItems: "center" }}>
             <label htmlFor="supply" className="sub">{t("s5.supply")}</label>
-            <input id="supply" type="number" min={1} step={1000} value={total} className={totalErr ? "bad" : undefined} aria-invalid={!!totalErr} aria-describedby="supply-err" onChange={(e) => setTotal(e.target.value)} style={{ maxWidth: 180 }} />
-            <button type="button" className="btn ghost sm" onClick={() => setTotal(String(mid))}>{money(mid)}</button>
+            <input id="supply" type="number" min={1} step={1000} value={total} readOnly={!!fin} className={totalErr ? "bad" : undefined} aria-invalid={!!totalErr} aria-describedby="supply-err" onChange={(e) => setTotal(e.target.value)} style={{ maxWidth: 180 }} />
+            {!fin && <button type="button" className="btn ghost sm" onClick={() => setTotal(String(mid))}>{money(mid)}</button>}
           </div>
-          <span className="hint">{t("v.sh.default", { n: fmt(mid) })}</span>
+          {tok ? <FinalHint v={v} tok={tok} /> : <span className="hint">{t("v.sh.default", { n: fmt(mid) })}</span>}
           {totalErr && <span id="supply-err" className="hint bad" role="alert">{totalErr}</span>}
           <div className="tbl captbl">
             <table>
@@ -662,7 +671,7 @@ export default function ValuationPage() {
 
       {cur === 2 && siteFail && <SiteFailed v={v} />}
       {cur === 2 && <AgentLog v={v} />}
-      {cur === 3 && v.svi && <Report v={v} evidence={ev.data} isAdmin={isAdmin} onDecided={(x) => q.setData(x)} onTeamDone={() => void q.reload()} />}
+      {cur === 3 && v.svi && <Report v={v} evidence={ev.data} isAdmin={isAdmin} canEdit={!sample && !!me && (isAdmin || (!!v.requested_by && [me.address, me.username].some((w) => !!w && w.toLowerCase() === v.requested_by!.toLowerCase())))} onDecided={(x) => q.setData(x)} onTeamDone={() => void q.reload()} reload={() => void q.reload()} />}
       {cur === 4 && !sample && (
         <div className="panel"><TickerStep name={name} setName={setName} ticker={ticker} setTicker={setTicker} /></div>
       )}

@@ -74,6 +74,9 @@ SCHEMA_PROFILES: dict[str, str] = {
     "PersonAnalysis": "extract_json", "SuggestedPeople": "extract_json",
     "QualitativeScores": "reason_score", "Narrative": "reason_score", "MarketAnalysis": "reason_score",
     "TeamAnalysis": "reason_score", "ContractReview": "reason_score",
+    # evaluation v5 analysts (docs/PLAN-EVALUATION-V5.md §2.2): cited claims only -> extract_json
+    "TractionClaims": "extract_json", "MarketSizeClaims": "extract_json", "MoatClaims": "extract_json",
+    "RetentionClaims": "extract_json", "DeckFacts": "extract_json",
 }
 
 # Benchmark priors per profile (docs/LLM-ROUTING.md "AI gateway benchmark"): quality 0..1 (agreement with the

@@ -255,3 +255,111 @@ def valuation_range(rev: float, factor: float, market: MarketAnalysis | None, st
 
     return low, mid, high, method, review
 
+
+
+# ------------------------------------------------------------------ v5 (VALUATION_V5; docs/EVALUATION-V5-API.md)
+# Nine dimensions, weights by stage (tools/stage.STAGE_PROFILES, owner decision 2). WEIGHT_SETS above is untouched
+# so /verify of v1-v4 reports behaves exactly as before; v5 reports record weights_profile = "v5:<stage>" and carry
+# the stage profile they used in svi.analysis.stage_profile.
+FORMULA_VERSION_V5 = "v5"
+
+
+def weights_v5(stage: str) -> dict[str, float]:
+    from . import stage as stage_tools
+
+    return stage_tools.weights(stage)
+
+
+WEIGHTS_V5: dict[str, dict[str, float]] = {}  # filled lazily by _weights_v5_table() (avoids an import cycle)
+
+
+def _weights_v5_table() -> dict[str, dict[str, float]]:
+    from . import stage as stage_tools
+
+    if not WEIGHTS_V5:
+        WEIGHTS_V5.update({s: stage_tools.weights(s) for s in stage_tools.STAGES})
+    return WEIGHTS_V5
+
+
+def index_v5(dimensions: dict, weights: dict[str, float]) -> float:
+    def sc(d):
+        return float(d.score if hasattr(d, "score") else (d or {}).get("score", 0.0))
+
+    return round(sum(w * sc(dimensions.get(k)) for k, w in weights.items()), 2)
+
+
+def apply_v5(result: SVIResult | dict, analysis) -> SVIResult:
+    """Turn a (v4-scored) SVIResult into a v5 one: the 9 v5 dimensions from `analysis` (tools/evaluation.evaluate),
+    the stage weights, index, band, `analysis`, `weights_profile`, review items; the valuation fields and the
+    triangulation are left to the valuation engine. Recomputes the report hash."""
+    from ..schemas import Analysis
+
+    res = SVIResult.model_validate(result) if isinstance(result, dict) else result
+    an = Analysis.model_validate(analysis) if isinstance(analysis, dict) else analysis
+    weights = dict(an.stage_profile.get("weights") or weights_v5(an.stage.stage))
+    dims: dict[str, DimensionScore] = {}
+    for k in weights:
+        d = an.dimensions[k]
+        sources = list(dict.fromkeys(c.source_url for c in d.evidence if c.source_url))[:8]
+        dims[k] = DimensionScore(score=round(float(d.score), 1), basis=d.basis, rationale=d.rationale,
+                                 sources=sources)
+    res.dimensions = dims
+    res.weights = weights
+    res.index = index_v5(dims, weights)
+    res.band = band(res.index)
+    res.weights_profile = f"v5:{an.stage.stage}"
+    res.analysis = an
+    review = [x for x in res.needs_human_review
+              if not x.startswith(("market_attractiveness:", "trust_verification:"))]
+    review += [f"{k}: AI-suggested score must be confirmed" for k, d in dims.items()
+               if d.basis == "ai_suggested" and f"{k}: AI-suggested score must be confirmed" not in review]
+    review += [f"consistency: {f.message}" for f in an.flags if f.severity in ("warning", "high")]
+    if an.stage.conflict:
+        review.append(f"stage: {an.stage.reasons[-1] if an.stage.reasons else 'signals disagree'}")
+    res.needs_human_review = list(dict.fromkeys(review))
+    res.report_sha256 = report_hash(res)
+    return res
+
+
+def recompute_v5(svi_dict: dict) -> dict:
+    """/verify helper for v5 reports: rebuild every sub-metric score (value vs stored benchmark, level shrink),
+    each code-computed dimension (weighted mean, coverage cap) and the index from the STORED analysis and weights.
+    Returns {index, dimensions: {k: score}, matches: {index, dimensions: {k: bool}}}."""
+    from . import stage as stage_tools
+
+    s = svi_dict or {}
+    an = s.get("analysis") or {}
+    weights = s.get("weights") or {}
+    out_dims: dict[str, float] = {}
+    for k, d in (an.get("dimensions") or {}).items():
+        subs = d.get("sub_metrics") or []
+        if d.get("basis") != "computed" or k == "trust_verification" or not subs:
+            out_dims[k] = float(d.get("score", 0))
+            continue
+        scored, tot, acc = [], 0.0, 0.0
+        for sm in subs:
+            if sm.get("status") in ("not_applicable", "not_benchmarked"):
+                continue
+            tot += sm.get("weight", 0)
+            if sm.get("status") not in ("scored", "capped") or sm.get("score") is None:
+                continue
+            v, b = (sm.get("value") or {}), sm.get("benchmark")
+            if b and v.get("value") is not None and sm.get("status") == "scored":
+                raw = stage_tools.score_vs_benchmark(v["value"], b, log=sm["metric"] in stage_tools.LOG_SCALE_METRICS)
+                sc = stage_tools.shrink(raw, v.get("level") or 1)
+            else:
+                sc = float(sm["score"])
+            scored.append((sc, sm.get("weight", 0)))
+        cw = sum(w for _, w in scored)
+        if not scored:
+            out_dims[k] = 40.0
+            continue
+        cov = round(cw / tot, 3) if tot else 0.0
+        acc = sum(a * w for a, w in scored) / cw
+        out_dims[k] = round(min(acc, round(40 + 60 * cov, 2)), 1)
+    index = index_v5({k: {"score": v} for k, v in out_dims.items()}, weights)
+    stored = s.get("dimensions") or {}
+    return {"index": index, "dimensions": out_dims,
+            "matches": {"index": s.get("index") is not None and abs(float(s["index"]) - index) < 0.005,
+                        "dimensions": {k: abs(float((stored.get(k) or {}).get("score", -1)) - v) < 0.051
+                                       for k, v in out_dims.items()}}}

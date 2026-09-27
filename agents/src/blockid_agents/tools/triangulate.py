@@ -335,7 +335,11 @@ def triangulate(*, anchors: list[Anchor], listed: bool, revenue_aud: float, reve
 
 def recompute(tri: dict) -> dict:
     """Rebuild every method from its stored inputs and blend again (used by the public verifier).
-    Returns {low, mid, high, confidence}."""
+    Returns {low, mid, high, confidence}. Valuation v5 reports (version "v5") are rebuilt by tools/valuation_v5."""
+    if (tri or {}).get("version") == "v5":
+        from .valuation_v5 import recompute_v5
+
+        return recompute_v5(tri)
     methods: list[ValuationMethod] = []
     listed = bool((tri or {}).get("listed"))
     for m in (tri or {}).get("methods") or []:

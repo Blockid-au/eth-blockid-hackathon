@@ -12,6 +12,8 @@ import { ConsentBox, PeopleEditor } from "../components/PeopleEditor";
 import "../components/teamlink.css";
 import { emptyRow, MAX_PEOPLE, rowUsed, toPersonIn, validateRows, type PersonRow } from "../lib/people";
 import { ContinueCard, watchJob } from "../components/ActiveJobs";
+import { StartInputs, useStartV5 } from "./valuation5/Inputs";
+import { api5 } from "../components/v5/api5";
 
 /** Unfinished /start form, kept in this browser (website, founder figures, team rows; never the consent tick). */
 const START_DRAFT = "blockid-start-draft-v1";
@@ -198,10 +200,11 @@ export default function NewWizard() {
   const [bad, setBad0] = useState<UrlProblem | null>(null);
   const [busy, setBusy] = useState<"" | "check" | "start">("");
   const [raw, setRaw] = useState<SrRaw>(() => draft0?.raw ?? {});
+  const s5 = useStartV5();  // v5 founder inputs + uploads; only shown when /v1/studio/evaluation/config says enabled
   const [badSr, setBad] = useState<Set<string>>(new Set());
   const [team, setTeam] = useState<PersonRow[]>(() => (draft0?.team.length ? draft0.team : [emptyRow("founder")]));
   useEffect(() => { saveStartDraft({ url, raw, team }); }, [url, raw, team]);
-  const discardDraft = () => { saveStartDraft(null); setUrl(""); setRaw({}); setTeam([emptyRow("founder")]); setTeamOk(false); setSite(null); setBad0(null); setErr(""); setRestored(false); };
+  const discardDraft = () => { saveStartDraft(null); setUrl(""); setRaw({}); s5.clear(); setTeam([emptyRow("founder")]); setTeamOk(false); setSite(null); setBad0(null); setErr(""); setRestored(false); };
   const [teamOk, setTeamOk] = useState(false);
   const [teamTried, setTeamTried] = useState(false);
   const [site, setSite] = useState<string | null>(null);  // website checked (client rules) → people suggestions
@@ -218,9 +221,11 @@ export default function NewWizard() {
     setErr(""); setBad0(null);
     const c = checkUrlClient(url);
     if (!c.ok) { fail({ msg: reasonText(c.reason), suggestion: c.suggestion }); return; }
-    const sr = parseSelfReported(raw);
+    const sr = parseSelfReported(s5.enabled ? {} : raw);
     setBad(new Set(sr.bad.map((f) => f.key)));
     if (sr.bad.length) { setErr(t("sr.bad", { f: sr.bad.map((f) => t(f.label)).join(", ") })); return; }
+    const c5 = s5.enabled ? s5.collect() : null;
+    if (c5?.bad.length) { setErr(t("sr.bad", { f: c5.bad.map((k) => t(("v5.f." + k) as DictKey)).join(", ") })); return; }
     const teamRows = team.filter(rowUsed);
     if (teamRows.length) {
       setTeamTried(true);
@@ -246,7 +251,9 @@ export default function NewWizard() {
     setBusy("start");
     try {
       if (!me) await connect();
-      const { id, team_id } = await api.createValuation(target, sr.metrics, teamRows.length ? { people: teamRows.map(toPersonIn), consent: true } : undefined);
+      const teamIn = teamRows.length ? { people: teamRows.map(toPersonIn), consent: true as const } : undefined;
+      const { id, team_id } = c5 ? await api5.createValuation(target, c5.metrics, teamIn) : await api.createValuation(target, sr.metrics, teamIn);
+      if (c5) { await s5.flush(id).catch(() => []); s5.clear(); }
       const hostName = target.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
       watchJob({ kind: "valuation", id, title: hostName });
       if (team_id) watchJob({ kind: "hr_team", id: team_id, title: hostName });
@@ -283,7 +290,7 @@ export default function NewWizard() {
         </div>
         {err && <p className="err" role="alert">{err}</p>}
         <TeamPanel rows={team} setRows={setTeam} consent={teamOk} setConsent={setTeamOk} tried={teamTried} site={site} />
-        <SelfReportedFields raw={raw} setRaw={setRaw} bad={badSr} />
+        {s5.enabled ? <StartInputs s={s5} listing={listing} /> : <SelfReportedFields raw={raw} setRaw={setRaw} bad={badSr} />}
         {!me && <p className="quietline">{t("new.signin")}</p>}
         <div className="cols3">
           <div className="card"><h4>{t("s1.c1")}</h4><p className="sub">{t("s1.c1p")}</p></div>

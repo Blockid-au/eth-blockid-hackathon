@@ -28,6 +28,8 @@ import { PolicyPill, PolicySummary } from "./Dividends";
 import { OfferingQueueItem } from "./Offerings";
 import { AiHealthTab } from "./AiHealth";
 import { OpsTab } from "./Ops";
+import { PricingQueue, usePricingQueue } from "./valuation5/AdminPricing";
+import { evalConfig } from "../components/v5/api5";
 
 const POLL = 12000;
 const pwRequired = (e: unknown) => e instanceof ApiError && e.status === 403 && /password change/i.test(e.message);
@@ -788,7 +790,7 @@ function AuditTab() {
 }
 
 /* ================= console ================= */
-const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "policies", "updates", "offerings", "transfers", "companies", "wallets", "audit", "ai", "ops"] as const;
+const SECTIONS = ["inbox", "dashboard", "valuations", "issuance", "sync", "mints", "dividends", "policies", "updates", "offerings", "pricing", "transfers", "companies", "wallets", "audit", "ai", "ops"] as const;
 type Section = (typeof SECTIONS)[number];
 
 function Console({ onPwRequired }: { onPwRequired: () => void }) {
@@ -804,6 +806,9 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const ap = useAsync(() => api.approvals(), [], POLL);
   const tr = useAsync(() => Promise.all([tapi.adminTransfers(), tapi.adminKyc()]), [], POLL);
   const wallets = useAsync(() => api.adminWallets(), [], 60000);
+  const pq = usePricingQueue(POLL);  // v5 share-price approvals ([] when VALUATION_V5 is off)
+  const [v5on, setV5on] = useState(false);
+  useEffect(() => { void evalConfig().then((c) => setV5on(c.enabled)); }, []);
   const [updated, setUpdated] = useState(Date.now());
   useEffect(() => { if (stats.data) setUpdated(Date.now()); }, [stats.data]);
   useEffect(() => { if (pwRequired(ap.error) || pwRequired(wallets.error)) onPwRequired(); }, [ap.error, wallets.error, onPwRequired]);
@@ -814,7 +819,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
   const refreshAll = () => { void stats.reload(); void cos.reload(); void ap.reload(); void tr.reload(); };
   const title: Record<Section, string> = {
     inbox: t("ad.nav.inbox"), dashboard: t("ad.t.ov"), valuations: t("ad.q.valuations"), issuance: t("ad.q.issuance"), sync: t("ad.q.sync"),
-    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), policies: t("ad.q.policies"), updates: t("ad.q.updates"), offerings: t("ad.q.offerings"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"), ai: t("ad.t.ai"), ops: t("ad.t.ops"),
+    mints: t("ad.q.mints"), dividends: t("ad.q.dividends"), policies: t("ad.q.policies"), updates: t("ad.q.updates"), offerings: t("ad.q.offerings"), pricing: t("ad.q.pricing"), transfers: t("ad.q.transfers"), companies: t("ad.t.cos"), wallets: t("ad.t.wa"), audit: t("ad.t.au"), ai: t("ad.t.ai"), ops: t("ad.t.ops"),
   };
   const isQueue = (QUEUES.map((x) => x.key) as string[]).includes(section);
   const rail = (
@@ -825,6 +830,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
       </RailGroup>
       <RailGroup title={t("ad.nav.queues")}>
         {QUEUES.map((x, i) => <RailItem key={x.key} to={`/admin/${x.key}`} current={section === x.key} mark={i + 1} gate={x.gate} count={counts[x.key]}>{t(("ad.q." + x.key) as DictKey)}</RailItem>)}
+        {(v5on || (pq.data?.length ?? 0) > 0) && <RailItem to="/admin/pricing" current={section === "pricing"} mark="◆" gate count={pq.data?.length ?? null}>{t("ad.q.pricing")}</RailItem>}
         <RailItem to="/admin/transfers" current={section === "transfers"} mark={QUEUES.length + 1} count={nTr}>{t("ad.q.transfers")}</RailItem>
       </RailGroup>
       <RailGroup title={t("ad.nav.registry")}>
@@ -858,6 +864,7 @@ function Console({ onPwRequired }: { onPwRequired: () => void }) {
       {section === "inbox" && <Inbox ap={ap} nTr={nTr} />}
       {section === "dashboard" && <Overview stats={stats} cos={cos} wallets={wallets.data} onPick={(tk) => nav(`/admin/companies/${tk}`)} />}
       {isQueue && <QueueView q={section as QueueKey} ap={ap} wallets={wallets.data} onChanged={refreshAll} />}
+      {section === "pricing" && <PricingQueue q={pq} onChanged={refreshAll} />}
       {section === "transfers" && <TransfersTab onChanged={refreshAll} />}
       {section === "companies" && <CompaniesTab onChanged={refreshAll} />}
       {section === "wallets" && <WalletsTab />}

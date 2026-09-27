@@ -112,6 +112,39 @@ def triangulation_for(profile: StartupProfile, market: MarketAnalysis | None, st
     return tri
 
 
+def triangulate_result(result: SVIResult, profile: StartupProfile, market: MarketAnalysis | None, state: dict,
+                       reviewer: str | None = None) -> Triangulation:
+    """v3 blend, or the valuation v5 engine when VALUATION_V5=1 (agents/valuation_agent.py; flag off = v3 exactly).
+    `reviewer` (approval gate, v5 only): AI-suggested startup ratings become confirmed."""
+    from ..tools.valuation_params import v5_enabled
+
+    if v5_enabled():
+        from .valuation_agent import triangulation_v5
+
+        return triangulation_v5(result, profile, market, state, reviewer=reviewer)
+    return triangulation_for(profile, market, state, result.index)
+
+
+def rescore_if_v5(stored: dict, out: dict, reviewer: str | None = None) -> dict:
+    """Evaluation v5 (docs/EVALUATION-V5-API.md §5): when the stored svi is a v5 score (it carries `analysis` /
+    weights_profile "v5:<stage>"), re-apply the nine v5 dimensions after a v4 re-score (team score, admin overrides)
+    via agents.analysts.rescore_v5 — which also refreshes the valuation blend (v5 engine when VALUATION_V5=1).
+    `stored` = graph state or stored result, `out` = {"svi", "qualitative", ...} just re-scored. Returns `out`."""
+    s0 = stored.get("svi") or {}
+    if not (s0.get("analysis") or str(s0.get("weights_profile") or "").startswith("v5:")):
+        return out
+    from .analysts import rescore_v5
+
+    ctx = {**stored, **out}
+    ctx.setdefault("analysis", s0.get("analysis"))
+    if ctx.get("analysis") is None:
+        ctx["analysis"] = s0.get("analysis")
+    narrative = (out.get("svi") or {}).get("narrative", "")
+    new = rescore_v5(ctx, svi_dict=out["svi"], qualitative=out["qualitative"])
+    new["narrative"] = narrative
+    return {**out, "svi": new}
+
+
 def score(state: dict, deps: Deps) -> dict:
     """AI-suggested qualitative scores + deterministic SVI maths (no narrative yet)."""
     profile = StartupProfile.model_validate(state["profile"])
@@ -131,7 +164,7 @@ def score(state: dict, deps: Deps) -> dict:
 
     deps.tool(AGENT, "svi_score", company=profile.company_name)
     result = svi.score(profile, q, market, sr, cited)
-    svi.apply_triangulation(result, triangulation_for(profile, market, state, result.index))
+    svi.apply_triangulation(result, triangulate_result(result, profile, market, state))
     deps.audit.record(AGENT, "triangulated", confidence=result.triangulation.confidence,
               methods=[m.method for m in result.triangulation.methods if m.weight > 0])
     out = {"svi": result.model_dump(), "qualitative": q.model_dump(), "status": "scored",
@@ -169,9 +202,9 @@ def apply_team_score(result: dict, team_score: float, rationale: str, sources: l
     sr = self_reported_metric_fields(result.get("self_reported"))
     cited, _ = apply_cited_revenue(profile, market, sr)
     res = svi.score(profile, q, market, sr, cited)
-    svi.apply_triangulation(res, triangulation_for(profile, market, result, res.index))
+    svi.apply_triangulation(res, triangulate_result(res, profile, market, dict(result)))
     res.narrative = (result.get("svi") or {}).get("narrative", "")
-    return {"svi": res.model_dump(), "qualitative": q.model_dump()}
+    return rescore_if_v5(result, {"svi": res.model_dump(), "qualitative": q.model_dump()})
 
 
 def run(state: dict, deps: Deps) -> dict:
@@ -198,7 +231,11 @@ def apply_overrides(state: dict, overrides: dict[str, float], reviewer: str, dep
     sr = self_reported_metric_fields(state.get("self_reported"))
     cited, _ = apply_cited_revenue(profile, market, sr)
     result: SVIResult = svi.score(profile, q, market, sr, cited)
-    svi.apply_triangulation(result, triangulation_for(profile, market, state, result.index))
+    st = dict(state)
+    svi.apply_triangulation(result, triangulate_result(result, profile, market, st, reviewer=reviewer))
     result.narrative = state["svi"].get("narrative", "")
     deps.audit.record("human", "valuation_approved", reviewer=reviewer, overrides=overrides, sha256=result.report_sha256)
-    return {"svi": result.model_dump(), "qualitative": q.model_dump()}
+    out = {"svi": result.model_dump(), "qualitative": q.model_dump()}
+    if st.get("valuation_inputs") is not None:  # v5: confirmed startup ratings are persisted with the result
+        out["valuation_inputs"] = st["valuation_inputs"]
+    return rescore_if_v5(st, out, reviewer)

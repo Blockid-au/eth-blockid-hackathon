@@ -32,6 +32,7 @@ class OnboardingState(TypedDict, total=False):
     profile: dict
     market: dict | None
     valuation_evidence: dict | None
+    valuation_inputs: dict | None  # valuation v5 (agents/valuation_agent.py)
     evidence_count: int
     searches: list[dict]
     qualitative: dict
@@ -66,6 +67,7 @@ class SiteValuationState(TypedDict, total=False):
     competitors: list[dict]
     market: dict | None
     valuation_evidence: dict | None  # v3: verified anchors / listing / comps / sector multiples (market_evidence)
+    valuation_inputs: dict | None  # v5: industry, startup ratings, deals, projection, admin assumptions
     evidence_count: int
     searches: list[dict]  # web searches run for this valuation (budget: SEARCH_MAX_QUERIES)
     llm_providers_used: list[str]  # which LLM backends answered, first-use order
@@ -74,6 +76,7 @@ class SiteValuationState(TypedDict, total=False):
     status: str
     reviewers: dict[str, str]
     warnings: list[str]
+    analysis: dict | None  # evaluation v5 (VALUATION_V5): partial Analysis from the `analysts` step
 
 
 def _reviewer(decision: dict) -> str:
@@ -227,11 +230,19 @@ def site_result(deps: Deps, state: dict) -> dict:
         "warnings": list(dict.fromkeys(warnings)),
         "searches": state.get("searches") or [],
         "llm_providers_used": state.get("llm_providers_used") or [],
+        # valuation v5 only (absent otherwise): inputs the deterministic re-runs need (studio/finalise.py)
+        **({"valuation_inputs": state["valuation_inputs"]} if state.get("valuation_inputs") else {}),
     }
 
 
-def build_site_valuation(deps: Deps, checkpointer, progress=None):
+def build_site_valuation(deps: Deps, checkpointer, progress=None, v5: bool | None = None):
+    """v5 (VALUATION_V5=1, default off): adds the parallel `analysts` step between market and svi and scores the
+    nine v5 dimensions; with the flag off the graph, results and hashes are exactly v4."""
+    from .agents import analysts
+    from .tools.stage import v5_enabled as evaluation_v5_enabled
+
     prog = progress or NullProgress()
+    v5 = evaluation_v5_enabled() if v5 is None else v5
 
     def step(key: str, fn, detail):
         def run(state: SiteValuationState) -> dict:
@@ -265,7 +276,24 @@ def build_site_valuation(deps: Deps, checkpointer, progress=None):
             deps.audit.record("human", "valuation_rejected", reviewer=who, reason=decision.get("reason", ""))
             return {"status": "rejected", "reviewers": {"valuation": who}}
         out = valuation.apply_overrides(state, decision.get("overrides") or {}, who, deps)
+        if v5 and (state.get("svi") or {}).get("analysis"):  # keep the v5 dimensions after the admin's overrides
+            try:
+                out["svi"] = analysts.rescore_v5({**state, **out}, svi_dict=out["svi"],
+                                                 qualitative=out["qualitative"])
+            except Exception as e:  # noqa: BLE001
+                deps.audit.record("valuation", "v5_score_failed", error=str(e)[:300])
         return {**out, "status": "approved", "reviewers": {"valuation": who}}
+
+    def svi_step(state):
+        """v4 scoring, then (v5) the nine evaluation dimensions from the analysts' evidence (tools/evaluation)."""
+        out = valuation.score(state, deps)
+        if v5 and state.get("analysis"):
+            try:
+                out["svi"] = analysts.rescore_v5({**state, **out}, svi_dict=out["svi"],
+                                                 qualitative=out["qualitative"])
+            except Exception as e:  # noqa: BLE001 - v5 must never fail a valuation: the v4 result stands
+                deps.audit.record("valuation", "v5_score_failed", error=str(e)[:300])
+        return out
 
     def market(state):
         out = research.run(state, deps)
@@ -318,11 +346,30 @@ def build_site_valuation(deps: Deps, checkpointer, progress=None):
     g.add_node("market", step("market", market,
                               lambda m: with_warning(searched(f"{m.get('evidence_count', 0)} sources analysed"
                                                               + financials(m))(m))(m)))
-    g.add_node("svi", step("svi", lambda s: valuation.score(s, deps), svi_detail))
+    g.add_node("svi", step("svi", svi_step, svi_detail))
     g.add_node("narrative", step("narrative", lambda s: valuation.narrate(s, deps), lambda m: "narrative drafted"))
     g.add_node("gate_valuation", gate)
     g.add_edge(START, "read_site")
-    for a, b in (("read_site", "profile"), ("profile", "competitors"), ("competitors", "market"), ("market", "svi"),
-                 ("svi", "narrative"), ("narrative", "gate_valuation"), ("gate_valuation", END)):
+    chain = ["read_site", "profile", "competitors", "market", "svi", "narrative", "gate_valuation"]
+    if v5:  # evaluation v5 (docs/PLAN-EVALUATION-V5.md §2): four analysts in parallel between market and svi
+        g.add_node("analysts", step("analysts", lambda s: analysts.run(s, deps),
+                                    lambda m: analysts.detail(m.get("analysis"))))
+        chain.insert(chain.index("svi"), "analysts")
+    from .tools.valuation_params import v5_enabled
+
+    if v5_enabled():  # valuation v5 (docs/PLAN-VALUATION-V5.md §5): standard methods after the SVI score
+        from .agents import valuation_agent
+
+        def methods_detail(m) -> str:
+            tri = (m.get("svi") or {}).get("triangulation") or {}
+            used = [x["method"] for x in tri.get("methods") or [] if x.get("weight")]
+            return (f"value A${tri.get('value_aud', 0):,.0f} (confidence {tri.get('confidence')}) · "
+                    f"{tri.get('valuation_class', '')} · methods: {', '.join(used)}")
+
+        g.add_node("valuation_methods", step("valuation_methods", lambda s: valuation_agent.run(s, deps),
+                                             methods_detail))
+        chain.insert(chain.index("narrative"), "valuation_methods")
+    for a, b in zip(chain, chain[1:]):
         g.add_edge(a, b)
+    g.add_edge("gate_valuation", END)
     return g.compile(checkpointer=checkpointer)

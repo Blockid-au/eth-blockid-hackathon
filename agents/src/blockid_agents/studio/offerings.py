@@ -287,6 +287,9 @@ class OfferingService:
             "report_date": (val_row or {}).get("updated_at"), "report_hash": c.get("valuation_report_hash"),
             "valuation_id": c.get("valuation_id"),
         }
+        from . import finalise as fin  # valuation v5: final value, football field, projections flag (else {})
+
+        valuation.update(fin.pack_valuation_extra(db, c))
         ups = db.all("SELECT id, cadence, period_end, title, body, published_at, content_hash FROM studio.updates "
                      "WHERE company_id=%s AND status='published' ORDER BY published_at DESC NULLS LAST, "
                      "period_end DESC LIMIT 3", (c["id"],))
@@ -309,6 +312,13 @@ class OfferingService:
                               for x in top]},
         }
         notices = []
+        an = svi.get("analysis") if isinstance(svi.get("analysis"), dict) else None
+        if an:  # evaluation v5: confidence + evidence levels in the pack; warn when the revenue used is only typed
+            from .evaluation import evidence_summary
+
+            valuation["evidence"] = evidence_summary(an)
+            if valuation["evidence"]["revenue_level"] is not None and valuation["evidence"]["revenue_level"] <= 1:
+                notices.append("revenue_self_reported")
         if mark > 0 and price > mark * PRICE_WARN:
             notices.append("price_above_mark")
         if not updates:
@@ -502,13 +512,16 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
     def company_view(c: dict, role: str) -> dict:
         db = ctx.need_db()
         o = current(c["id"])
-        mark, _ = svc.latest_mark(c)
+        mark, mark_at = svc.latest_mark(c)
+        from . import finalise as fin  # valuation v5: the finalised price when newer than the latest mark
+
+        default_price, final = fin.offering_default_price(db, c, mark, mark_at)
         cap, holders = register_now(c)
         out: dict[str, Any] = {
             "ticker": c["ticker"], "company_id": c["id"], "name": c["name"], "you": role, "live": live(c),
-            "defaults": {"price_aud": mark, "cooling_off_days": COOLING_OFF_DAYS, "holders": holders,
+            "defaults": {"price_aud": default_price, "cooling_off_days": COOLING_OFF_DAYS, "holders": holders,
                          "max_holders": cap, "total_shares": int(c["total_shares"]),
-                         "max_days_open": MAX_DAYS_OPEN},
+                         "max_days_open": MAX_DAYS_OPEN, **({"final": final} if final else {})},
             "offering": None, "pack": None, "progress": None, "reservations": [],
         }
         if o:
@@ -574,6 +587,9 @@ def build_offerings_router(ctx, svc: OfferingService) -> APIRouter:
             raise HTTPException(409, f"offering is {o['status']}, not a draft")
         if _utc(o["closes_at"]) <= datetime.now(timezone.utc) + timedelta(minutes=5):
             raise HTTPException(409, "the closing date has passed; change it first")
+        from . import finalise as fin  # valuation v5: stale / expired / stage-changed final blocks the offering
+
+        fin.offering_submit_guard(db, c, o["price_aud"])
         pack = svc.build_pack(c, o)
         h = pack_hash(pack)
         row = db.one("UPDATE studio.offerings SET status='pending_approval', pack=%s, pack_hash=%s, reason=NULL, "

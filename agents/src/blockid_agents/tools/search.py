@@ -226,8 +226,15 @@ PURPOSE = {
     "market_cap": "market capitalisation (listed company)",
     "comps": "revenue multiples of comparable companies / sector",
     "comps_named": "valuations and revenue of named competitors",
+    # evaluation v5 analysts (agents/analysts.py; conditional, after the valuation-critical kinds)
+    "traction": "customers & contracts",
+    "reviews": "reviews",
+    "market_bottom_up": "number of target customers",
+    "ip": "patents & trade marks",
 }
 QUERY_PLAN = ("competitors", "market", "company", "valuation", "market_cap", "comps", "comps_named")
+# with VALUATION_V5 the analysts' kinds follow, so a smaller budget drops them first
+ANALYST_QUERY_PLAN = ("traction", "reviews", "market_bottom_up", "ip")
 
 
 def valuation_queries(p: StartupProfile, year: int, *, listing: tuple[str, str] | None = None,

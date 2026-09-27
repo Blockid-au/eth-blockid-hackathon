@@ -1,0 +1,1230 @@
+[
+ {
+  "formula_version": "v4",
+  "name": "v4_site_only",
+  "report": {
+   "competitors": [
+    {
+     "basis": "search",
+     "name": "TE-FOOD",
+     "note": "farm-to-table traceability",
+     "raised_aud": 15000000.0,
+     "sources": 2,
+     "url": "https://te-food.example/"
+    },
+    {
+     "basis": "search",
+     "name": "OpenSC",
+     "note": "supply-chain transparency",
+     "raised_aud": null,
+     "sources": 1,
+     "url": "https://opensc.example"
+    }
+   ],
+   "market": {
+    "company_financials": null,
+    "competitor_notes": [],
+    "confidence": "medium",
+    "key_findings": [
+     {
+      "claim": "Sector SaaS deals price at mid-single-digit revenue multiples",
+      "source_urls": [
+       "https://news.example.com/agritrace-revenue-arr-funding-valuation-"
+      ]
+     }
+    ],
+    "market_growth_pct": 18.0,
+    "market_summary": "Food traceability software is growing on export-compliance demand.",
+    "revenue_multiple_high": 10.0,
+    "revenue_multiple_low": 3.0,
+    "revenue_multiple_median": 6.0,
+    "risks": []
+   },
+   "profile": {
+    "company_name": "AgriTrace Pty Ltd",
+    "company_number": "ACN 123 456 789",
+    "competitors": [
+     "TE-FOOD",
+     "OpenSC"
+    ],
+    "country": "AU",
+    "description": "Blockchain traceability SaaS for food exporters",
+    "documents_reviewed": [
+     "https://agritrace.example/",
+     "https://agritrace.example/about",
+     "https://agritrace.example/contact"
+    ],
+    "founders": [
+     {
+      "domain_expertise": true,
+      "name": "Jane Nguyen",
+      "prior_exits": 1,
+      "role": "CEO",
+      "years_experience": 12.0
+     },
+     {
+      "domain_expertise": false,
+      "name": "Tom Lee",
+      "prior_exits": 0,
+      "role": "CTO",
+      "years_experience": 9.0
+     }
+    ],
+    "metrics": {
+     "burn_monthly_aud": 60000.0,
+     "gross_margin_pct": 72.0,
+     "paying_customers": 23,
+     "raised_to_date_aud": 0.0,
+     "revenue_growth_yoy_pct": 140.0,
+     "revenue_ttm_aud": 480000.0,
+     "runway_months": 14.0
+    },
+    "metrics_sources": {
+     "burn_monthly_aud": "website",
+     "gross_margin_pct": "website",
+     "paying_customers": "website",
+     "revenue_growth_yoy_pct": "website",
+     "revenue_ttm_aud": "website",
+     "runway_months": "website"
+    },
+    "missing_items": [
+     "audited financial statements",
+     "IP assignment deeds"
+    ],
+    "search_keywords": [
+     "food traceability software",
+     "agtech"
+    ],
+    "sector": "agri-food supply chain traceability",
+    "stage": "seed"
+   },
+   "self_reported": null,
+   "svi": {
+    "band": "B - strong",
+    "dimensions": {
+     "founder_quality": {
+      "basis": "ai_suggested",
+      "rationale": "experienced CEO with prior exit",
+      "score": 78.0,
+      "sources": []
+     },
+     "growth_capability": {
+      "basis": "computed",
+      "rationale": "YoY growth 140%, runway 14 months",
+      "score": 65.3,
+      "sources": []
+     },
+     "investment_readiness": {
+      "basis": "ai_suggested",
+      "rationale": "missing audited accounts and IP deeds",
+      "score": 55.0,
+      "sources": []
+     },
+     "market_attractiveness": {
+      "basis": "ai_suggested",
+      "rationale": "growing niche, export regulation tailwind",
+      "score": 68.0,
+      "sources": []
+     },
+     "product_strength": {
+      "basis": "ai_suggested",
+      "rationale": "live product, 23 paying customers",
+      "score": 70.0,
+      "sources": []
+     },
+     "revenue_performance": {
+      "basis": "computed",
+      "rationale": "revenue 480,000 AUD vs stage benchmark 300,000; gross margin 72%",
+      "score": 60.2,
+      "sources": []
+     },
+     "trust_verification": {
+      "basis": "ai_suggested",
+      "rationale": "claims partly verifiable",
+      "score": 60.0,
+      "sources": []
+     }
+    },
+    "index": 68.16,
+    "method": "blend of 2 methods: revenue multiple (4.2x / 6.0x / 8.4x, sector multiple(s) stated in sources: 6x) [79%] + stage benchmark (seed) x quality score factor 1.18 [21%] (confidence medium)",
+    "narrative": "Indicative SVI narrative (not financial advice).",
+    "needs_human_review": [
+     "founder_quality: AI-suggested score must be confirmed",
+     "product_strength: AI-suggested score must be confirmed",
+     "market_attractiveness: AI-suggested score must be confirmed",
+     "investment_readiness: AI-suggested score must be confirmed",
+     "trust_verification: AI-suggested score must be confirmed",
+     "data room missing: audited financial statements",
+     "data room missing: IP assignment deeds",
+     "valuation confidence medium: no verified valuation, funding round or market cap of the company itself was found",
+     "valuation confidence medium: revenue multiple from a sector figure stated in a source"
+    ],
+    "report_sha256": "bf952ba355493f25ba2a580901455ea95ab66e7e0a1eebe1086bdf3022254d43",
+    "triangulation": {
+     "as_of": "2026-09-27",
+     "confidence": "medium",
+     "confidence_reasons": [
+      "no verified valuation, funding round or market cap of the company itself was found",
+      "revenue multiple from a sector figure stated in a source"
+     ],
+     "fx_as_of": "2026-09-26",
+     "high_aud": 5660412.8,
+     "listed": false,
+     "listing": "",
+     "low_aud": 2088634.2399999998,
+     "methods": [
+      {
+       "high_aud": 4031999.9999999995,
+       "inputs": {
+        "discount": 0.0,
+        "high_multiple": 8.4,
+        "low_multiple": 4.2,
+        "median_multiple": 6.0,
+        "multiple_source": "sector_cited",
+        "multiples": [
+         6.0
+        ],
+        "n": 1,
+        "revenue_aud": 480000.0,
+        "revenue_source": "website"
+       },
+       "label": "revenue multiple (4.2x / 6.0x / 8.4x, sector multiple(s) stated in sources: 6x)",
+       "low_aud": 2015999.9999999998,
+       "method": "revenue_multiple",
+       "notes": [],
+       "raw_weight": 0.378,
+       "sources": [
+        "https://news.example.com/agri-food-supply-chain-traceability-comp"
+       ],
+       "value_aud": 2880000.0,
+       "weight": 0.7908
+      },
+      {
+       "high_aud": 11816000.0,
+       "inputs": {
+        "benchmark": [
+         2000000,
+         5000000,
+         10000000
+        ],
+        "stage": "seed",
+        "svi_factor": 1.1816
+       },
+       "label": "stage benchmark (seed) x quality score factor 1.18",
+       "low_aud": 2363200.0,
+       "method": "stage_scorecard",
+       "notes": [
+        "placeholder stage calibration"
+       ],
+       "raw_weight": 0.1,
+       "sources": [],
+       "value_aud": 5908000.0,
+       "weight": 0.2092
+      }
+     ],
+     "value_aud": 3513457.6,
+     "version": "v3"
+    },
+    "valuation_high_aud": 5660000.0,
+    "valuation_low_aud": 2089000.0,
+    "valuation_mid_aud": 3513000.0,
+    "weights": {
+     "founder_quality": 0.3,
+     "growth_capability": 0.1,
+     "investment_readiness": 0.1,
+     "market_attractiveness": 0.15,
+     "product_strength": 0.15,
+     "revenue_performance": 0.15,
+     "trust_verification": 0.05
+    }
+   },
+   "url": "https://agritrace.example"
+  },
+  "report_hash": "0xfd007c32951464a16e518cde727f46914bb623f21d531cfec680c2a5259f5e99",
+  "weights_version": "v4"
+ },
+ {
+  "formula_version": "v4",
+  "name": "v4_self_reported",
+  "report": {
+   "competitors": [
+    {
+     "basis": "search",
+     "name": "TE-FOOD",
+     "note": "farm-to-table traceability",
+     "raised_aud": 15000000.0,
+     "sources": 2,
+     "url": "https://te-food.example/"
+    },
+    {
+     "basis": "search",
+     "name": "OpenSC",
+     "note": "supply-chain transparency",
+     "raised_aud": null,
+     "sources": 1,
+     "url": "https://opensc.example"
+    }
+   ],
+   "market": {
+    "company_financials": null,
+    "competitor_notes": [],
+    "confidence": "medium",
+    "key_findings": [
+     {
+      "claim": "Sector SaaS deals price at mid-single-digit revenue multiples",
+      "source_urls": [
+       "https://news.example.com/agritrace-revenue-arr-funding-valuation-"
+      ]
+     }
+    ],
+    "market_growth_pct": 18.0,
+    "market_summary": "Food traceability software is growing on export-compliance demand.",
+    "revenue_multiple_high": 10.0,
+    "revenue_multiple_low": 3.0,
+    "revenue_multiple_median": 6.0,
+    "risks": []
+   },
+   "profile": {
+    "company_name": "AgriTrace Pty Ltd",
+    "company_number": "ACN 123 456 789",
+    "competitors": [
+     "TE-FOOD",
+     "OpenSC"
+    ],
+    "country": "AU",
+    "description": "Blockchain traceability SaaS for food exporters",
+    "documents_reviewed": [
+     "https://agritrace.example/",
+     "https://agritrace.example/about",
+     "https://agritrace.example/contact"
+    ],
+    "founders": [
+     {
+      "domain_expertise": true,
+      "name": "Jane Nguyen",
+      "prior_exits": 1,
+      "role": "CEO",
+      "years_experience": 12.0
+     },
+     {
+      "domain_expertise": false,
+      "name": "Tom Lee",
+      "prior_exits": 0,
+      "role": "CTO",
+      "years_experience": 9.0
+     }
+    ],
+    "metrics": {
+     "burn_monthly_aud": 60000.0,
+     "gross_margin_pct": 72.0,
+     "paying_customers": 1200,
+     "raised_to_date_aud": 0.0,
+     "revenue_growth_yoy_pct": 45.0,
+     "revenue_ttm_aud": 30000000.0,
+     "runway_months": 14.0
+    },
+    "metrics_sources": {
+     "burn_monthly_aud": "website",
+     "gross_margin_pct": "website",
+     "paying_customers": "self_reported",
+     "revenue_growth_yoy_pct": "self_reported",
+     "revenue_ttm_aud": "self_reported",
+     "runway_months": "website"
+    },
+    "missing_items": [
+     "audited financial statements",
+     "IP assignment deeds"
+    ],
+    "search_keywords": [
+     "food traceability software",
+     "agtech"
+    ],
+    "sector": "agri-food supply chain traceability",
+    "stage": "seed"
+   },
+   "self_reported": {
+    "customers": 1200,
+    "revenue_growth_yoy_pct": 45,
+    "revenue_ttm_aud": 30000000
+   },
+   "svi": {
+    "band": "B - strong",
+    "dimensions": {
+     "founder_quality": {
+      "basis": "ai_suggested",
+      "rationale": "experienced CEO with prior exit",
+      "score": 78.0,
+      "sources": []
+     },
+     "growth_capability": {
+      "basis": "self_reported",
+      "rationale": "YoY growth 45%, runway 14 months (self-reported by the founder, not independently verified: revenue_growth_yoy_pct)",
+      "score": 36.8,
+      "sources": []
+     },
+     "investment_readiness": {
+      "basis": "ai_suggested",
+      "rationale": "missing audited accounts and IP deeds",
+      "score": 55.0,
+      "sources": []
+     },
+     "market_attractiveness": {
+      "basis": "ai_suggested",
+      "rationale": "growing niche, export regulation tailwind",
+      "score": 68.0,
+      "sources": []
+     },
+     "product_strength": {
+      "basis": "ai_suggested",
+      "rationale": "live product, 23 paying customers",
+      "score": 70.0,
+      "sources": []
+     },
+     "revenue_performance": {
+      "basis": "self_reported",
+      "rationale": "revenue 30,000,000 AUD vs stage benchmark 300,000; gross margin 72% (self-reported by the founder, not independently verified: revenue_ttm_aud)",
+      "score": 91.6,
+      "sources": []
+     },
+     "trust_verification": {
+      "basis": "ai_suggested",
+      "rationale": "claims partly verifiable",
+      "score": 60.0,
+      "sources": []
+     }
+    },
+    "index": 70.02,
+    "method": "self-reported revenue multiple (4.2x / 6.0x / 8.4x, sector multiple(s) stated in sources: 6x) (confidence medium)",
+    "narrative": "Indicative SVI narrative (not financial advice).",
+    "needs_human_review": [
+     "founder_quality: AI-suggested score must be confirmed",
+     "product_strength: AI-suggested score must be confirmed",
+     "market_attractiveness: AI-suggested score must be confirmed",
+     "investment_readiness: AI-suggested score must be confirmed",
+     "trust_verification: AI-suggested score must be confirmed",
+     "data room missing: audited financial statements",
+     "data room missing: IP assignment deeds",
+     "valuation confidence medium: no verified valuation, funding round or market cap of the company itself was found",
+     "valuation confidence medium: revenue multiple from a sector figure stated in a source"
+    ],
+    "report_sha256": "9d4f93f5b64d2407718f760db7dd0807e25e71068ae913d0c1d8c15050a4f92c",
+    "triangulation": {
+     "as_of": "2026-09-27",
+     "confidence": "medium",
+     "confidence_reasons": [
+      "no verified valuation, funding round or market cap of the company itself was found",
+      "revenue multiple from a sector figure stated in a source"
+     ],
+     "fx_as_of": "2026-09-26",
+     "high_aud": 251999999.99999997,
+     "listed": false,
+     "listing": "",
+     "low_aud": 125999999.99999999,
+     "methods": [
+      {
+       "high_aud": 251999999.99999997,
+       "inputs": {
+        "discount": 0.0,
+        "high_multiple": 8.4,
+        "low_multiple": 4.2,
+        "median_multiple": 6.0,
+        "multiple_source": "sector_cited",
+        "multiples": [
+         6.0
+        ],
+        "n": 1,
+        "revenue_aud": 30000000.0,
+        "revenue_source": "self_reported"
+       },
+       "label": "self-reported revenue multiple (4.2x / 6.0x / 8.4x, sector multiple(s) stated in sources: 6x)",
+       "low_aud": 125999999.99999999,
+       "method": "revenue_multiple",
+       "notes": [
+        "revenue is self-reported, not independently verified"
+       ],
+       "raw_weight": 0.378,
+       "sources": [
+        "https://news.example.com/agri-food-supply-chain-traceability-comp"
+       ],
+       "value_aud": 180000000.0,
+       "weight": 1.0
+      },
+      {
+       "high_aud": 12002000.0,
+       "inputs": {
+        "benchmark": [
+         2000000,
+         5000000,
+         10000000
+        ],
+        "stage": "seed",
+        "svi_factor": 1.2002
+       },
+       "label": "stage benchmark (seed) x quality score factor 1.20",
+       "low_aud": 2400400.0,
+       "method": "stage_scorecard",
+       "notes": [
+        "placeholder stage calibration",
+        "not used: 30x away from the market-based methods"
+       ],
+       "raw_weight": 0.0,
+       "sources": [],
+       "value_aud": 6001000.0,
+       "weight": 0.0
+      }
+     ],
+     "value_aud": 180000000.0,
+     "version": "v3"
+    },
+    "valuation_high_aud": 252000000.0,
+    "valuation_low_aud": 126000000.0,
+    "valuation_mid_aud": 180000000.0,
+    "weights": {
+     "founder_quality": 0.3,
+     "growth_capability": 0.1,
+     "investment_readiness": 0.1,
+     "market_attractiveness": 0.15,
+     "product_strength": 0.15,
+     "revenue_performance": 0.15,
+     "trust_verification": 0.05
+    }
+   },
+   "url": "https://agritrace.example"
+  },
+  "report_hash": "0x2b6ed7458ec64cd23cca8a6964e0e9eac84dad318778b8712a09bcfdcd42d8a9",
+  "weights_version": "v4"
+ },
+ {
+  "formula_version": "v4",
+  "name": "v4_team_report",
+  "report": {
+   "competitors": [
+    {
+     "basis": "search",
+     "name": "TE-FOOD",
+     "note": "farm-to-table traceability",
+     "raised_aud": 15000000.0,
+     "sources": 2,
+     "url": "https://te-food.example/"
+    },
+    {
+     "basis": "search",
+     "name": "OpenSC",
+     "note": "supply-chain transparency",
+     "raised_aud": null,
+     "sources": 1,
+     "url": "https://opensc.example"
+    }
+   ],
+   "market": {
+    "company_financials": null,
+    "competitor_notes": [],
+    "confidence": "medium",
+    "key_findings": [
+     {
+      "claim": "Sector SaaS deals price at mid-single-digit revenue multiples",
+      "source_urls": [
+       "https://news.example.com/agritrace-revenue-arr-funding-valuation-"
+      ]
+     }
+    ],
+    "market_growth_pct": 18.0,
+    "market_summary": "Food traceability software is growing on export-compliance demand.",
+    "revenue_multiple_high": 10.0,
+    "revenue_multiple_low": 3.0,
+    "revenue_multiple_median": 6.0,
+    "risks": []
+   },
+   "profile": {
+    "company_name": "AgriTrace Pty Ltd",
+    "company_number": "ACN 123 456 789",
+    "competitors": [
+     "TE-FOOD",
+     "OpenSC"
+    ],
+    "country": "AU",
+    "description": "Blockchain traceability SaaS for food exporters",
+    "documents_reviewed": [
+     "https://agritrace.example/",
+     "https://agritrace.example/about",
+     "https://agritrace.example/contact"
+    ],
+    "founders": [
+     {
+      "domain_expertise": true,
+      "name": "Jane Nguyen",
+      "prior_exits": 1,
+      "role": "CEO",
+      "years_experience": 12.0
+     },
+     {
+      "domain_expertise": false,
+      "name": "Tom Lee",
+      "prior_exits": 0,
+      "role": "CTO",
+      "years_experience": 9.0
+     }
+    ],
+    "metrics": {
+     "burn_monthly_aud": 60000.0,
+     "gross_margin_pct": 72.0,
+     "paying_customers": 23,
+     "raised_to_date_aud": 0.0,
+     "revenue_growth_yoy_pct": 140.0,
+     "revenue_ttm_aud": 480000.0,
+     "runway_months": 14.0
+    },
+    "metrics_sources": {
+     "burn_monthly_aud": "website",
+     "gross_margin_pct": "website",
+     "paying_customers": "website",
+     "revenue_growth_yoy_pct": "website",
+     "revenue_ttm_aud": "website",
+     "runway_months": "website"
+    },
+    "missing_items": [
+     "audited financial statements",
+     "IP assignment deeds"
+    ],
+    "search_keywords": [
+     "food traceability software",
+     "agtech"
+    ],
+    "sector": "agri-food supply chain traceability",
+    "stage": "seed"
+   },
+   "self_reported": null,
+   "svi": {
+    "band": "B - strong",
+    "dimensions": {
+     "founder_quality": {
+      "basis": "team_report",
+      "rationale": "team report",
+      "score": 81.5,
+      "sources": [
+       "https://hr.blockid.au/r/x"
+      ]
+     },
+     "growth_capability": {
+      "basis": "computed",
+      "rationale": "YoY growth 140%, runway 14 months",
+      "score": 65.3,
+      "sources": []
+     },
+     "investment_readiness": {
+      "basis": "ai_suggested",
+      "rationale": "missing audited accounts and IP deeds",
+      "score": 55.0,
+      "sources": []
+     },
+     "market_attractiveness": {
+      "basis": "ai_suggested",
+      "rationale": "growing niche, export regulation tailwind",
+      "score": 68.0,
+      "sources": []
+     },
+     "product_strength": {
+      "basis": "ai_suggested",
+      "rationale": "live product, 23 paying customers",
+      "score": 70.0,
+      "sources": []
+     },
+     "revenue_performance": {
+      "basis": "computed",
+      "rationale": "revenue 480,000 AUD vs stage benchmark 300,000; gross margin 72%",
+      "score": 60.2,
+      "sources": []
+     },
+     "trust_verification": {
+      "basis": "ai_suggested",
+      "rationale": "claims partly verifiable",
+      "score": 60.0,
+      "sources": []
+     }
+    },
+    "index": 69.21,
+    "method": "blend of 2 methods: revenue multiple (4.2x / 6.0x / 8.4x, sector multiple(s) stated in sources: 6x) [79%] + stage benchmark (seed) x quality score factor 1.19 [21%] (confidence medium)",
+    "narrative": "Indicative SVI narrative (not financial advice).",
+    "needs_human_review": [
+     "product_strength: AI-suggested score must be confirmed",
+     "market_attractiveness: AI-suggested score must be confirmed",
+     "investment_readiness: AI-suggested score must be confirmed",
+     "trust_verification: AI-suggested score must be confirmed",
+     "data room missing: audited financial statements",
+     "data room missing: IP assignment deeds",
+     "valuation confidence medium: no verified valuation, funding round or market cap of the company itself was found",
+     "valuation confidence medium: revenue multiple from a sector figure stated in a source"
+    ],
+    "report_sha256": "4f7824985bc4a97a5bbd2ffc1fbda93ee532f143e487b7579bdb69b23a4401cd",
+    "triangulation": {
+     "as_of": "2026-09-27",
+     "confidence": "medium",
+     "confidence_reasons": [
+      "no verified valuation, funding round or market cap of the company itself was found",
+      "revenue multiple from a sector figure stated in a source"
+     ],
+     "fx_as_of": "2026-09-26",
+     "high_aud": 5682378.8,
+     "listed": false,
+     "listing": "",
+     "low_aud": 2093027.44,
+     "methods": [
+      {
+       "high_aud": 4031999.9999999995,
+       "inputs": {
+        "discount": 0.0,
+        "high_multiple": 8.4,
+        "low_multiple": 4.2,
+        "median_multiple": 6.0,
+        "multiple_source": "sector_cited",
+        "multiples": [
+         6.0
+        ],
+        "n": 1,
+        "revenue_aud": 480000.0,
+        "revenue_source": "website"
+       },
+       "label": "revenue multiple (4.2x / 6.0x / 8.4x, sector multiple(s) stated in sources: 6x)",
+       "low_aud": 2015999.9999999998,
+       "method": "revenue_multiple",
+       "notes": [],
+       "raw_weight": 0.378,
+       "sources": [
+        "https://news.example.com/agri-food-supply-chain-traceability-comp"
+       ],
+       "value_aud": 2880000.0,
+       "weight": 0.7908
+      },
+      {
+       "high_aud": 11921000.0,
+       "inputs": {
+        "benchmark": [
+         2000000,
+         5000000,
+         10000000
+        ],
+        "stage": "seed",
+        "svi_factor": 1.1921
+       },
+       "label": "stage benchmark (seed) x quality score factor 1.19",
+       "low_aud": 2384200.0,
+       "method": "stage_scorecard",
+       "notes": [
+        "placeholder stage calibration"
+       ],
+       "raw_weight": 0.1,
+       "sources": [],
+       "value_aud": 5960500.0,
+       "weight": 0.2092
+      }
+     ],
+     "value_aud": 3524440.6,
+     "version": "v3"
+    },
+    "valuation_high_aud": 5682000.0,
+    "valuation_low_aud": 2093000.0,
+    "valuation_mid_aud": 3524000.0,
+    "weights": {
+     "founder_quality": 0.3,
+     "growth_capability": 0.1,
+     "investment_readiness": 0.1,
+     "market_attractiveness": 0.15,
+     "product_strength": 0.15,
+     "revenue_performance": 0.15,
+     "trust_verification": 0.05
+    }
+   },
+   "url": "https://agritrace.example"
+  },
+  "report_hash": "0xc551f9e826f1053ac0a85ec1fca4064503b490fad9015b1df9e0aa5c71b6dff8",
+  "weights_version": "v4"
+ },
+ {
+  "formula_version": "v3",
+  "name": "v3_triangulation",
+  "report": {
+   "competitors": [
+    {
+     "basis": "search",
+     "name": "TE-FOOD",
+     "note": "farm-to-table traceability",
+     "raised_aud": 15000000.0,
+     "sources": 2,
+     "url": "https://te-food.example/"
+    },
+    {
+     "basis": "search",
+     "name": "OpenSC",
+     "note": "supply-chain transparency",
+     "raised_aud": null,
+     "sources": 1,
+     "url": "https://opensc.example"
+    }
+   ],
+   "market": {
+    "company_financials": null,
+    "competitor_notes": [],
+    "confidence": "medium",
+    "key_findings": [
+     {
+      "claim": "Sector SaaS deals price at mid-single-digit revenue multiples",
+      "source_urls": [
+       "https://news.example.com/agritrace-revenue-arr-funding-valuation-"
+      ]
+     }
+    ],
+    "market_growth_pct": 18.0,
+    "market_summary": "Food traceability software is growing on export-compliance demand.",
+    "revenue_multiple_high": 10.0,
+    "revenue_multiple_low": 3.0,
+    "revenue_multiple_median": 6.0,
+    "risks": []
+   },
+   "profile": {
+    "company_name": "AgriTrace Pty Ltd",
+    "company_number": "ACN 123 456 789",
+    "competitors": [
+     "TE-FOOD",
+     "OpenSC"
+    ],
+    "country": "AU",
+    "description": "Blockchain traceability SaaS for food exporters",
+    "documents_reviewed": [
+     "https://agritrace.example/",
+     "https://agritrace.example/about",
+     "https://agritrace.example/contact"
+    ],
+    "founders": [
+     {
+      "domain_expertise": true,
+      "name": "Jane Nguyen",
+      "prior_exits": 1,
+      "role": "CEO",
+      "years_experience": 12.0
+     },
+     {
+      "domain_expertise": false,
+      "name": "Tom Lee",
+      "prior_exits": 0,
+      "role": "CTO",
+      "years_experience": 9.0
+     }
+    ],
+    "metrics": {
+     "burn_monthly_aud": 60000.0,
+     "gross_margin_pct": 72.0,
+     "paying_customers": 23,
+     "raised_to_date_aud": 0.0,
+     "revenue_growth_yoy_pct": 140.0,
+     "revenue_ttm_aud": 480000.0,
+     "runway_months": 14.0
+    },
+    "metrics_sources": {
+     "burn_monthly_aud": "website",
+     "gross_margin_pct": "website",
+     "paying_customers": "website",
+     "revenue_growth_yoy_pct": "website",
+     "revenue_ttm_aud": "website",
+     "runway_months": "website"
+    },
+    "missing_items": [
+     "audited financial statements",
+     "IP assignment deeds"
+    ],
+    "search_keywords": [
+     "food traceability software",
+     "agtech"
+    ],
+    "sector": "agri-food supply chain traceability",
+    "stage": "seed"
+   },
+   "self_reported": null,
+   "svi": {
+    "band": "B - strong",
+    "dimensions": {
+     "founder_quality": {
+      "basis": "ai_suggested",
+      "rationale": "experienced CEO with prior exit",
+      "score": 78.0,
+      "sources": []
+     },
+     "growth_capability": {
+      "basis": "computed",
+      "rationale": "YoY growth 140%, runway 14 months",
+      "score": 65.3,
+      "sources": []
+     },
+     "investment_readiness": {
+      "basis": "ai_suggested",
+      "rationale": "missing audited accounts and IP deeds",
+      "score": 55.0,
+      "sources": []
+     },
+     "market_attractiveness": {
+      "basis": "ai_suggested",
+      "rationale": "growing niche, export regulation tailwind",
+      "score": 68.0,
+      "sources": []
+     },
+     "product_strength": {
+      "basis": "ai_suggested",
+      "rationale": "live product, 23 paying customers",
+      "score": 70.0,
+      "sources": []
+     },
+     "revenue_performance": {
+      "basis": "computed",
+      "rationale": "revenue 480,000 AUD vs stage benchmark 300,000; gross margin 72%",
+      "score": 60.2,
+      "sources": []
+     },
+     "trust_verification": {
+      "basis": "ai_suggested",
+      "rationale": "claims partly verifiable",
+      "score": 60.0,
+      "sources": []
+     }
+    },
+    "index": 66.77,
+    "method": "blend of 2 methods: revenue multiple (4.2x / 6.0x / 8.4x, sector multiple(s) stated in sources: 6x) [79%] + stage benchmark (seed) x quality score factor 1.17 [21%] (confidence medium)",
+    "narrative": "Indicative SVI narrative (not financial advice).",
+    "needs_human_review": [
+     "founder_quality: AI-suggested score must be confirmed",
+     "product_strength: AI-suggested score must be confirmed",
+     "market_attractiveness: AI-suggested score must be confirmed",
+     "investment_readiness: AI-suggested score must be confirmed",
+     "trust_verification: AI-suggested score must be confirmed",
+     "data room missing: audited financial statements",
+     "data room missing: IP assignment deeds",
+     "valuation confidence medium: no verified valuation, funding round or market cap of the company itself was found",
+     "valuation confidence medium: revenue multiple from a sector figure stated in a source"
+    ],
+    "report_sha256": "44bd64824bd3cd6a47104846722c68ce57974a35d78d78824a06d3c5f27c5ce2",
+    "triangulation": {
+     "as_of": "2026-09-27",
+     "confidence": "medium",
+     "confidence_reasons": [
+      "no verified valuation, funding round or market cap of the company itself was found",
+      "revenue multiple from a sector figure stated in a source"
+     ],
+     "fx_as_of": "2026-09-26",
+     "high_aud": 5631334.0,
+     "listed": false,
+     "listing": "",
+     "low_aud": 2082818.4799999997,
+     "methods": [
+      {
+       "high_aud": 4031999.9999999995,
+       "inputs": {
+        "discount": 0.0,
+        "high_multiple": 8.4,
+        "low_multiple": 4.2,
+        "median_multiple": 6.0,
+        "multiple_source": "sector_cited",
+        "multiples": [
+         6.0
+        ],
+        "n": 1,
+        "revenue_aud": 480000.0,
+        "revenue_source": "website"
+       },
+       "label": "revenue multiple (4.2x / 6.0x / 8.4x, sector multiple(s) stated in sources: 6x)",
+       "low_aud": 2015999.9999999998,
+       "method": "revenue_multiple",
+       "notes": [],
+       "raw_weight": 0.378,
+       "sources": [
+        "https://news.example.com/agri-food-supply-chain-traceability-comp"
+       ],
+       "value_aud": 2880000.0,
+       "weight": 0.7908
+      },
+      {
+       "high_aud": 11677000.0,
+       "inputs": {
+        "benchmark": [
+         2000000,
+         5000000,
+         10000000
+        ],
+        "stage": "seed",
+        "svi_factor": 1.1677
+       },
+       "label": "stage benchmark (seed) x quality score factor 1.17",
+       "low_aud": 2335400.0,
+       "method": "stage_scorecard",
+       "notes": [
+        "placeholder stage calibration"
+       ],
+       "raw_weight": 0.1,
+       "sources": [],
+       "value_aud": 5838500.0,
+       "weight": 0.2092
+      }
+     ],
+     "value_aud": 3498918.2,
+     "version": "v3"
+    },
+    "valuation_high_aud": 5631000.0,
+    "valuation_low_aud": 2083000.0,
+    "valuation_mid_aud": 3499000.0,
+    "weights": {
+     "founder_quality": 0.2,
+     "growth_capability": 0.1,
+     "investment_readiness": 0.1,
+     "market_attractiveness": 0.2,
+     "product_strength": 0.15,
+     "revenue_performance": 0.2,
+     "trust_verification": 0.05
+    }
+   },
+   "url": "https://agritrace.example"
+  },
+  "report_hash": "0xad0b7db911d43863fe8e5783d6733037f97c8041c03e434473a7baa350bf5edb",
+  "weights_version": "v3"
+ },
+ {
+  "formula_version": "v2",
+  "name": "v2_range",
+  "report": {
+   "competitors": [
+    {
+     "basis": "search",
+     "name": "TE-FOOD",
+     "note": "farm-to-table traceability",
+     "raised_aud": 15000000.0,
+     "sources": 2,
+     "url": "https://te-food.example/"
+    },
+    {
+     "basis": "search",
+     "name": "OpenSC",
+     "note": "supply-chain transparency",
+     "raised_aud": null,
+     "sources": 1,
+     "url": "https://opensc.example"
+    }
+   ],
+   "market": {
+    "company_financials": null,
+    "competitor_notes": [],
+    "confidence": "medium",
+    "key_findings": [
+     {
+      "claim": "Sector SaaS deals price at mid-single-digit revenue multiples",
+      "source_urls": [
+       "https://news.example.com/agritrace-revenue-arr-funding-valuation-"
+      ]
+     }
+    ],
+    "market_growth_pct": 18.0,
+    "market_summary": "Food traceability software is growing on export-compliance demand.",
+    "revenue_multiple_high": 10.0,
+    "revenue_multiple_low": 3.0,
+    "revenue_multiple_median": 6.0,
+    "risks": []
+   },
+   "profile": {
+    "company_name": "AgriTrace Pty Ltd",
+    "company_number": "ACN 123 456 789",
+    "competitors": [
+     "TE-FOOD",
+     "OpenSC"
+    ],
+    "country": "AU",
+    "description": "Blockchain traceability SaaS for food exporters",
+    "documents_reviewed": [
+     "https://agritrace.example/",
+     "https://agritrace.example/about",
+     "https://agritrace.example/contact"
+    ],
+    "founders": [
+     {
+      "domain_expertise": true,
+      "name": "Jane Nguyen",
+      "prior_exits": 1,
+      "role": "CEO",
+      "years_experience": 12.0
+     },
+     {
+      "domain_expertise": false,
+      "name": "Tom Lee",
+      "prior_exits": 0,
+      "role": "CTO",
+      "years_experience": 9.0
+     }
+    ],
+    "metrics": {
+     "burn_monthly_aud": 60000.0,
+     "gross_margin_pct": 72.0,
+     "paying_customers": 23,
+     "raised_to_date_aud": 0.0,
+     "revenue_growth_yoy_pct": 140.0,
+     "revenue_ttm_aud": 480000.0,
+     "runway_months": 14.0
+    },
+    "metrics_sources": {
+     "burn_monthly_aud": "website",
+     "gross_margin_pct": "website",
+     "paying_customers": "website",
+     "revenue_growth_yoy_pct": "website",
+     "revenue_ttm_aud": "website",
+     "runway_months": "website"
+    },
+    "missing_items": [
+     "audited financial statements",
+     "IP assignment deeds"
+    ],
+    "search_keywords": [
+     "food traceability software",
+     "agtech"
+    ],
+    "sector": "agri-food supply chain traceability",
+    "stage": "seed"
+   },
+   "self_reported": null,
+   "svi": {
+    "band": "B - strong",
+    "dimensions": {
+     "founder_quality": {
+      "basis": "ai_suggested",
+      "rationale": "experienced CEO with prior exit",
+      "score": 78.0,
+      "sources": []
+     },
+     "growth_capability": {
+      "basis": "computed",
+      "rationale": "YoY growth 140%, runway 14 months",
+      "score": 65.3,
+      "sources": []
+     },
+     "investment_readiness": {
+      "basis": "ai_suggested",
+      "rationale": "missing audited accounts and IP deeds",
+      "score": 55.0,
+      "sources": []
+     },
+     "market_attractiveness": {
+      "basis": "ai_suggested",
+      "rationale": "growing niche, export regulation tailwind",
+      "score": 68.0,
+      "sources": []
+     },
+     "product_strength": {
+      "basis": "ai_suggested",
+      "rationale": "live product, 23 paying customers",
+      "score": 70.0,
+      "sources": []
+     },
+     "revenue_performance": {
+      "basis": "computed",
+      "rationale": "revenue 480,000 AUD vs stage benchmark 300,000; gross margin 72%",
+      "score": 60.2,
+      "sources": []
+     },
+     "trust_verification": {
+      "basis": "ai_suggested",
+      "rationale": "claims partly verifiable",
+      "score": 60.0,
+      "sources": []
+     }
+    },
+    "index": 66.77,
+    "method": "revenue multiple (3.0x / 6.0x / 10.0x, cited market data) x SVI factor 1.17",
+    "narrative": "",
+    "needs_human_review": [
+     "founder_quality: AI-suggested score must be confirmed",
+     "product_strength: AI-suggested score must be confirmed",
+     "market_attractiveness: AI-suggested score must be confirmed",
+     "investment_readiness: AI-suggested score must be confirmed",
+     "trust_verification: AI-suggested score must be confirmed",
+     "data room missing: audited financial statements",
+     "data room missing: IP assignment deeds"
+    ],
+    "report_sha256": "87a6e00f79bd5e0546705daab8c805d374e24d927fb47661d59e035d3caf7cd3",
+    "triangulation": null,
+    "valuation_high_aud": 5605000.0,
+    "valuation_low_aud": 1681000.0,
+    "valuation_mid_aud": 3363000.0,
+    "weights": {
+     "founder_quality": 0.2,
+     "growth_capability": 0.1,
+     "investment_readiness": 0.1,
+     "market_attractiveness": 0.2,
+     "product_strength": 0.15,
+     "revenue_performance": 0.2,
+     "trust_verification": 0.05
+    }
+   },
+   "url": "https://agritrace.example"
+  },
+  "report_hash": "0x279f8db2798fec019c32a654ee4837a232483a1a83a6a21ed095f68d3e429dbb",
+  "weights_version": "v3"
+ },
+ {
+  "formula_version": "v1",
+  "name": "v1_no_spread",
+  "report": {
+   "competitors": [
+    {
+     "name": "B",
+     "raised_aud": null
+    }
+   ],
+   "market": {
+    "revenue_multiple_high": 6.0,
+    "revenue_multiple_low": 6.0,
+    "revenue_multiple_median": 6.0
+   },
+   "profile": {
+    "company_name": "Ví dụ Pty Ltd",
+    "metrics": {
+     "revenue_ttm_aud": 400000.0
+    },
+    "stage": "seed"
+   },
+   "self_reported": null,
+   "svi": {
+    "band": "C - developing",
+    "dimensions": {
+     "founder_quality": {
+      "basis": "ai_suggested",
+      "score": 70
+     },
+     "growth_capability": {
+      "basis": "ai_suggested",
+      "score": 48.2
+     },
+     "investment_readiness": {
+      "basis": "ai_suggested",
+      "score": 40
+     },
+     "market_attractiveness": {
+      "basis": "ai_suggested",
+      "score": 75
+     },
+     "product_strength": {
+      "basis": "ai_suggested",
+      "score": 60
+     },
+     "revenue_performance": {
+      "basis": "ai_suggested",
+      "score": 55.5
+     },
+     "trust_verification": {
+      "basis": "ai_suggested",
+      "score": 90
+     }
+    },
+    "index": 62.42,
+    "method": "revenue multiple",
+    "valuation_high_aud": 2698000.0,
+    "valuation_low_aud": 2698000.0,
+    "valuation_mid_aud": 2698000.0
+   },
+   "url": "https://example.com.au"
+  },
+  "report_hash": "0xe54baf4178f0fcaeeda4a2c3cb2c2db8968f7bca4626db46f9466cdb1078e3c4",
+  "weights_version": "v3"
+ }
+]

@@ -180,6 +180,15 @@ def create_app(settings: Settings | None = None, queue: JobQueue | None = None, 
     app.include_router(build_dividend_policy_router(ctx, ctx.automation))
     app.include_router(build_offerings_router(ctx, ctx.offerings))
     app.include_router(build_hr_router(ctx))  # founding-team / person reviews (hr.blockid.au)
+    from .studio.finalise import build_finalise_router
+    from .studio.projections import build_projections_router
+
+    # valuation v5 (docs/VALUATION-V5-API.md): every endpoint answers 404 while VALUATION_V5=0
+    app.include_router(build_projections_router(ctx))
+    app.include_router(build_finalise_router(ctx))
+    from .studio.evaluation import build_evaluation_router
+
+    app.include_router(build_evaluation_router(ctx))  # evaluation v5: inputs, documents, rescore (VALUATION_V5)
     from .studio.active_jobs import build_active_jobs_router
 
     app.include_router(build_active_jobs_router(ctx))  # "Running" tray: GET /v1/me/active-jobs (both hosts)

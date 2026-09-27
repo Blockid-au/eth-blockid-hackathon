@@ -26,16 +26,20 @@ dependencies = [
   "eth-utils>=4",
   "bcrypt>=4",
   "hexbytes>=1",
+  # valuation v5 projection uploads (studio/projections.py): read-only xlsx parsing; defusedxml makes openpyxl
+  # refuse XML entity attacks
+  "openpyxl>=3.1",
+  "defusedxml>=0.7",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff>=0.6", "numpy-financial>=1.0"]  # numpy-financial: DCF test oracle only
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-blockid_agents = ["studio/*.sql"]
+blockid_agents = ["studio/*.sql", "market_data/*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

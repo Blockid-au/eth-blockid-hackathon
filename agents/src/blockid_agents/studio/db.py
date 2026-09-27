@@ -30,7 +30,12 @@ def now() -> datetime:
 
 
 def initial_steps() -> list[dict]:
-    return [{"key": k, "status": "pending", "detail": "", "at": None} for k in STEP_KEYS]
+    from ..tools.valuation_params import v5_enabled
+
+    keys = list(STEP_KEYS)
+    if v5_enabled():  # valuation v5: "Checking value with standard methods" (graph node valuation_methods)
+        keys.insert(keys.index("narrative"), "valuation_methods")
+    return [{"key": k, "status": "pending", "detail": "", "at": None} for k in keys]
 
 
 def jsonable(v: Any) -> Any:

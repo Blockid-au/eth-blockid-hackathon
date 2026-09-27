@@ -79,6 +79,26 @@ POLICIES: dict[str, AgentPolicy] = {
                     "verbatim-quoted professional facts per person; code computes person and team scores.",
     ),
 }
+# Evaluation v5 analysts (docs/PLAN-EVALUATION-V5.md §2): public web data + founder-uploaded business documents
+# (contacts redacted), read-only; the model only extracts cited claims, code verifies and scores.
+for _name, _desc in (
+    ("traction_analyst", "Extracts cited revenue / growth / customer / pipeline claims (verbatim quotes)."),
+    ("market_sizer", "Extracts cited market-size / growth / target-customer claims; code sizes TAM/SAM/SOM."),
+    ("moat_analyst", "Extracts cited evidence for each of the 7 Powers; code assigns levels 0-3."),
+    ("retention_analyst", "Extracts cited retention / churn / review claims; code scores retention."),
+    ("deck_reader", "Reads an uploaded pitch deck (text) into cited DeckFacts; no tools."),
+):
+    POLICIES[_name] = AgentPolicy(
+        tiers=frozenset({"local", "cloud"}),
+        tools=frozenset() if _name == "deck_reader" else frozenset({"web_search", "fetch_url", "store_evidence"}),
+        handles_pii=False, description=_desc)
+
+# Valuation v5 agent (docs/PLAN-VALUATION-V5.md §5, agents/valuation_agent.py): reads this valuation's stored evidence
+# only (no web, no keys, no chain); maps the industry, suggests Berkus / risk ratings with cited evidence, extracts
+# quote-verified precedent deals. Code computes every number.
+POLICIES["valuation_methods"] = AgentPolicy(
+    tiers=frozenset({"local", "cloud"}), tools=frozenset({"value_methods"}), handles_pii=False,
+    description="Valuation v5: industry pick, startup-factor ratings with citations, verified precedent deals.")
 
 # Tools that do not exist for ANY agent. Listed explicitly so reviewers see the boundary.
 FORBIDDEN_TOOLS = frozenset({"sign_tx", "send_tx", "read_private_key", "deploy_contract", "shell"})

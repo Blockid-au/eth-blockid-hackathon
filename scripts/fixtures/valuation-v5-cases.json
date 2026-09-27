@@ -1,0 +1,737 @@
+{
+ "note": "SYNTHETIC projection fixtures for valuation v5 acceptance A5 (recompute) and A6 (hockey-stick detection). Not market data; real SME / startup reference cases are selected in Phase 0 (docs/PLAN-VALUATION-V5.md \u00a79.1) and added here with source URLs.",
+ "cases": [
+  {
+   "name": "seed-good",
+   "synthetic": true,
+   "kind": "good",
+   "sector": "software",
+   "stage_hint": "seed",
+   "revenue_ttm_aud": 400000.0,
+   "growth_pct": 120.0,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 1000000.0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 181818,
+      "cogs": 54545,
+      "opex": 163636,
+      "d_and_a": 3636,
+      "capex": 5455
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 400000,
+      "cogs": 120000,
+      "opex": 360000,
+      "d_and_a": 8000,
+      "capex": 12000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 880000,
+      "cogs": 264000,
+      "opex": 730400,
+      "d_and_a": 17600,
+      "capex": 26400
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 1936000,
+      "cogs": 580800,
+      "opex": 1471360,
+      "d_and_a": 38720,
+      "capex": 58080
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 4259200,
+      "cogs": 1277760,
+      "opex": 2938848,
+      "d_and_a": 85184,
+      "capex": 127776
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 9370240,
+      "cogs": 2811072,
+      "opex": 5809549,
+      "d_and_a": 187405,
+      "capex": 281107
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 20614528,
+      "cogs": 6184358,
+      "opex": 11337990,
+      "d_and_a": 412291,
+      "capex": 618436
+     }
+    ]
+   },
+   "reference_aud": null
+  },
+  {
+   "name": "seed-hockey_stick",
+   "synthetic": true,
+   "kind": "hockey_stick",
+   "sector": "software",
+   "stage_hint": "seed",
+   "revenue_ttm_aud": 400000.0,
+   "growth_pct": 120.0,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 1000000.0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 181818,
+      "cogs": 54545,
+      "opex": 163636,
+      "d_and_a": 3636,
+      "capex": 5455
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 400000,
+      "cogs": 120000,
+      "opex": 360000,
+      "d_and_a": 8000,
+      "capex": 12000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 440000,
+      "cogs": 132000,
+      "opex": 308000,
+      "d_and_a": 8800,
+      "capex": 13200
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 484000,
+      "cogs": 145200,
+      "opex": 338800,
+      "d_and_a": 9680,
+      "capex": 14520
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 532400,
+      "cogs": 159720,
+      "opex": 372680,
+      "d_and_a": 10648,
+      "capex": 15972
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 585640,
+      "cogs": 175692,
+      "opex": 409948,
+      "d_and_a": 11713,
+      "capex": 17569
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 4099480,
+      "cogs": 1229844,
+      "opex": 2254714,
+      "d_and_a": 81990,
+      "capex": 122984
+     }
+    ]
+   },
+   "reference_aud": null
+  },
+  {
+   "name": "seed-broken",
+   "synthetic": true,
+   "kind": "broken",
+   "sector": "software",
+   "stage_hint": "seed",
+   "revenue_ttm_aud": 400000.0,
+   "growth_pct": 120.0,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 1000000.0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 181818,
+      "cogs": 54545,
+      "opex": 163636,
+      "d_and_a": 3636,
+      "capex": 5455
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 400000,
+      "cogs": 120000,
+      "opex": 360000,
+      "d_and_a": 8000,
+      "capex": 12000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 880000,
+      "cogs": 264000,
+      "opex": 730400,
+      "d_and_a": 17600,
+      "capex": 26400
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 1936000,
+      "cogs": 580800,
+      "opex": 1471360,
+      "d_and_a": 38720,
+      "capex": 58080,
+      "ebitda": 12345
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 4259200,
+      "cogs": 1277760,
+      "opex": 2938848,
+      "d_and_a": 85184,
+      "capex": 127776
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 9370240,
+      "cogs": 2811072,
+      "opex": 5809549,
+      "d_and_a": 187405,
+      "capex": 281107
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 20614528,
+      "cogs": 6184358,
+      "opex": 11337990,
+      "d_and_a": 412291,
+      "capex": 618436
+     }
+    ]
+   },
+   "reference_aud": null
+  },
+  {
+   "name": "series_a-good",
+   "synthetic": true,
+   "kind": "good",
+   "sector": "software",
+   "stage_hint": "series-a",
+   "revenue_ttm_aud": 4000000.0,
+   "growth_pct": 80.0,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 1000000.0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 2222222,
+      "cogs": 666667,
+      "opex": 1666667,
+      "d_and_a": 44444,
+      "capex": 66667
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 4000000,
+      "cogs": 1200000,
+      "opex": 3000000,
+      "d_and_a": 80000,
+      "capex": 120000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 7200000,
+      "cogs": 2160000,
+      "opex": 5040000,
+      "d_and_a": 144000,
+      "capex": 216000
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 12960000,
+      "cogs": 3888000,
+      "opex": 8424000,
+      "d_and_a": 259200,
+      "capex": 388800
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 23328000,
+      "cogs": 6998400,
+      "opex": 13996800,
+      "d_and_a": 466560,
+      "capex": 699840
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 41990400,
+      "cogs": 12597120,
+      "opex": 23094720,
+      "d_and_a": 839808,
+      "capex": 1259712
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 75582720,
+      "cogs": 22674816,
+      "opex": 37791360,
+      "d_and_a": 1511654,
+      "capex": 2267482
+     }
+    ]
+   },
+   "reference_aud": null
+  },
+  {
+   "name": "series_a-hockey_stick",
+   "synthetic": true,
+   "kind": "hockey_stick",
+   "sector": "software",
+   "stage_hint": "series-a",
+   "revenue_ttm_aud": 4000000.0,
+   "growth_pct": 80.0,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 1000000.0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 2222222,
+      "cogs": 666667,
+      "opex": 1666667,
+      "d_and_a": 44444,
+      "capex": 66667
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 4000000,
+      "cogs": 1200000,
+      "opex": 3000000,
+      "d_and_a": 80000,
+      "capex": 120000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 4400000,
+      "cogs": 1320000,
+      "opex": 3080000,
+      "d_and_a": 88000,
+      "capex": 132000
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 4840000,
+      "cogs": 1452000,
+      "opex": 3388000,
+      "d_and_a": 96800,
+      "capex": 145200
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 5324000,
+      "cogs": 1597200,
+      "opex": 3726800,
+      "d_and_a": 106480,
+      "capex": 159720
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 5856400,
+      "cogs": 1756920,
+      "opex": 4099480,
+      "d_and_a": 117128,
+      "capex": 175692
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 40994800,
+      "cogs": 12298440,
+      "opex": 20497400,
+      "d_and_a": 819896,
+      "capex": 1229844
+     }
+    ]
+   },
+   "reference_aud": null
+  },
+  {
+   "name": "series_a-broken",
+   "synthetic": true,
+   "kind": "broken",
+   "sector": "software",
+   "stage_hint": "series-a",
+   "revenue_ttm_aud": 4000000.0,
+   "growth_pct": 80.0,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 1000000.0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 2222222,
+      "cogs": 666667,
+      "opex": 1666667,
+      "d_and_a": 44444,
+      "capex": 66667
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 4000000,
+      "cogs": 1200000,
+      "opex": 3000000,
+      "d_and_a": 80000,
+      "capex": 120000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 7200000,
+      "cogs": 2160000,
+      "opex": 5040000,
+      "d_and_a": 144000,
+      "capex": 216000
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 12960000,
+      "cogs": 3888000,
+      "opex": 8424000,
+      "d_and_a": 259200,
+      "capex": 388800,
+      "ebitda": 12345
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 23328000,
+      "cogs": 6998400,
+      "opex": 13996800,
+      "d_and_a": 466560,
+      "capex": 699840
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 41990400,
+      "cogs": 12597120,
+      "opex": 23094720,
+      "d_and_a": 839808,
+      "capex": 1259712
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 75582720,
+      "cogs": 22674816,
+      "opex": 37791360,
+      "d_and_a": 1511654,
+      "capex": 2267482
+     }
+    ]
+   },
+   "reference_aud": null
+  },
+  {
+   "name": "profitable_sme-good",
+   "synthetic": true,
+   "kind": "good",
+   "sector": "business services",
+   "stage_hint": "seed",
+   "revenue_ttm_aud": 5000000.0,
+   "growth_pct": 8,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 4629630,
+      "cogs": 1388889,
+      "opex": 2546296,
+      "d_and_a": 92593,
+      "capex": 138889
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 5000000,
+      "cogs": 1500000,
+      "opex": 2750000,
+      "d_and_a": 100000,
+      "capex": 150000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 5400000,
+      "cogs": 1620000,
+      "opex": 2937600,
+      "d_and_a": 108000,
+      "capex": 162000
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 5832000,
+      "cogs": 1749600,
+      "opex": 3137616,
+      "d_and_a": 116640,
+      "capex": 174960
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 6298560,
+      "cogs": 1889568,
+      "opex": 3350834,
+      "d_and_a": 125971,
+      "capex": 188957
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 6802445,
+      "cogs": 2040733,
+      "opex": 3578086,
+      "d_and_a": 136049,
+      "capex": 204073
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 7346640,
+      "cogs": 2203992,
+      "opex": 3820253,
+      "d_and_a": 146933,
+      "capex": 220399
+     }
+    ]
+   },
+   "reference_aud": null
+  },
+  {
+   "name": "profitable_sme-hockey_stick",
+   "synthetic": true,
+   "kind": "hockey_stick",
+   "sector": "business services",
+   "stage_hint": "seed",
+   "revenue_ttm_aud": 5000000.0,
+   "growth_pct": 8,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 4629630,
+      "cogs": 1388889,
+      "opex": 2546296,
+      "d_and_a": 92593,
+      "capex": 138889
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 5000000,
+      "cogs": 1500000,
+      "opex": 2750000,
+      "d_and_a": 100000,
+      "capex": 150000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 5500000,
+      "cogs": 1650000,
+      "opex": 3850000,
+      "d_and_a": 110000,
+      "capex": 165000
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 6050000,
+      "cogs": 1815000,
+      "opex": 4235000,
+      "d_and_a": 121000,
+      "capex": 181500
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 6655000,
+      "cogs": 1996500,
+      "opex": 4658500,
+      "d_and_a": 133100,
+      "capex": 199650
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 7320500,
+      "cogs": 2196150,
+      "opex": 5124350,
+      "d_and_a": 146410,
+      "capex": 219615
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 51243500,
+      "cogs": 15373050,
+      "opex": 26646620,
+      "d_and_a": 1024870,
+      "capex": 1537305
+     }
+    ]
+   },
+   "reference_aud": null
+  },
+  {
+   "name": "profitable_sme-broken",
+   "synthetic": true,
+   "kind": "broken",
+   "sector": "business services",
+   "stage_hint": "seed",
+   "revenue_ttm_aud": 5000000.0,
+   "growth_pct": 8,
+   "projection": {
+    "currency": "AUD",
+    "cash": 250000,
+    "debt": 0,
+    "planned_raise": 0,
+    "years": [
+     {
+      "year": 2025,
+      "actual": true,
+      "revenue": 4629630,
+      "cogs": 1388889,
+      "opex": 2546296,
+      "d_and_a": 92593,
+      "capex": 138889
+     },
+     {
+      "year": 2026,
+      "actual": true,
+      "revenue": 5000000,
+      "cogs": 1500000,
+      "opex": 2750000,
+      "d_and_a": 100000,
+      "capex": 150000
+     },
+     {
+      "year": 2027,
+      "actual": false,
+      "revenue": 5400000,
+      "cogs": 1620000,
+      "opex": 2937600,
+      "d_and_a": 108000,
+      "capex": 162000
+     },
+     {
+      "year": 2028,
+      "actual": false,
+      "revenue": 5832000,
+      "cogs": 1749600,
+      "opex": 3137616,
+      "d_and_a": 116640,
+      "capex": 174960,
+      "ebitda": 12345
+     },
+     {
+      "year": 2029,
+      "actual": false,
+      "revenue": 6298560,
+      "cogs": 1889568,
+      "opex": 3350834,
+      "d_and_a": 125971,
+      "capex": 188957
+     },
+     {
+      "year": 2030,
+      "actual": false,
+      "revenue": 6802445,
+      "cogs": 2040733,
+      "opex": 3578086,
+      "d_and_a": 136049,
+      "capex": 204073
+     },
+     {
+      "year": 2031,
+      "actual": false,
+      "revenue": 7346640,
+      "cogs": 2203992,
+      "opex": 3820253,
+      "d_and_a": 146933,
+      "capex": 220399
+     }
+    ]
+   },
+   "reference_aud": null
+  }
+ ]
+}

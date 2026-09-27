@@ -14,6 +14,7 @@ import { GRADE_C } from "../lib/math";
 import { shortAddr } from "../lib/addr";
 import { demoApproveLink } from "../components/DemoGuide";
 import { readNumber, readWhole } from "../lib/typed";
+import { OfferFinalNote } from "./valuation5/Finalise";
 export { OfferingBadge } from "../components/OfferingBadge";
 
 /**
@@ -217,7 +218,7 @@ function TermsForm({ v, onSaved, onCancel }: { v: CompanyOfferingView; onSaved: 
   return (
     <form className="stack" onSubmit={submit} noValidate>
       <div className="fgrid">
-        <label className="lf"><span>{t("of.f.price")}</span><input type="text" inputMode="decimal" value={price} aria-invalid={!!priceErr || undefined} onChange={(e) => setPrice(e.target.value)} />{fe(priceErr) ?? <span className="muted-sm">{t("of.f.priceHint", { p: aud(v.defaults.price_aud, 4) })}</span>}</label>
+        <label className="lf"><span>{t("of.f.price")}</span><input type="text" inputMode="decimal" value={price} aria-invalid={!!priceErr || undefined} onChange={(e) => setPrice(e.target.value)} />{fe(priceErr) ?? <span className="muted-sm">{t("of.f.priceHint", { p: aud(v.defaults.price_aud, 4) })}</span>}<OfferFinalNote final={(v.defaults as { final?: unknown }).final} /></label>
         <label className="lf"><span>{t("of.f.shares")}</span><input type="text" inputMode="numeric" value={shares} aria-invalid={!!sharesErr || undefined} onChange={(e) => setShares(e.target.value)} />{fe(sharesErr) ?? <span className="muted-sm">{t("of.f.sharesHint", { n: fmt(v.defaults.total_shares) })}</span>}</label>
         <label className="lf"><span>{t("of.f.min")}</span><input type="text" inputMode="decimal" value={min} placeholder="0" aria-invalid={!!minErr || undefined} onChange={(e) => setMin(e.target.value)} />{fe(minErr, vars) ?? <span className="muted-sm">{t("of.f.minHint")}</span>}</label>
         <label className="lf"><span>{t("of.f.max")}</span><input type="text" inputMode="numeric" value={per} placeholder={shares} aria-invalid={!!perErr || undefined} onChange={(e) => setPer(e.target.value)} />{fe(perErr, vars)}</label>
