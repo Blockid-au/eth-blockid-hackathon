@@ -21,12 +21,14 @@ from .schemas import (
     Finding,
     FundingClaim,
     FundingClaims,
-    RelevanceVerdict,
-    RelevanceVerdicts,
     MarketAnalysis,
     Narrative,
     QualitativeScores,
+    RelevanceVerdict,
+    RelevanceVerdicts,
+    SectorMultipleClaim,
     StartupProfile,
+    ValuationEvidence,
 )
 
 DEMO_DATAROOM = {
@@ -112,7 +114,7 @@ def fake_llm() -> FakeLLM:
         items = []
         for block in u.split("### Competitor: ")[1:]:
             name = block.split("\n", 1)[0].strip()
-            for url, text in re.findall(r"URL: (\S+)\n(.*?)(?=\nURL: |\Z)", block, re.S):
+            for url, text in re.findall(r"URL: (\S+)\n(.*?)(?=\nURL: |\Z)", block, re.DOTALL):
                 if "raised US$10 million" in text:
                     items.append(FundingClaim(name=name, amount=10_000_000, currency="USD", source_url=url,
                                               quote="raised US$10 million"))
@@ -127,9 +129,23 @@ def fake_llm() -> FakeLLM:
             items.append(RelevanceVerdict(name=name, relevant="running shoes" not in block))
         return RelevanceVerdicts(items=items)
 
+    def valuation_evidence(_s, u):
+        # the fake pages state "Median EV/Revenue for traceability SaaS: 6x" -> one verifiable sector multiple,
+        # plus one invented claim that verification must drop
+        for url, text in re.findall(r"URL: (\S+)\n(?:Retrieved: \S+\n)?(?:Search snippet: [^\n]*\n)?(.*?)(?=\n\n\[|\Z)", u,
+                                    re.S):
+            if "Median EV/Revenue for traceability SaaS: 6x" in text:
+                return ValuationEvidence(sector_multiples=[
+                    SectorMultipleClaim(multiple=6, sector="traceability SaaS", public=False, source_url=url,
+                                        quote="Median EV/Revenue for traceability SaaS: 6x"),
+                    SectorMultipleClaim(multiple=25, sector="invented", source_url="https://invented.example",
+                                        quote="trades at 25x revenue")])
+        return ValuationEvidence()
+
     return FakeLLM(
         {
             RelevanceVerdicts: relevance,
+            ValuationEvidence: valuation_evidence,
             CompetitorList: competitor_list,
             FundingClaims: funding,
             StartupProfile: profile,

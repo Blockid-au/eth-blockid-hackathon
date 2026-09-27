@@ -1,0 +1,561 @@
+{
+ "recorded": "2026-09-27",
+ "note": "Recorded research fixtures for scripts/valuation-backtest.py (offline mode). Page texts are EXCERPTS of the real pages at these URLs as read on 2026-09-27 (not full pages); `claims` are the model answers replayed in offline mode — code still verifies every quote against the page text.",
+ "companies": {
+  "Canva": {
+   "url": "https://www.canva.com/",
+   "profile": {
+    "company_name": "Canva",
+    "sector": "online graphic design software (SaaS)",
+    "stage": "growth",
+    "country": "AU",
+    "description": "Online design platform sold by subscription to individuals and teams.",
+    "search_keywords": [
+     "online design software",
+     "SaaS"
+    ]
+   },
+   "results": {
+    "company": [
+     {
+      "url": "https://techcrunch.com/2026/02/18/canva-gets-to-4b-in-revenue-as-llm-referral-traffic-rises/",
+      "title": "Canva gets to $4B in revenue as LLM referral traffic rises",
+      "description": ""
+     }
+    ],
+    "valuation": [
+     {
+      "url": "https://www.startupdaily.net/advice/business-strategy/canva-wipes-10-billion-from-its-valuation-putting-ipo-plans-in-doubt/",
+      "title": "Canva wipes $11 billion from its valuation, putting IPO plans in doubt",
+      "description": ""
+     }
+    ],
+    "market": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ],
+    "comps": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ]
+   },
+   "pages": {
+    "https://www.startupdaily.net/advice/business-strategy/canva-wipes-10-billion-from-its-valuation-putting-ipo-plans-in-doubt/": "Aug 17, 2026. Canva wipes $11 billion from its valuation, putting IPO plans in doubt. Blackbird and Airtree have revalued their Canva holdings, marking it down 17% to US$34.9B (c. A$49B). Private-share broker Hiive was offering Canva stock on the secondary market at an implied valuation of about US$30bn. Canva's own employee share plan had an independent valuation lopping off around 20%, to US$31bn (A$43.5bn), down from US$38.9bn a year ago. Revenue in the June quarter still grew by 25.2% on 12 months ago to hit US$921.9m (A$1.32bn).",
+    "https://techcrunch.com/2026/02/18/canva-gets-to-4b-in-revenue-as-llm-referral-traffic-rises/": "Canva gets to $4B in revenue as LLM referral traffic rises. February 18, 2026. Canva said strong growth helped push its annual recurring revenue to $4 billion by the end of year. The subscription-based company also saw its B2B business grow by 100% with $500 million in ARR. Canva was last valued at $42 billion in a share sell.",
+    "https://aventis-advisors.com/saas-valuation-multiples/": "SaaS Valuation Multiples: 2015-2026. As of August 2026, the median EV/Revenue multiple stands at 4.6x. Between 2015 and 2026, the median SaaS company was valued at a median of 4.5x EV/Revenue."
+   },
+   "claims": {
+    "company_financials": {
+     "revenue_ttm": 4000000000.0,
+     "currency": "USD",
+     "revenue_year": 2025,
+     "revenue_type": "ARR",
+     "last_valuation": 42000000000.0,
+     "source_url": "https://techcrunch.com/2026/02/18/canva-gets-to-4b-in-revenue-as-llm-referral-traffic-rises/",
+     "quote": "push its annual recurring revenue to $4 billion by the end of year",
+     "valuation_quote": "Canva was last valued at $42 billion in a share sell."
+    },
+    "valuation_evidence": {
+     "anchors": [
+      {
+       "kind": "investor_mark",
+       "amount": 34900000000.0,
+       "currency": "USD",
+       "date_text": "Aug 17, 2026",
+       "source_url": "https://www.startupdaily.net/advice/business-strategy/canva-wipes-10-billion-from-its-valuation-putting-ipo-plans-in-doubt/",
+       "quote": "marking it down 17% to US$34.9B (c. A$49B)"
+      },
+      {
+       "kind": "reported_valuation",
+       "amount": 31000000000.0,
+       "currency": "USD",
+       "date_text": "Aug 17, 2026",
+       "source_url": "https://www.startupdaily.net/advice/business-strategy/canva-wipes-10-billion-from-its-valuation-putting-ipo-plans-in-doubt/",
+       "quote": "an independent valuation lopping off around 20%, to US$31bn (A$43.5bn)"
+      },
+      {
+       "kind": "secondary_sale",
+       "amount": 42000000000.0,
+       "currency": "USD",
+       "date_text": "",
+       "source_url": "https://techcrunch.com/2026/02/18/canva-gets-to-4b-in-revenue-as-llm-referral-traffic-rises/",
+       "quote": "Canva was last valued at $42 billion in a share sell."
+      }
+     ],
+     "sector_multiples": [
+      {
+       "multiple": 4.6,
+       "sector": "public SaaS",
+       "public": true,
+       "source_url": "https://aventis-advisors.com/saas-valuation-multiples/",
+       "quote": "As of August 2026, the median EV/Revenue multiple stands at 4.6x."
+      }
+     ]
+    }
+   }
+  },
+  "Airwallex": {
+   "url": "https://www.airwallex.com/",
+   "profile": {
+    "company_name": "Airwallex",
+    "sector": "global payments and financial platform (fintech)",
+    "stage": "growth",
+    "country": "AU",
+    "description": "Global business accounts, payments and spend management for companies.",
+    "search_keywords": [
+     "cross-border payments",
+     "fintech"
+    ]
+   },
+   "results": {
+    "company": [
+     {
+      "url": "https://www.airwallex.com/global/newsroom/airwallex-secures-320-million-in-series-h-funding-valuation-hits-11-billion",
+      "title": "Airwallex secures $320 million in Series H funding, valuation hits $11 billion",
+      "description": ""
+     }
+    ],
+    "valuation": [
+     {
+      "url": "https://www.airwallex.com/global/newsroom/airwallex-secures-320-million-in-series-h-funding-valuation-hits-11-billion",
+      "title": "Airwallex secures $320 million in Series H funding, valuation hits $11 billion",
+      "description": ""
+     }
+    ],
+    "market": [
+     {
+      "url": "https://www.finrofca.com/news/fintech-valuation-multiples-q1-2026",
+      "title": "Fintech Valuation Multiples Q1 2026",
+      "description": ""
+     }
+    ],
+    "comps": [
+     {
+      "url": "https://www.finrofca.com/news/fintech-valuation-multiples-q1-2026",
+      "title": "Fintech Valuation Multiples Q1 2026",
+      "description": ""
+     }
+    ]
+   },
+   "pages": {
+    "https://www.airwallex.com/global/newsroom/airwallex-secures-320-million-in-series-h-funding-valuation-hits-11-billion": "25 June 2026. Airwallex secures $320 million in Series H funding, valuation hits $11 billion. Airwallex today announced it has raised $320 million in Series H funding, bringing the company's valuation to $11 billion, up from its $8 billion valuation in December 2025. In March 2026, Airwallex reached $1.3 billion in annualized revenue, up 74% year-over-year.",
+    "https://www.finrofca.com/news/fintech-valuation-multiples-q1-2026": "Fintech Valuation Multiples Q1 2026: What the Averages Are Hiding. Fintech overall averages 14.5x EV/Revenue but the median is 7.6x across all segments. Payments averages 7.7x EV/Revenue."
+   },
+   "claims": {
+    "company_financials": {
+     "revenue_ttm": 1300000000.0,
+     "currency": "USD",
+     "revenue_year": 2026,
+     "revenue_type": "revenue",
+     "last_valuation": 11000000000.0,
+     "source_url": "https://www.airwallex.com/global/newsroom/airwallex-secures-320-million-in-series-h-funding-valuation-hits-11-billion",
+     "quote": "Airwallex reached $1.3 billion in annualized revenue",
+     "valuation_quote": "bringing the company's valuation to $11 billion"
+    },
+    "valuation_evidence": {
+     "anchors": [
+      {
+       "kind": "priced_round",
+       "amount": 11000000000.0,
+       "currency": "USD",
+       "date_text": "25 June 2026",
+       "source_url": "https://www.airwallex.com/global/newsroom/airwallex-secures-320-million-in-series-h-funding-valuation-hits-11-billion",
+       "quote": "bringing the company's valuation to $11 billion"
+      },
+      {
+       "kind": "priced_round",
+       "amount": 8000000000.0,
+       "currency": "USD",
+       "date_text": "December 2025",
+       "source_url": "https://www.airwallex.com/global/newsroom/airwallex-secures-320-million-in-series-h-funding-valuation-hits-11-billion",
+       "quote": "up from its $8 billion valuation in December 2025"
+      }
+     ],
+     "sector_multiples": [
+      {
+       "multiple": 7.6,
+       "sector": "fintech",
+       "public": true,
+       "source_url": "https://www.finrofca.com/news/fintech-valuation-multiples-q1-2026",
+       "quote": "Fintech overall averages 14.5x EV/Revenue but the median is 7.6x across all segments."
+      }
+     ]
+    }
+   }
+  },
+  "SafetyCulture": {
+   "url": "https://safetyculture.com/",
+   "profile": {
+    "company_name": "SafetyCulture",
+    "sector": "workplace operations and safety inspection software (SaaS)",
+    "stage": "growth",
+    "country": "AU",
+    "description": "Mobile-first inspection and operations platform.",
+    "search_keywords": [
+     "inspection software",
+     "SaaS"
+    ]
+   },
+   "results": {
+    "valuation": [
+     {
+      "url": "https://www.forbes.com.au/news/investing/safetyculture-valued-at-2-5-billion-after-165-million-funding-round/",
+      "title": "SafetyCulture valued at $2.5 billion after $165 million funding round",
+      "description": ""
+     }
+    ],
+    "market": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ]
+   },
+   "pages": {
+    "https://www.forbes.com.au/news/investing/safetyculture-valued-at-2-5-billion-after-165-million-funding-round/": "September 9, 2024. SafetyCulture, founded by Luke Anear, is now valued at $2.5 billion after a $165 million capital raise led by Airtree, with Blackbird and Morpheus Ventures.",
+    "https://aventis-advisors.com/saas-valuation-multiples/": "SaaS Valuation Multiples: 2015-2026. As of August 2026, the median EV/Revenue multiple stands at 4.6x. Between 2015 and 2026, the median SaaS company was valued at a median of 4.5x EV/Revenue."
+   },
+   "claims": {
+    "company_financials": null,
+    "valuation_evidence": {
+     "anchors": [
+      {
+       "kind": "priced_round",
+       "amount": 2500000000.0,
+       "currency": "AUD",
+       "date_text": "September 9, 2024",
+       "source_url": "https://www.forbes.com.au/news/investing/safetyculture-valued-at-2-5-billion-after-165-million-funding-round/",
+       "quote": "SafetyCulture, founded by Luke Anear, is now valued at $2.5 billion"
+      }
+     ]
+    }
+   }
+  },
+  "Go1": {
+   "url": "https://www.go1.com/",
+   "profile": {
+    "company_name": "Go1",
+    "sector": "workplace learning content platform (SaaS)",
+    "stage": "growth",
+    "country": "AU",
+    "description": "Aggregated online training content for employers.",
+    "search_keywords": [
+     "corporate e-learning",
+     "SaaS"
+    ]
+   },
+   "results": {
+    "valuation": [
+     {
+      "url": "https://www.startupdaily.net/topic/funding/go1-doubles-its-valuation-to-2-8-billion-after-100-million-raise/",
+      "title": "GO1 doubles its valuation to $2.8 billion after $140 million raise",
+      "description": ""
+     }
+    ],
+    "market": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ]
+   },
+   "pages": {
+    "https://www.startupdaily.net/topic/funding/go1-doubles-its-valuation-to-2-8-billion-after-100-million-raise/": "June 7, 2022. Brisbane-based online corporate training marketplace GO1 has seen its valuation double to US$2 billion (A$2.8bn). The business has now raised around US$400 million.",
+    "https://aventis-advisors.com/saas-valuation-multiples/": "SaaS Valuation Multiples: 2015-2026. As of August 2026, the median EV/Revenue multiple stands at 4.6x. Between 2015 and 2026, the median SaaS company was valued at a median of 4.5x EV/Revenue."
+   },
+   "claims": {
+    "company_financials": null,
+    "valuation_evidence": {
+     "anchors": [
+      {
+       "kind": "priced_round",
+       "amount": 2000000000.0,
+       "currency": "USD",
+       "date_text": "June 7, 2022",
+       "source_url": "https://www.startupdaily.net/topic/funding/go1-doubles-its-valuation-to-2-8-billion-after-100-million-raise/",
+       "quote": "has seen its valuation double to US$2 billion (A$2.8bn)"
+      }
+     ]
+    }
+   }
+  },
+  "Airtasker": {
+   "url": "https://www.airtasker.com/",
+   "profile": {
+    "company_name": "Airtasker Limited",
+    "sector": "online local services marketplace",
+    "stage": "growth",
+    "country": "AU",
+    "description": "Marketplace connecting people with local service providers.",
+    "search_keywords": [
+     "local services marketplace"
+    ]
+   },
+   "results": {
+    "valuation": [
+     {
+      "url": "https://www.fool.com.au/tickers/asx-art/",
+      "title": "Airtasker (ASX:ART) Share Price News | The Motley Fool Australia",
+      "description": ""
+     }
+    ],
+    "market_cap": [
+     {
+      "url": "https://stockanalysis.com/quote/asx/ART/market-cap/",
+      "title": "Airtasker (ASX:ART) Market Cap & Net Worth",
+      "description": ""
+     }
+    ]
+   },
+   "pages": {
+    "https://www.fool.com.au/tickers/asx-art/": "Airtasker (ASX:ART) Share Price News. Airtasker Limited shares are listed on the ASX.",
+    "https://stockanalysis.com/quote/asx/ART/market-cap/": "Airtasker (ASX:ART) Market Cap & Net Worth. Airtasker has a market cap or net worth of 97.9 million as of September 25, 2026. Revenue 57.83M"
+   },
+   "claims": {
+    "company_financials": {
+     "revenue_ttm": 57830000.0,
+     "currency": "AUD",
+     "revenue_year": 2026,
+     "revenue_type": "revenue",
+     "source_url": "https://stockanalysis.com/quote/asx/ART/market-cap/",
+     "quote": "Revenue 57.83M"
+    },
+    "valuation_evidence": {
+     "anchors": [
+      {
+       "kind": "market_cap",
+       "amount": 97900000.0,
+       "currency": "AUD",
+       "date_text": "September 25, 2026",
+       "source_url": "https://stockanalysis.com/quote/asx/ART/market-cap/",
+       "quote": "Airtasker has a market cap or net worth of 97.9 million"
+      }
+     ]
+    }
+   }
+  },
+  "Employment Hero": {
+   "url": "https://employmenthero.com/",
+   "profile": {
+    "company_name": "Employment Hero",
+    "sector": "HR and payroll software for SMEs (SaaS)",
+    "stage": "growth",
+    "country": "AU",
+    "description": "Employment platform: HR, payroll, benefits for small businesses.",
+    "search_keywords": [
+     "payroll software",
+     "HR SaaS"
+    ]
+   },
+   "results": {
+    "company": [
+     {
+      "url": "https://www.startupdaily.net/topic/seek-offloads-a-95-million-slice-of-its-employment-hero-investment-to-us-private-equity-firm-kkr/",
+      "title": "Seek offloads a $95 million slice of its Employment Hero investment to KKR",
+      "description": ""
+     }
+    ],
+    "valuation": [
+     {
+      "url": "https://www.startupdaily.net/topic/seek-offloads-a-95-million-slice-of-its-employment-hero-investment-to-us-private-equity-firm-kkr/",
+      "title": "Seek offloads a $95 million slice of its Employment Hero investment to KKR",
+      "description": ""
+     }
+    ],
+    "market": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ],
+    "comps": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ]
+   },
+   "pages": {
+    "https://www.startupdaily.net/topic/seek-offloads-a-95-million-slice-of-its-employment-hero-investment-to-us-private-equity-firm-kkr/": "February 18, 2025. Seek has sold a $95 million slice of its Employment Hero stake to KKR, an implied valuation of $2.2 billion in the deal, up 19% from June 2024. In 2023 Employment Hero hit a $2 billion valuation following a $263 million Series F. Our recent milestone of A$250 million in annual recurring revenue also signals the growing customer demand, Employment Hero said.",
+    "https://aventis-advisors.com/saas-valuation-multiples/": "SaaS Valuation Multiples: 2015-2026. As of August 2026, the median EV/Revenue multiple stands at 4.6x. Between 2015 and 2026, the median SaaS company was valued at a median of 4.5x EV/Revenue."
+   },
+   "claims": {
+    "company_financials": {
+     "revenue_ttm": 250000000.0,
+     "currency": "AUD",
+     "revenue_year": 2025,
+     "revenue_type": "ARR",
+     "source_url": "https://www.startupdaily.net/topic/seek-offloads-a-95-million-slice-of-its-employment-hero-investment-to-us-private-equity-firm-kkr/",
+     "quote": "Our recent milestone of A$250 million in annual recurring revenue"
+    },
+    "valuation_evidence": {
+     "anchors": [
+      {
+       "kind": "secondary_sale",
+       "amount": 2200000000.0,
+       "currency": "AUD",
+       "date_text": "February 18, 2025",
+       "source_url": "https://www.startupdaily.net/topic/seek-offloads-a-95-million-slice-of-its-employment-hero-investment-to-us-private-equity-firm-kkr/",
+       "quote": "an implied valuation of $2.2 billion in the deal"
+      },
+      {
+       "kind": "priced_round",
+       "amount": 2000000000.0,
+       "currency": "AUD",
+       "date_text": "2023",
+       "source_url": "https://www.startupdaily.net/topic/seek-offloads-a-95-million-slice-of-its-employment-hero-investment-to-us-private-equity-firm-kkr/",
+       "quote": "In 2023 Employment Hero hit a $2 billion valuation"
+      }
+     ],
+     "sector_multiples": [
+      {
+       "multiple": 4.6,
+       "sector": "public SaaS",
+       "public": true,
+       "source_url": "https://aventis-advisors.com/saas-valuation-multiples/",
+       "quote": "As of August 2026, the median EV/Revenue multiple stands at 4.6x."
+      }
+     ]
+    }
+   }
+  },
+  "Culture Amp": {
+   "url": "https://www.cultureamp.com/",
+   "profile": {
+    "company_name": "Culture Amp",
+    "sector": "employee engagement and performance software (SaaS)",
+    "stage": "growth",
+    "country": "AU",
+    "description": "Employee experience platform for HR teams.",
+    "search_keywords": [
+     "employee engagement software",
+     "HR SaaS"
+    ]
+   },
+   "results": {
+    "company": [
+     {
+      "url": "https://www.startupdaily.net/topic/business/just-days-after-blackbird-slashed-its-valuation-by-nearly-a-quarter-culture-amp-reveals-it-lost-another-37-million-last-financial-year/",
+      "title": "Just days after Blackbird slashed its valuation by nearly a quarter, Culture Amp reveals it lost another $37 million",
+      "description": ""
+     }
+    ],
+    "valuation": [
+     {
+      "url": "https://www.startupdaily.net/topic/business/just-days-after-blackbird-slashed-its-valuation-by-nearly-a-quarter-culture-amp-reveals-it-lost-another-37-million-last-financial-year/",
+      "title": "Just days after Blackbird slashed its valuation by nearly a quarter, Culture Amp reveals it lost another $37 million",
+      "description": ""
+     }
+    ],
+    "market": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ],
+    "comps": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ]
+   },
+   "pages": {
+    "https://www.startupdaily.net/topic/business/just-days-after-blackbird-slashed-its-valuation-by-nearly-a-quarter-culture-amp-reveals-it-lost-another-37-million-last-financial-year/": "Culture Amp reveals it lost another $37 million last financial year. Blackbird cut its valuation of the business by 23.5%. In 2021, Culture Amp's valuation reached $2 billion following a $135 million Series F. Revenue growth has also been slowing, down from 32% in FY23 to 19% in FY24, and now just 10.8% in FY25 to US$177 million (A$270m).",
+    "https://aventis-advisors.com/saas-valuation-multiples/": "SaaS Valuation Multiples: 2015-2026. As of August 2026, the median EV/Revenue multiple stands at 4.6x. Between 2015 and 2026, the median SaaS company was valued at a median of 4.5x EV/Revenue."
+   },
+   "claims": {
+    "company_financials": {
+     "revenue_ttm": 177000000.0,
+     "currency": "USD",
+     "revenue_year": 2025,
+     "revenue_type": "revenue",
+     "source_url": "https://www.startupdaily.net/topic/business/just-days-after-blackbird-slashed-its-valuation-by-nearly-a-quarter-culture-amp-reveals-it-lost-another-37-million-last-financial-year/",
+     "quote": "10.8% in FY25 to US$177 million (A$270m)"
+    },
+    "valuation_evidence": {
+     "anchors": [
+      {
+       "kind": "priced_round",
+       "amount": 2000000000.0,
+       "currency": "AUD",
+       "date_text": "2021",
+       "source_url": "https://www.startupdaily.net/topic/business/just-days-after-blackbird-slashed-its-valuation-by-nearly-a-quarter-culture-amp-reveals-it-lost-another-37-million-last-financial-year/",
+       "quote": "In 2021, Culture Amp's valuation reached $2 billion following a $135 million Series F"
+      }
+     ],
+     "sector_multiples": [
+      {
+       "multiple": 4.6,
+       "sector": "public SaaS",
+       "public": true,
+       "source_url": "https://aventis-advisors.com/saas-valuation-multiples/",
+       "quote": "As of August 2026, the median EV/Revenue multiple stands at 4.6x."
+      }
+     ]
+    }
+   }
+  },
+  "Linktree": {
+   "url": "https://linktr.ee/",
+   "profile": {
+    "company_name": "Linktree",
+    "sector": "link-in-bio creator software (SaaS)",
+    "stage": "growth",
+    "country": "AU",
+    "description": "Link-in-bio pages and tools for creators and brands.",
+    "search_keywords": [
+     "link in bio",
+     "creator tools"
+    ]
+   },
+   "results": {
+    "valuation": [
+     {
+      "url": "https://techcrunch.com/2022/03/16/linktree-link-in-bio-series-c-valuation/",
+      "title": "How much is 'link in bio' real estate worth? Linktree's new valuation says $1.3 billion",
+      "description": ""
+     }
+    ],
+    "market": [
+     {
+      "url": "https://aventis-advisors.com/saas-valuation-multiples/",
+      "title": "SaaS Valuation Multiples: 2015-2026",
+      "description": ""
+     }
+    ]
+   },
+   "pages": {
+    "https://techcrunch.com/2022/03/16/linktree-link-in-bio-series-c-valuation/": "March 16, 2022. How much is 'link in bio' real estate worth? Linktree's new valuation says $1.3 billion. Linktree has raised $110 million in a round led by Index Ventures and Coatue.",
+    "https://aventis-advisors.com/saas-valuation-multiples/": "SaaS Valuation Multiples: 2015-2026. As of August 2026, the median EV/Revenue multiple stands at 4.6x. Between 2015 and 2026, the median SaaS company was valued at a median of 4.5x EV/Revenue."
+   },
+   "claims": {
+    "company_financials": null,
+    "valuation_evidence": {
+     "anchors": [
+      {
+       "kind": "priced_round",
+       "amount": 1300000000.0,
+       "currency": "USD",
+       "date_text": "March 16, 2022",
+       "source_url": "https://techcrunch.com/2022/03/16/linktree-link-in-bio-series-c-valuation/",
+       "quote": "Linktree's new valuation says $1.3 billion"
+      }
+     ]
+    }
+   }
+  }
+ }
+}

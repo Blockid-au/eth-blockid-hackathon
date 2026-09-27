@@ -178,8 +178,10 @@ def test_graph_uses_cited_revenue_within_three_searches(tmp_path):
     out, prog = run_graph(deps, "vcf")
     assert out["__interrupt__"]
     r = prog.results["vcf"]
-    assert [s["kind"] for s in r["searches"]] == ["competitors", "market", "company"]
-    assert len(deps.search.providers[0][1].queries) == 3  # budget unchanged
+    kinds = [s["kind"] for s in r["searches"]]
+    assert kinds[:3] == ["competitors", "market", "company"]  # same priority order as before v3
+    assert kinds[3:] == ["valuation", "comps", "comps_named"]  # v3 plan: no listing -> no market-cap search
+    assert len(deps.search.providers[0][1].queries) == len(kinds) <= deps.settings.search_max_queries <= 8
     assert r["profile"]["metrics"]["revenue_ttm_aud"] == 2_400_000
     assert r["profile"]["metrics_sources"]["revenue_ttm_aud"] == "cited_source"
     rev = r["svi"]["dimensions"]["revenue_performance"]

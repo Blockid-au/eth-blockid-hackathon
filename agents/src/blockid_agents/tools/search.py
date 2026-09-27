@@ -10,10 +10,19 @@ Providers are tried in the order given by SEARCH_PROVIDERS (default "brave,claud
 Results are normal web results (title, url, description, query) and are stored as evidence exactly like Brave's.
 A provider that refuses service (429 / 5xx / timeout / network / bad token) is skipped for UNAVAILABLE_S.
 
-Budget: every valuation runs at most SEARCH_MAX_QUERIES queries in total (default 3), and only the three
-essential queries below — the competitor step runs (1) competitors, the market step (2) market size/growth and
-(3) the company's own reported financials (revenue / ARR / funding / valuation). Each attempt is recorded in
-the graph state (``searches``) so the budget holds across steps and checkpoint resumes.
+Budget: every valuation runs at most SEARCH_MAX_QUERIES queries in total (default 8, hard cap 8), each planned by
+purpose (QUERY_PLAN, in priority order, so a smaller budget keeps the most useful ones):
+
+  1 competitors   "<name> competitors alternatives <country>"              (competitor step)
+  2 market        "<sector> market size growth <country> <year>"           (market step)
+  3 company       "<name> revenue ARR funding valuation <year>"            (market step)
+  4 valuation     "<name> valuation funding round post-money"              (market step, v3 anchors)
+  5 market_cap    "<name> <exchange>:<ticker> market cap"                  (only when a listing was detected)
+  6 comps         "<sector> companies EV/revenue multiple <year>"          (only when the company has revenue)
+  7 comps_named   "<competitor 1> <competitor 2> valuation revenue"        (only with revenue + named competitors)
+
+Each attempt is recorded in the graph state (``searches``: kind, purpose, query, provider, results) so the budget
+holds across steps and checkpoint resumes, and in the audit log. Repeated queries hit the 72 h search cache.
 """
 from __future__ import annotations
 
@@ -174,6 +183,39 @@ def essential_queries(p: StartupProfile, year: int, company: str | None = None) 
     return {k: sanitize_query(v)[:200] for k, v in qs.items()}
 
 
+# purpose of every planned query (shown in the report's search log)
+PURPOSE = {
+    "competitors": "find competitors",
+    "market": "market size and growth",
+    "company": "company revenue / ARR",
+    "valuation": "company valuation, latest funding round or share sale",
+    "market_cap": "market capitalisation (listed company)",
+    "comps": "revenue multiples of comparable companies / sector",
+    "comps_named": "valuations and revenue of named competitors",
+}
+QUERY_PLAN = ("competitors", "market", "company", "valuation", "market_cap", "comps", "comps_named")
+
+
+def valuation_queries(p: StartupProfile, year: int, *, listing: tuple[str, str] | None = None,
+                      competitors: list[str] | None = None, company: str | None = None) -> dict[str, str]:
+    """v3 queries (kind -> query), built from public profile fields only. market_cap needs a detected listing
+    (exchange, ticker); comps_named needs competitor names."""
+    from ..agents.competitors import short_name
+
+    name = company or short_name(p.company_name)
+    sector = p.sector or " ".join(p.search_keywords[:2])
+    qs = {
+        "valuation": f"{name} valuation funding round post-money valued at",
+        "comps": f"{sector} companies EV/revenue multiple {year}",
+    }
+    if listing:
+        qs["market_cap"] = f"{name} {listing[0]}:{listing[1]} market cap"
+    names = [c for c in (competitors or []) if c][:3]
+    if names:
+        qs["comps_named"] = f"{' '.join(names)} valuation revenue"
+    return {k: sanitize_query(v)[:200] for k, v in qs.items()}
+
+
 def budgeted_search(deps, agent: str, searches: list[dict], kind: str, query: str, *,
                     freshness: str | None = None) -> list[dict] | None:
     """Run one essential query if the budget allows. Appends the attempt to `searches` (graph state).
@@ -186,8 +228,8 @@ def budgeted_search(deps, agent: str, searches: list[dict], kind: str, query: st
     if deps.search is None:
         deps.audit.record(agent, "search_skipped", reason="no search provider configured")
         return None
-    deps.tool(agent, "web_search", query=query, kind=kind)
-    rec = {"kind": kind, "query": query, "provider": None, "results": 0}
+    deps.tool(agent, "web_search", query=query, kind=kind, purpose=PURPOSE.get(kind, kind))
+    rec = {"kind": kind, "purpose": PURPOSE.get(kind, kind), "query": query, "provider": None, "results": 0}
     searches.append(rec)
     try:
         results, provider = deps.search.search(query, count=MAX_COUNT, freshness=freshness)

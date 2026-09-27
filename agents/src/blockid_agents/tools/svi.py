@@ -11,6 +11,9 @@ Valuation range, first rule that applies (then x SVI factor):
 3. revenue > 0 otherwise -> config.DEFAULT_REVENUE_MULTIPLES (uncalibrated default, flagged for review);
 4. no revenue -> stage benchmark range.
 
+Valuation v3: agents/valuation.py replaces this range with the triangulation blend (tools/triangulate.py) via
+apply_triangulation(); the rules above remain the v2 formula (public /verify of older reports).
+
 Weights follow the SVI framework (7 dimensions). Stage benchmarks and multipliers are
 PLACEHOLDERS to be calibrated with the SVI dissertation data before production use.
 """
@@ -165,10 +168,29 @@ def implied_multiple(market: MarketAnalysis | None) -> tuple[float, str] | None:
 
 
 def report_hash(result: SVIResult) -> str:
-    payload = result.model_dump(exclude={"report_sha256", "narrative"})
+    exclude = {"report_sha256", "narrative"} | ({"triangulation"} if result.triangulation is None else set())
+    payload = result.model_dump(exclude=exclude)  # pre-v3 reports keep their original hash
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
-FORMULA_VERSION = "v2"  # v2: implied multiple > cited multiple (0.7x-1.4x spread if single) > default table > stage
+FORMULA_VERSION = "v3"  # v3: triangulation (tools/triangulate.py); v2 rules below remain the revenue/stage fallback
+LEGACY_FORMULA_VERSION = "v2"  # v2: implied multiple > cited multiple (0.7x-1.4x spread if single) > default > stage
+
+
+def apply_triangulation(result: SVIResult, tri) -> SVIResult:
+    """v3: the headline range comes from the triangulation blend (tools/triangulate.py); the SVI index and
+    dimensions stay as the quality indicator. Recomputes the report hash."""
+    from .triangulate import headline_method
+
+    result.triangulation = tri
+    result.valuation_low_aud = round(tri.low_aud, -3)
+    result.valuation_mid_aud = round(tri.value_aud, -3)
+    result.valuation_high_aud = round(tri.high_aud, -3)
+    result.method = headline_method(tri, result.method)
+    result.needs_human_review = list(dict.fromkeys(
+        [*result.needs_human_review, *(f"valuation confidence {tri.confidence}: {r}" for r in tri.confidence_reasons
+                                      if tri.confidence != "high")]))
+    result.report_sha256 = report_hash(result)
+    return result
 
 
 def valuation_range(rev: float, factor: float, market: MarketAnalysis | None, stage: str, sector: str,

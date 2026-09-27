@@ -55,13 +55,15 @@ In production `SVI_TIER=cloud`: every live valuation step runs on the cloud-tier
 7. **gate_valuation**: LangGraph `interrupt()`; the run is checkpointed and resumes only when an admin approves
    (optionally overriding scores → basis `human`) or rejects.
 
-Research budget: at most **3 web searches per valuation** (`SEARCH_MAX_QUERIES=3`), 2 fetched pages per search,
-up to 5 competitor homepages.
+Research budget: at most **8 web searches per valuation** (`SEARCH_MAX_QUERIES=8`), each planned by purpose
+(competitors, market, company revenue, own valuation/round, market cap if listed, comparable multiples), 3 fetched
+pages per search, up to 5 competitor homepages. Valuation v3 triangulates the company's own verified price, revenue ×
+cited multiple and the stage benchmark (see [LLM-ROUTING.md](LLM-ROUTING.md), [valuation-reference.md](valuation-reference.md)).
 
 SVI: 7 dimensions with fixed weights — Founder 20%, Product 15%, Market 20%, Revenue 20%, Growth 10%,
-Investment Readiness 10%, Trust 5%. Valuation = revenue × cited revenue multiple × SVI factor (0.5 + index/100);
-when only one multiple is cited the range is 0.7×–1.4× of it; without revenue or a cited multiple a stage
-benchmark range × factor is used (placeholder calibration). Shares = approved mid valuation ÷ A$1.00 (default issue
+Investment Readiness 10%, Trust 5%. The index and grade are the quality indicator; the value is the v3 blend
+(own market price, revenue × cited multiple, stage benchmark × SVI factor 0.5 + index/100) with a range and a
+confidence level. Shares = approved mid valuation ÷ A$1.00 (default issue
 price).
 
 ### After the gate (no agents involved)

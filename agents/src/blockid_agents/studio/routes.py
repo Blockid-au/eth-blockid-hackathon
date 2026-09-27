@@ -404,6 +404,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
             "counters": res.get("counters") or {"pages": 0, "competitors": 0, "sources": 0},
             "profile": res.get("profile"), "competitors": res.get("competitors") or [], "market": res.get("market"),
             "svi": res.get("svi"), "warnings": res.get("warnings") or [], "error": row.get("error"),
+            "valuation_evidence": res.get("valuation_evidence"),
             "self_reported": row.get("self_reported") or res.get("self_reported") or None,
             "requested_by": row.get("requested_by"),
             "searches": res.get("searches") or [], "llm_providers_used": res.get("llm_providers_used") or [],

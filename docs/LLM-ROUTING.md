@@ -21,31 +21,45 @@ Web search: Brave first, then the same bridge's `POST /search` (Claude Haiku + W
 web-search tool, so it is not a search provider; it does all the LLM work around search (competitor lists and
 relevance, funding claims, cited market analysis).
 
-Search budget: ≤3 searches per valuation (`SEARCH_MAX_QUERIES`): competitors, market, company financials.
+Search budget (valuation v3): ≤ 8 searches per valuation (`SEARCH_MAX_QUERIES`, hard cap 8), ≤ 3 fetched pages
+each (`SEARCH_FETCH_PER_QUERY`, cap 3), planned by purpose in priority order; conditional queries run only when they
+can change the value. Every attempt is logged in `searches` (kind, purpose, query, provider, results) and the audit
+log; repeated queries hit the 72 h cache and pages already stored for the valuation are reused.
 
-| # | Step | Query |
-|---|---|---|
-| 1 | competitors | `<company> competitors alternatives <country>` |
-| 2 | market | `<sector> market size growth <country> <year>` (Brave freshness: past year) |
-| 3 | market | `<company> revenue ARR funding valuation <year>` — top 2 pages fetched, the next 4 results kept as snippets |
+| # | Step | Purpose | Query |
+|---|---|---|---|
+| 1 | competitors | find competitors | `<company> competitors alternatives <country>` |
+| 2 | market | market size / growth | `<sector> market size growth <country> <year>` (Brave freshness: past year) |
+| 3 | market | company revenue / ARR | `<company> revenue ARR funding valuation <year>` (2 extra results kept as snippets) |
+| 4 | market | own valuation / round / share sale | `<company> valuation funding round post-money valued at` |
+| 5 | market | market cap — only if a listing (`<Company> (ASX: ART)`) is detected by code in stored pages | `<company> <EXCH>:<TICKER> market cap` |
+| 6 | market | comparable / sector multiples — only if the company has revenue | `<sector> companies EV/revenue multiple <year>` |
+| 7 | market | named competitors' valuation + revenue — only with revenue and named competitors | `<comp1> <comp2> <comp3> valuation revenue` |
 
-After the market analysis, one more call on the same chain (`CompanyFinancials`, research agent) reads the
-search-result pages (page start + passages around revenue/ARR/valuation/funding terms + the search snippet) and
-returns `company_financials` (revenue_ttm, currency, revenue_year, revenue_type revenue/ARR/GMV,
-funding_raised_total, last_valuation, source_url, quote). Code keeps a figure only if
-the quote appears verbatim in that page or its search snippet, states that number, and the page names the company;
-amounts are converted with the fixed `config.FX_TO_AUD` table (USD 1.50, EUR 1.65, GBP 1.95, SGD 1.15, VND 0.00006;
-`FX_TO_AUD_AS_OF`), rate recorded. Only revenue/ARR (≤3 years old) can feed the SVI, and only when the website and
-the founder gave no revenue (`profile.metrics_sources.revenue_ttm_aud = cited_source`, with a warning).
+After the market analysis the research agent makes `CompanyFinancials` (revenue / ARR, verified quote) — re-run once
+if searches 4–5 stored new pages and no revenue was found yet — and one `ValuationEvidence` call
+(`agents/market_evidence.py`): the company's own anchors (priced round, secondary sale, investor mark, reported
+valuation, market cap) with the date as written, comparable companies' multiples (or valuation + revenue), sector
+multiples, and the listing. Code keeps a claim only if its quote is verbatim on the cited stored page (or its search
+snippet) and states the number; anchors also need valuation words, a page that names the company, a currency in the
+dated FX table and a date that appears on that page (a market-cap page without a date is dated by its fetch).
 
-Valuation range (`tools/svi.py`, first rule that applies, then × SVI factor):
-1. revenue > 0 and the verified company financials state both revenue and last valuation → implied multiple
-   = last valuation ÷ revenue ("implied multiple from cited last round: 11.0x"), low/high 0.7×/1.4× of it; ignored
-   outside 0.5×–40×;
-2. revenue > 0 and a multiple stated in the market or company results → that multiple (single → 0.7×–1.4×);
-3. revenue > 0 otherwise → `config.DEFAULT_REVENUE_MULTIPLES` (default 2.0/3.5/6.0×, SaaS/fintech/payments
-   3/6/10×) — uncalibrated default, see ROADMAP calibration; review item "multiple is a default, not cited";
-4. revenue = 0 → stage benchmark range.
+Valuation v3 (`tools/triangulate.py`; the LLM never produces a number):
+1. **market anchor** — the newest verified anchor (anchors within 3 months of it: median). Weight = kind
+   (market cap 3.0 when ≤ 3 months old, priced round 1.0, secondary 0.9, investor mark 0.8, reported 0.7) × recency
+   (≤ 12 months 1.0, ≤ 24 0.8, ≤ 36 0.45, ≤ 60 0.3, older 0.15, no date 0.35).
+2. **revenue × multiple** — revenue (self-reported > website > cited, ≤ 3 years old) × median of verified
+   comparable companies > verified sector multiples > the market analysis' multiple > default table (2/3.5/6×,
+   SaaS/fintech 3/6/10×). Listed-company multiples on an unlisted company: −25% private-company discount. Weight
+   0.6 × source (≥3 comps 1.0, 1–2 comps 0.8, sector 0.7, market analysis 0.5, default 0.25) × revenue source.
+3. **stage benchmark** × SVI factor — weight 1 alone, 0.1 with another method, 0 when > 5× away from them.
+
+Blend = weighted mean; range = weighted mean of the method ranges, at least ±10% / ±20% / ±35% for
+high / medium / low confidence. Confidence: high = verified anchor ≤ 24 months carrying ≥ 50% and methods within 2×
+(or a current market cap); medium = any anchor or a cited multiple; low otherwise — each with reasons. The result
+is `svi.triangulation` (methods, weights, inputs, sources); `valuation_low/mid/high_aud` = the blend, the SVI index
+and grade stay as the quality indicator. `/verify` rebuilds the blend from the stored inputs (formula `v3`); older
+reports still verify with `v2` / `v1`. Backtest: [valuation-reference.md](valuation-reference.md).
 
 ## Benchmark (2026-09-26)
 

@@ -9,10 +9,17 @@ Revenue precedence (profile.metrics_sources records which one was used):
 self_reported (founder-typed) > website (stated on the company's own site) > cited_source (the company's own
 revenue/ARR stated verbatim on a third-party page found by the company-financials search, see agents/research).
 A cited figure is used only when the profile has no revenue and none was self-reported, and always carries a
-warning; funding raised and last valuation found there are shown in the report but never enter the formula.
+warning.
+
+Valuation v3: the headline range (valuation_low/mid/high_aud) is the triangulation blend (tools/triangulate.py) of
+the company's verified market anchors (state["valuation_evidence"], agents/market_evidence.py), revenue x cited
+multiple and the stage benchmark x SVI factor. The SVI index / band remain the quality indicator.
 """
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
+from ..config import default_multiples
 from ..deps import Deps
 from ..schemas import (
     CompanyFinancials,
@@ -22,9 +29,12 @@ from ..schemas import (
     QualitativeScores,
     StartupProfile,
     SVIResult,
+    Triangulation,
+    VerifiedValuationEvidence,
     self_reported_metric_fields,
 )
 from ..tools import svi
+from ..tools.triangulate import triangulate
 
 AGENT = "valuation"
 
@@ -80,6 +90,28 @@ def apply_cited_revenue(profile: StartupProfile, market: MarketAnalysis | None,
     return {"source_url": cf.source_url, "quote": cf.quote}, [cited_warning(cf)]
 
 
+def triangulation_for(profile: StartupProfile, market: MarketAnalysis | None, state: dict,
+                      index: float) -> Triangulation:
+    """Deterministic v3 blend from verified inputs only (see tools/triangulate.py)."""
+    ve = (VerifiedValuationEvidence.model_validate(state["valuation_evidence"]) if state.get("valuation_evidence")
+          else VerifiedValuationEvidence(as_of=datetime.now(UTC).date().isoformat()))
+    rev = profile.metrics.revenue_ttm_aud
+    rsrc = profile.metrics_sources.get("revenue_ttm_aud", "website")
+    cf = market.company_financials if market else None
+    ref = cf.source_url if (rsrc == "cited_source" and cf) else ""
+    mm = ((market.revenue_multiple_low, market.revenue_multiple_median, market.revenue_multiple_high)
+          if market and market.revenue_multiple_median else None)
+    stage = profile.stage if profile.stage in svi.STAGE_PRE_REVENUE_RANGE else "seed"
+    tri = triangulate(anchors=ve.anchors, listed=ve.listing is not None, revenue_aud=rev, revenue_source=rsrc,
+                      revenue_ref=ref, comps=ve.comps, sectors=ve.sector_multiples, market_multiples=mm,
+                      default=default_multiples(profile.sector), stage=stage,
+                      stage_benchmark=svi.STAGE_PRE_REVENUE_RANGE[stage], svi_factor=0.5 + index / 100,
+                      as_of=ve.as_of)
+    if ve.listing:
+        tri.listing = f"{ve.listing.exchange}: {ve.listing.ticker}"
+    return tri
+
+
 def score(state: dict, deps: Deps) -> dict:
     """AI-suggested qualitative scores + deterministic SVI maths (no narrative yet)."""
     profile = StartupProfile.model_validate(state["profile"])
@@ -99,6 +131,9 @@ def score(state: dict, deps: Deps) -> dict:
 
     deps.tool(AGENT, "svi_score", company=profile.company_name)
     result = svi.score(profile, q, market, sr, cited)
+    svi.apply_triangulation(result, triangulation_for(profile, market, state, result.index))
+    deps.audit.record(AGENT, "triangulated", confidence=result.triangulation.confidence,
+              methods=[m.method for m in result.triangulation.methods if m.weight > 0])
     out = {"svi": result.model_dump(), "qualitative": q.model_dump(), "status": "scored",
            "profile": profile.model_dump()}
     if warns:
@@ -136,6 +171,7 @@ def apply_overrides(state: dict, overrides: dict[str, float], reviewer: str, dep
     sr = self_reported_metric_fields(state.get("self_reported"))
     cited, _ = apply_cited_revenue(profile, market, sr)
     result: SVIResult = svi.score(profile, q, market, sr, cited)
+    svi.apply_triangulation(result, triangulation_for(profile, market, state, result.index))
     result.narrative = state["svi"].get("narrative", "")
     deps.audit.record("human", "valuation_approved", reviewer=reviewer, overrides=overrides, sha256=result.report_sha256)
     return {"svi": result.model_dump(), "qualitative": q.model_dump()}

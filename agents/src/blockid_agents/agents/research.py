@@ -6,6 +6,9 @@ the top SEARCH_FETCH_PER_QUERY pages each -> store evidence (URL, time, SHA-256;
 cannot be fetched) -> the model reads stored evidence and returns a MarketAnalysis in which every claim cites
 stored URLs. Findings citing URLs we have no content for are dropped (anti-hallucination).
 
+Valuation v3 (agents/market_evidence.py) then runs the planned valuation / market-cap / comparable-multiple queries
+on the same budget and returns `valuation_evidence` (verified anchors, listing, comps, sector multiples).
+
 Company financials (revenue / ARR / funding / last valuation) are kept only when the cited page or its search
 snippet contains the model's quote verbatim AND the quote states that number; figures are converted to AUD with
 the fixed config.FX_TO_AUD table (rate + date recorded). Only revenue/ARR can feed the valuation (GMV never does).
@@ -14,6 +17,7 @@ from __future__ import annotations
 
 import re
 import time
+from datetime import UTC, date, datetime
 
 from ..config import FX_TO_AUD_AS_OF, fx_to_aud
 from ..deps import Deps
@@ -48,7 +52,7 @@ Rules:
 - Plain numbers in the stated currency (ISO code; "$" alone means USD unless the page is Australian-dollar).
 - If a figure is not explicitly stated, leave it null. Returning all nulls is fine."""
 FIN_TERMS = re.compile(r"revenue|\bARR\b|annuali[sz]ed|turnover|valuation|valued|raised|funding|series [a-h]\b"
-                       r"|doanh thu", re.I)
+                       r"|doanh thu", re.IGNORECASE)
 
 
 def fin_excerpts(text: str, head: int = 600, window: int = 260, limit: int = 3_000) -> str:
@@ -74,7 +78,7 @@ def build_queries(p: StartupProfile, year: int) -> list[tuple[str, str]]:
     return [(k, qs[k]) for k in QUERY_ORDER]
 
 
-def run(state: dict, deps: Deps, *, year: int | None = None) -> dict:
+def run(state: dict, deps: Deps, *, year: int | None = None, today: date | None = None) -> dict:
     """Search -> fetch -> analyse. When web search is unavailable (no key, quota, HTTP errors) or returns
     nothing, the analysis still runs on evidence already stored for this subject (e.g. competitor homepages)
     plus the company's own site pages (`<subject>:site`) — the cite-only-fetched-URLs rule is unchanged."""
@@ -111,8 +115,15 @@ def run(state: dict, deps: Deps, *, year: int | None = None) -> dict:
     market = deps.ask(AGENT, deps.settings.svi_tier, SYSTEM, user, MarketAnalysis)
     market = _keep_cited(market, {ev.url for ev, _ in evidence})
     market.company_financials = company_financials(profile, subject, deps, year or time.gmtime().tm_year)
+    # valuation v3: the company's own market anchors, listing, comparable / sector multiples (verified quotes only)
+    from . import market_evidence
+
+    today = today or datetime.now(UTC).date()
+    ve, market.company_financials = market_evidence.gather(
+        profile, subject, deps, searches, year=year or today.year, today=today, cf=market.company_financials,
+        refresh_cf=lambda: company_financials(profile, subject, deps, year or today.year))
     return {"market": market.model_dump(), "evidence_count": len(evidence), "market_fallback": fallback,
-            "searches": searches}
+            "searches": searches, "valuation_evidence": ve.model_dump()}
 
 
 def _search_and_fetch(profile: StartupProfile, subject: str, deps: Deps, searches: list[dict],
@@ -155,9 +166,9 @@ def _keep_cited(m: MarketAnalysis, known: set[str]) -> MarketAnalysis:
 _SCALE = {"thousand": 1e3, "k": 1e3, "nghìn": 1e3, "million": 1e6, "mn": 1e6, "m": 1e6, "triệu": 1e6,
           "billion": 1e9, "bn": 1e9, "b": 1e9, "tỷ": 1e9, "trillion": 1e12, "tn": 1e12}
 _NUM = re.compile(r"(\d{1,3}(?:[,.]\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)"
-                  r"(?:\s*(trillion|billion|million|thousand|nghìn|triệu|tỷ|bn|mn|tn|k|m|b)(?![a-zà-ỹ]))?", re.I)
-_VOLUME = re.compile(r"\b(volume|gmv|processed|transactions?|payments? flow|tpv|gross merchandise)\b", re.I)
-_REVENUE = re.compile(r"\b(revenue|arr|sales|turnover|doanh thu)\b", re.I)
+                  r"(?:\s*(trillion|billion|million|thousand|nghìn|triệu|tỷ|bn|mn|tn|k|m|b)(?![a-zà-ỹ]))?", re.IGNORECASE)
+_VOLUME = re.compile(r"\b(volume|gmv|processed|transactions?|payments? flow|tpv|gross merchandise)\b", re.IGNORECASE)
+_REVENUE = re.compile(r"\b(revenue|arr|sales|turnover|doanh thu)\b", re.IGNORECASE)
 MAX_REVENUE_AGE_YEARS = 3
 
 

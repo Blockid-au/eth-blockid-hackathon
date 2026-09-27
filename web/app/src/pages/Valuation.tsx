@@ -9,6 +9,7 @@ import { phaseOf, valAuto, valGate, valPath, valReach, VAL_STEP } from "../lib/f
 import { demoApproveLink } from "../components/DemoGuide";
 import { StatusBar, type StatusNext, type Tone } from "../components/StatusBar";
 import { Contrib, Donut, HBars, Legend, Radar, RangeChart } from "../components/charts";
+import { ValuationMethods, type Triangulation, type ValuationEvidence } from "../components/ValuationMethods";
 import { ErrorBox, Loading } from "../components/Layout";
 import { useAsync, useTitle } from "../lib/hooks";
 import { bandGrade, dimRows, OVERRIDABLE, stepLabel } from "../lib/svi";
@@ -150,6 +151,10 @@ function Report({ v, evidence, isAdmin, onDecided }: { v: Val; evidence: Evidenc
         </div>
       </div>
       {v.self_reported && <SelfReportedTable sr={v.self_reported} />}
+      {(svi as { triangulation?: Triangulation | null }).triangulation && (
+        <ValuationMethods triangulation={(svi as { triangulation?: Triangulation | null }).triangulation}
+          evidence={(v as { valuation_evidence?: ValuationEvidence | null }).valuation_evidence} />
+      )}
       <div className="cols">
         <div className="card">
           <h4>{t("s3.range")}</h4>

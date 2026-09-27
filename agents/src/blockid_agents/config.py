@@ -52,6 +52,34 @@ def default_multiples(sector: str) -> tuple[str, tuple[float, float, float]]:
 # Implied multiple (cited last valuation / cited revenue) is used only inside these bounds.
 IMPLIED_MULTIPLE_BOUNDS = (0.5, 40.0)
 
+# ---------------------------------------------------------------- valuation v3 (tools/triangulate.py)
+# Every weight below is a deliberate, documented rule (docs/valuation-reference.md, docs/LLM-ROUTING.md).
+# Market anchors: base weight by kind (a listed market cap IS the market price; a priced round is a negotiated
+# price; secondary / investor marks / press-reported values are weaker signals).
+ANCHOR_KIND_WEIGHT: dict[str, float] = {
+    "market_cap": 3.0, "priced_round": 1.0, "secondary_sale": 0.9, "investor_mark": 0.8, "reported_valuation": 0.7,
+}
+# (max age in months, weight factor): the first band that fits applies. Older than 24 months -> much lower weight.
+ANCHOR_RECENCY: tuple[tuple[float, float], ...] = ((12, 1.0), (24, 0.8), (36, 0.45), (60, 0.3), (1e9, 0.15))
+ANCHOR_UNKNOWN_DATE_FACTOR = 0.35
+MARKET_CAP_MAX_AGE_MONTHS = 3  # a market cap older than this is treated as a reported valuation
+ANCHOR_AUD_BOUNDS = (100_000.0, 5e12)
+# Revenue x multiple: base weight x multiple-source factor x revenue-source factor.
+REVENUE_METHOD_WEIGHT = 0.6
+MULTIPLE_SOURCE_FACTOR: dict[str, float] = {
+    "comps_3plus": 1.0, "comps_1_2": 0.8, "sector_cited": 0.7, "market_analysis": 0.5, "default": 0.25,
+}
+REVENUE_SOURCE_FACTOR: dict[str, float] = {"self_reported": 0.9, "website": 0.9, "cited_source": 0.85}
+MULTIPLE_BOUNDS = (0.3, 40.0)  # verified comps / sector multiples outside this are dropped
+PRIVATE_COMPANY_DISCOUNT = 0.25  # applied when an unlisted company is priced off listed-company multiples
+# Stage / scorecard (SVI stage benchmark x SVI factor): lowest weight when another method exists; ignored when it
+# is more than STAGE_OUTLIER_RATIO away from the other methods (a stage table means nothing at Canva's scale).
+STAGE_METHOD_WEIGHT_ALONE = 1.0
+STAGE_METHOD_WEIGHT_WITH_OTHERS = 0.1
+STAGE_OUTLIER_RATIO = 5.0
+# Minimum half-width of the blended range by confidence (the method spread widens it further).
+RANGE_MIN_HALF_WIDTH: dict[str, float] = {"high": 0.10, "medium": 0.20, "low": 0.35}
+
 
 def fx_to_aud(currency: str) -> float | None:
     return FX_TO_AUD.get((currency or "").upper().strip())
@@ -107,9 +135,11 @@ class Settings:
     claude_search_token: str = field(default_factory=lambda: _env("CLAUDE_SEARCH_TOKEN"))
     claude_search_timeout: float = field(default_factory=lambda: float(_env("CLAUDE_SEARCH_TIMEOUT", "150")))
     claude_complete_timeout: float = field(default_factory=lambda: float(_env("CLAUDE_COMPLETE_TIMEOUT", "260")))
-    # Research budget per valuation ("good enough for a mid-point valuation")
-    search_max_queries: int = field(default_factory=lambda: int(_env("SEARCH_MAX_QUERIES", "3")))
-    search_fetch_per_query: int = field(default_factory=lambda: int(_env("SEARCH_FETCH_PER_QUERY", "2")))
+    # Research budget per valuation (valuation v3): at most 8 searches, each planned by purpose (tools/search.py
+    # QUERY_PLAN: competitors, market size, company revenue, company valuation/round, market cap if listed,
+    # comparable multiples), at most 3 result pages fetched per search. Every attempt is logged in `searches`.
+    search_max_queries: int = field(default_factory=lambda: min(int(_env("SEARCH_MAX_QUERIES", "8")), 8))
+    search_fetch_per_query: int = field(default_factory=lambda: min(int(_env("SEARCH_FETCH_PER_QUERY", "3")), 3))
     competitor_homepages_max: int = field(default_factory=lambda: int(_env("COMPETITOR_HOMEPAGES_MAX", "5")))
 
     # --- Brave Search ----------------------------------------------------------------------

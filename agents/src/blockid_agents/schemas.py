@@ -175,12 +175,151 @@ class SVIResult(BaseModel):
     needs_human_review: list[str]
     report_sha256: str = ""
     narrative: str = ""
+    # v3: the headline valuation_* come from this blend of methods (None on reports valued before v3)
+    triangulation: Triangulation | None = None
 
 
 class Narrative(BaseModel):
     summary: str
     strengths: list[str]
     concerns: list[str]
+
+
+# ------------------------------------------------------------------ Valuation v3: market evidence + triangulation
+AnchorKind = Literal["priced_round", "secondary_sale", "reported_valuation", "investor_mark", "market_cap"]
+
+
+class AnchorClaim(BaseModel):
+    """What the model may claim about THIS company's own market price. Code verifies every field it uses."""
+
+    kind: AnchorKind = Field(description="priced_round (post-money of a funding round), secondary_sale (employee / "
+                             "secondary share sale or tender price), reported_valuation (a valuation reported by the "
+                             "press without a round), investor_mark (a fund's marked value of its stake), market_cap "
+                             "(listed company market capitalisation)")
+    amount: float = Field(description="the company valuation / market cap as a plain number in `currency` units "
+                          "(e.g. 'US$11 billion' -> 11000000000). NEVER the amount raised in the round.")
+    currency: str = Field(default="USD", description="ISO code: USD, AUD, EUR, ... ('A$' -> AUD)")
+    date_text: str = Field(default="", description="the date of the valuation exactly as written on the page "
+                           "(e.g. 'June 2026', '25 June 2026', '2024'); empty if the page gives none")
+    source_url: str = Field(description="evidence URL copied exactly")
+    quote: str = Field(description="verbatim excerpt (<= 300 chars) from that page stating the amount")
+
+
+class CompClaim(BaseModel):
+    """A comparable company's revenue multiple stated in the evidence (or its valuation and revenue, both stated)."""
+
+    name: str
+    public: bool = Field(default=False, description="true if the comparable is a listed company")
+    multiple: float | None = Field(default=None, description="EV/Revenue or valuation/revenue multiple as stated "
+                                   "(e.g. '12x revenue' -> 12)")
+    valuation: float | None = Field(default=None, description="its valuation / market cap, if stated")
+    revenue: float | None = Field(default=None, description="its annual revenue / ARR, if stated")
+    currency: str = "USD"
+    source_url: str
+    quote: str = Field(description="verbatim excerpt stating the multiple (or the valuation)")
+    revenue_quote: str = Field(default="", description="verbatim excerpt from the same page stating the revenue, "
+                               "when not inside `quote`")
+
+
+class SectorMultipleClaim(BaseModel):
+    multiple: float = Field(description="a sector median / average EV-to-revenue multiple as stated (e.g. 4.6)")
+    sector: str = Field(default="", description="what the multiple covers, e.g. 'public SaaS'")
+    public: bool = Field(default=True, description="true if it is measured on listed companies")
+    source_url: str
+    quote: str = Field(description="verbatim excerpt stating the multiple")
+
+
+class ListingClaim(BaseModel):
+    exchange: str = Field(description="ASX, NYSE, NASDAQ, LSE, SGX, HOSE, ...")
+    ticker: str
+    source_url: str
+    quote: str = Field(description="verbatim excerpt showing the listing, e.g. 'Airtasker (ASX: ART)'")
+
+
+class ValuationEvidence(BaseModel):
+    anchors: list[AnchorClaim] = Field(default_factory=list, description="THIS company's own valuations, newest "
+                                       "first (at most 5)")
+    comps: list[CompClaim] = Field(default_factory=list, description="comparable companies (at most 8)")
+    sector_multiples: list[SectorMultipleClaim] = Field(default_factory=list, description="at most 4")
+    listing: ListingClaim | None = Field(default=None, description="only if THIS company is listed on an exchange")
+
+
+class Anchor(BaseModel):
+    """A verified market anchor (set by code)."""
+
+    kind: AnchorKind
+    amount: float
+    currency: str
+    amount_aud: float
+    fx_rate_to_aud: float
+    fx_as_of: str
+    as_of: str = ""  # YYYY-MM (or YYYY) parsed from date_text / the page; "" = unknown
+    age_months: float | None = None
+    date_text: str = ""
+    source_url: str
+    quote: str
+
+
+class CompMultiple(BaseModel):
+    name: str
+    multiple: float
+    public: bool = False
+    basis: Literal["stated", "valuation/revenue"] = "stated"
+    source_url: str
+    quote: str
+
+
+class SectorMultiple(BaseModel):
+    multiple: float
+    sector: str = ""
+    public: bool = True
+    source_url: str
+    quote: str
+
+
+class Listing(BaseModel):
+    exchange: str
+    ticker: str
+    source_url: str
+    quote: str
+
+
+class VerifiedValuationEvidence(BaseModel):
+    anchors: list[Anchor] = Field(default_factory=list)
+    comps: list[CompMultiple] = Field(default_factory=list)
+    sector_multiples: list[SectorMultiple] = Field(default_factory=list)
+    listing: Listing | None = None
+    dropped: list[str] = Field(default_factory=list, description="claims rejected by verification, with the reason")
+    as_of: str = ""  # YYYY-MM-DD the evidence was gathered (anchor ages are measured from it)
+
+
+class ValuationMethod(BaseModel):
+    method: Literal["market_anchor", "revenue_multiple", "stage_scorecard"]
+    label: str
+    value_aud: float
+    low_aud: float
+    high_aud: float
+    raw_weight: float
+    weight: float = 0.0  # normalised share of the blend (0..1)
+    inputs: dict = Field(default_factory=dict)
+    sources: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class Triangulation(BaseModel):
+    version: str = "v3"
+    value_aud: float
+    low_aud: float
+    high_aud: float
+    confidence: Literal["high", "medium", "low"]
+    confidence_reasons: list[str] = Field(default_factory=list)
+    methods: list[ValuationMethod] = Field(default_factory=list)
+    listed: bool = False
+    listing: str = ""  # e.g. "ASX: ART" when verified
+    as_of: str = ""
+    fx_as_of: str = ""
+
+
 
 
 # ------------------------------------------------------------------ Contracts / chain
@@ -301,3 +440,6 @@ class Competitor(BaseModel):
     note: str = ""
     sources: int = 0
     basis: str = "search"  # search | model_suggested_verified
+
+
+SVIResult.model_rebuild()

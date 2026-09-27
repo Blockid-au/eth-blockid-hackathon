@@ -41,7 +41,11 @@ VALUATION_METHOD = (
     "multiple_high) x factor, with multiple_low defaulting to 0.6 x median and multiple_high to 1.5 x median. "
     "Otherwise low/mid/high = stage benchmark range x factor. Values are rounded to the nearest A$1,000. "
     "The LLM only suggests qualitative dimension scores (human-confirmed); revenue_performance and "
-    "growth_capability are computed from reported metrics; the index and valuation are plain arithmetic."
+    "growth_capability are computed from reported metrics; the index and valuation are plain arithmetic. "
+    "v3 reports (svi.triangulation present): low/mid/high = weighted blend of up to three methods, each rebuilt from "
+    "its stored inputs - the company's own verified market price (newest anchor; weight = kind x recency), revenue x "
+    "cited multiple (x (1 - private-company discount)), and the stage benchmark x factor (weight 0.1 with another "
+    "method, 0 when > 5x away) - range widened to at least +/-10/20/35% for high/medium/low confidence."
 )
 PUBLIC_RPC = {"hoodi": "https://ethereum-hoodi-rpc.publicnode.com", "hsk": "https://testnet.hsk.xyz"}
 EXPLORERS = {
@@ -89,7 +93,8 @@ def recompute(report: dict) -> dict:
 
     # Reports keep the formula version they were valued with; try the current rules first, then the
     # earlier ones, and say which version reproduces the stored numbers.
-    candidates = [("v2", _range_v2(rev, factor, market, stage, profile.get("sector") or "")),
+    candidates = [("v3", _range_v3(s.get("triangulation"), s.get("method") or ""))] if s.get("triangulation") else []
+    candidates += [("v2", _range_v2(rev, factor, market, stage, profile.get("sector") or "")),
                   ("v1b", _range_v1(rev, factor, market, stage, spread=True)),
                   ("v1", _range_v1(rev, factor, market, stage, spread=False))]
 
@@ -116,6 +121,17 @@ def recompute(report: dict) -> dict:
         **matches((low, mid, high)),
     }
     return out
+
+
+def _range_v3(tri: dict, method: str):
+    """v3 triangulation: every method rebuilt from its stored inputs, then blended again (tools/triangulate.py)."""
+    from ..tools.triangulate import recompute as recompute_blend
+
+    try:
+        r = recompute_blend(tri)
+    except Exception:  # noqa: BLE001 - malformed stored inputs -> no match
+        return 0.0, 0.0, 0.0, method
+    return r["low"], r["mid"], r["high"], method
 
 
 def _range_v2(rev, factor, market: dict, stage, sector):

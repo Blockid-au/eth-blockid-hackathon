@@ -81,7 +81,9 @@ def run_graph(deps, vid="vb"):
 
 
 def test_valuation_runs_exactly_three_essential_queries(tmp_path):
+    """With the pre-v3 budget (3 searches, 2 pages) the three essential queries keep their priority."""
     deps = studio_deps(tmp_path)
+    deps.settings = replace(deps.settings, search_max_queries=3, search_fetch_per_query=2)
     prov = CountingSearch()
     deps.search = SearchChain([("claude", prov)])
     fetched: list[str] = []
@@ -100,6 +102,26 @@ def test_valuation_runs_exactly_three_essential_queries(tmp_path):
     assert "3/3 searches · Claude web search" in prog.steps["vb"]["market"]["detail"]
     assert "1/3 searches · Claude web search" in prog.steps["vb"]["competitors"]["detail"]
     assert r["llm_providers_used"] == ["fake"]
+
+
+def test_v3_query_plan_is_bounded_and_logged(tmp_path):
+    """Default v3 budget: <= 8 searches, <= 3 pages each, every query planned by purpose and logged."""
+    deps = studio_deps(tmp_path)
+    assert deps.settings.search_max_queries == 8 and deps.settings.search_fetch_per_query == 3
+    prov = CountingSearch()
+    deps.search = SearchChain([("claude", prov)])
+    fetched: list[str] = []
+    deps.fetcher = lambda url: fetched.append(url) or f"Page {url}. TE-FOOD and OpenSC are traceability platforms."
+    _, prog = run_graph(deps, "v8")
+    r = prog.results["v8"]
+    kinds = [s["kind"] for s in r["searches"]]
+    assert kinds == ["competitors", "market", "company", "valuation", "comps", "comps_named"]  # not listed
+    assert all(s["purpose"] and s["query"] for s in r["searches"])
+    assert len(prov.queries) == len(kinds) <= 8
+    assert len(fetched) <= 3 * len(kinds)
+    assert r["valuation_methods"]["methods"] and r["svi"]["triangulation"]["confidence"] in ("high", "medium", "low")
+    events = [json.loads(x) for x in (tmp_path / "audit.jsonl").read_text().splitlines()]
+    assert sum(e["action"] == "tool:web_search" for e in events) == len(kinds)
 
 
 def test_budget_is_a_hard_cap(tmp_path):

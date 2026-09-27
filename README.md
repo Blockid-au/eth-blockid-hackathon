@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://eth.blockid.au"><img src="docs/images/logo.png" alt="BlockID.au — Valuation. Ownership. Growth." width="460" /></a>
+</p>
+
 # BlockID Business Passport
 
 ![BlockID Business Passport](docs/images/banner.png)

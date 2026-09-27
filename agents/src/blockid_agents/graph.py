@@ -10,6 +10,7 @@ human-run deployment, (3) Safe multisig signatures.
     dividend:    plan -> [GATE board-approved amounts] -> build_batch -> END
     site_valuation (Issuance Studio):
                  read_site -> profile -> competitors -> market -> svi -> narrative -> [GATE valuation] -> END
+    (valuation v3: the market step also gathers verified market anchors / multiples, the svi step triangulates)
 """
 from __future__ import annotations
 
@@ -30,6 +31,7 @@ class OnboardingState(TypedDict, total=False):
     issuance_inputs: dict[str, Any]
     profile: dict
     market: dict | None
+    valuation_evidence: dict | None
     evidence_count: int
     searches: list[dict]
     qualitative: dict
@@ -63,6 +65,7 @@ class SiteValuationState(TypedDict, total=False):
     profile: dict
     competitors: list[dict]
     market: dict | None
+    valuation_evidence: dict | None  # v3: verified anchors / listing / comps / sector multiples (market_evidence)
     evidence_count: int
     searches: list[dict]  # web searches run for this valuation (budget: SEARCH_MAX_QUERIES)
     llm_providers_used: list[str]  # which LLM backends answered, first-use order
@@ -215,6 +218,9 @@ def site_result(deps: Deps, state: dict) -> dict:
         # the company's own revenue / funding / valuation, only when a source states it verbatim (research agent)
         "company_financials": (state.get("market") or {}).get("company_financials"),
         "svi": state.get("svi"),
+        # v3: how the value was reached (methods, weights, sources, confidence) — also inside svi.triangulation
+        "valuation_methods": (state.get("svi") or {}).get("triangulation"),
+        "valuation_evidence": state.get("valuation_evidence"),
         "qualitative": state.get("qualitative"),
         "evidence": ev,
         "self_reported": state.get("self_reported") or None,
@@ -283,8 +289,24 @@ def build_site_valuation(deps: Deps, checkpointer, progress=None):
         cf = (m.get("market") or {}).get("company_financials") or {}
         if cf.get("revenue_ttm_aud"):
             used = "" if cf.get("usable_for_valuation") else ", not used"
-            return f" · company {cf.get('revenue_type') or 'revenue'} A${cf['revenue_ttm_aud']:,.0f} (cited{used})"
-        return " · no cited company revenue"
+            out = f" · company {cf.get('revenue_type') or 'revenue'} A${cf['revenue_ttm_aud']:,.0f} (cited{used})"
+        else:
+            out = " · no cited company revenue"
+        ve = m.get("valuation_evidence") or {}
+        if ve:
+            out += (f" · {len(ve.get('anchors') or [])} verified valuation(s), {len(ve.get('comps') or [])} comparable"
+                    f" multiple(s)" + (f", listed {ve['listing']['exchange']}:{ve['listing']['ticker']}"
+                                       if ve.get("listing") else ""))
+        return out
+
+    def svi_detail(m) -> str:
+        s = m["svi"]
+        out = f"SVI {s['index']} ({s['band']})"
+        tri = s.get("triangulation")
+        if tri:
+            out += f" · value A${tri['value_aud']:,.0f} (confidence {tri['confidence']})"
+        src = m["profile"].get("metrics_sources", {}).get("revenue_ttm_aud")
+        return out + (f" · revenue: {src}" if src else "")
 
     g = StateGraph(SiteValuationState)
     g.add_node("read_site", step("read_site", lambda s: site_intake.read_site(s, deps),
@@ -296,10 +318,7 @@ def build_site_valuation(deps: Deps, checkpointer, progress=None):
     g.add_node("market", step("market", market,
                               lambda m: with_warning(searched(f"{m.get('evidence_count', 0)} sources analysed"
                                                               + financials(m))(m))(m)))
-    g.add_node("svi", step("svi", lambda s: valuation.score(s, deps),
-                           lambda m: f"SVI {m['svi']['index']} ({m['svi']['band']})"
-                           + (f" · revenue: {m['profile'].get('metrics_sources', {}).get('revenue_ttm_aud')}"
-                              if m["profile"].get("metrics_sources", {}).get("revenue_ttm_aud") else "")))
+    g.add_node("svi", step("svi", lambda s: valuation.score(s, deps), svi_detail))
     g.add_node("narrative", step("narrative", lambda s: valuation.narrate(s, deps), lambda m: "narrative drafted"))
     g.add_node("gate_valuation", gate)
     g.add_edge(START, "read_site")
