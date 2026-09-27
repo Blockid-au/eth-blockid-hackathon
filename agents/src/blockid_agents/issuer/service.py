@@ -64,6 +64,17 @@ def _iso() -> str:
 
 def _units(wei: int) -> str:
     return f"{wei / 1e18:.6f}".rstrip("0").rstrip(".")
+
+
+def scan_logs(w3, event, from_block, chunk: int = 5_000, **argument_filters) -> list:
+    """event.get_logs from `from_block` to the latest block in windows of `chunk` blocks: the BlockID RPC rejects
+    eth_getLogs ranges over 10,000 blocks, so one call from an old deploy block fails once the chain grows."""
+    start, latest, out = max(0, int(from_block or 0)), int(w3.eth.block_number), []
+    while start <= latest:
+        end = min(start + chunk - 1, latest)
+        out += event.get_logs(from_block=start, to_block=end, argument_filters=argument_filters or None)
+        start = end + 1
+    return out
 YEAR = 365 * 24 * 3600
 CLAIM_WINDOW = 30 * 24 * 3600
 
@@ -114,8 +125,7 @@ class Service:
     def _landed_issue(self, token, ref: bytes, from_block: int) -> Receipt | None:
         """A SharesIssued log with this resolution ref already on chain? (retry after an ambiguous failure)"""
         try:
-            logs = token.events.SharesIssued().get_logs(from_block=max(0, int(from_block or 0)),
-                                                         argument_filters={"resolutionRef": ref})
+            logs = scan_logs(token.w3, token.events.SharesIssued(), from_block, self.LOG_CHUNK, resolutionRef=ref)
         except Exception:  # noqa: BLE001 - cannot tell -> caller must not re-send blindly
             log.exception("SharesIssued lookup failed")
             raise
@@ -789,7 +799,7 @@ class Service:
         dist = L.contract("DividendDistributor", c["local_distributor"])
         round_id = d.get("round_id")
         if round_id is None:  # retry after an ambiguous failure: reuse a round already created for this plan
-            for lg in dist.events.RoundCreated().get_logs(from_block=int(c.get("local_block") or 0)):
+            for lg in scan_logs(dist.w3, dist.events.RoundCreated(), c.get("local_block"), self.LOG_CHUNK):
                 if Web3.to_hex(lg["args"]["merkleRoot"]) == tree.root and int(lg["args"]["total"]) == total:
                     round_id = int(lg["args"]["roundId"])
                     st.update_dividend(did, merkle_root=tree.root, round_id=round_id, claims=claims)

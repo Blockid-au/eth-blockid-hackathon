@@ -496,3 +496,24 @@ def test_error_classification_points_to_the_fix():
     assert classify(None) is None and classify("weird")["code"] == "unknown"
     both = company_error_info({"error": None, "sync": {"errors": {"hsk": cnv}}})
     assert both["code"] == "cap_table_mismatch" and both["chains"]["hsk"]["code"] == "cap_table_mismatch"
+
+
+def test_scan_logs_stays_under_the_rpc_range_limit():
+    """eth_getLogs from an old deploy block is split into windows (the BlockID RPC caps a range at 10,000 blocks)."""
+    from types import SimpleNamespace
+
+    from blockid_agents.issuer.service import scan_logs
+
+    calls = []
+
+    class Event:
+        def get_logs(self, from_block, to_block, argument_filters=None):
+            assert to_block - from_block < 10_000, "range over the RPC limit"
+            calls.append((from_block, to_block, argument_filters))
+            return [f"log@{from_block}"] if from_block <= 23_456 <= to_block else []
+
+    w3 = SimpleNamespace(eth=SimpleNamespace(block_number=31_379))
+    out = scan_logs(w3, Event(), 0, 5_000, resolutionRef=b"r")
+    assert out == ["log@20000"]
+    assert calls[0] == (0, 4_999, {"resolutionRef": b"r"}) and calls[-1][1] == 31_379 and len(calls) == 7
+    assert scan_logs(w3, Event(), None) == ["log@20000"]  # a missing deploy block starts at 0

@@ -20,8 +20,8 @@ def _ref(transfer_id: int) -> bytes:
 
 
 def _landed(token, ref: bytes, from_block: int):
-    logs = token.events.ForcedTransfer().get_logs(from_block=max(0, int(from_block or 0)),
-                                                   argument_filters={"courtOrReason": ref})
+    from .service import scan_logs  # service imports this module
+    logs = scan_logs(token.w3, token.events.ForcedTransfer(), from_block, courtOrReason=ref)
     return logs[-1] if logs else None
 
 
