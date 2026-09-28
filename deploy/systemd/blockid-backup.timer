@@ -1,0 +1,10 @@
+[Unit]
+Description=BlockID: Postgres backup daily at 16:30 UTC (02:30 AEST)
+
+[Timer]
+OnCalendar=*-*-* 16:30:00 UTC
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
