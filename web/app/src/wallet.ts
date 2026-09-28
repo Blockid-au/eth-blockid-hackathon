@@ -83,7 +83,7 @@ declare global {
 }
 
 export class WalletError extends Error {
-  code: "nomm" | "rejected" | "other";
+  code: "nomm" | "rejected" | "timeout" | "pending" | "other";
   constructor(code: WalletError["code"], msg?: string) {
     super(msg || code);
     this.name = "WalletError";
@@ -91,15 +91,40 @@ export class WalletError extends Error {
   }
 }
 
+/** EIP-6963: every installed wallet announces itself. With several extensions (Coinbase, Phantom, OKX, ...) the one
+ *  that grabbed window.ethereum may not be MetaMask and never shows a prompt, so MetaMask is preferred when present. */
+const announced: { rdns: string; provider: Eip1193 }[] = [];
+if (typeof window !== "undefined") {
+  window.addEventListener("eip6963:announceProvider", (ev) => {
+    const d = (ev as CustomEvent<{ info?: { rdns?: string }; provider?: Eip1193 }>).detail;
+    if (d?.provider && !announced.some((a) => a.provider === d.provider)) announced.push({ rdns: d.info?.rdns ?? "", provider: d.provider });
+  });
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+}
+
 function provider(): Eip1193 {
-  if (!window.ethereum) throw new WalletError("nomm");
-  return window.ethereum;
+  const mm = announced.find((a) => a.rdns === "io.metamask")?.provider;
+  const p = mm ?? window.ethereum ?? announced[0]?.provider;
+  if (!p) throw new WalletError("nomm");
+  return p;
+}
+
+/** A wallet request that gives up after `ms`: a prompt that never opens (or is left open) must not spin forever. */
+function timed<T>(eth: Eip1193, args: { method: string; params?: unknown[] | Record<string, unknown> }, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const tm = setTimeout(() => reject(new WalletError("timeout")), ms);
+    eth.request(args).then(
+      (v) => { clearTimeout(tm); resolve(v as T); },
+      (e) => { clearTimeout(tm); reject(e); },
+    );
+  });
 }
 
 function wrap(e: unknown): never {
   if (e instanceof WalletError) throw e;
   const err = e as { code?: number; message?: string };
   if (err?.code === 4001) throw new WalletError("rejected", err.message);
+  if (err?.code === -32002) throw new WalletError("pending", err.message); // a request is already waiting in the wallet
   throw new WalletError("other", err?.message || String(e));
 }
 
@@ -139,12 +164,12 @@ export async function signInWithEthereum(): Promise<{ address: string; role: Rol
   }
   const eth = provider();
   try {
-    const accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
+    const accounts = await timed<string[]>(eth, { method: "eth_requestAccounts" }, 90_000);
     if (!accounts?.length) throw new WalletError("other", "No account");
     const address = getAddress(accounts[0]);
     let chainId = 262626;
     try {
-      const hex = (await eth.request({ method: "eth_chainId" })) as string;
+      const hex = await timed<string>(eth, { method: "eth_chainId" }, 5_000);
       const id = parseInt(hex, 16);
       if (id === 262626 || id === 560048) chainId = id; // HSK (133) falls back to 262626: backend SIWE_CHAINS does not accept 133 yet
     } catch {
@@ -162,7 +187,7 @@ export async function signInWithEthereum(): Promise<{ address: string; role: Rol
       issuedAt: new Date(),
       expirationTime: new Date(Date.now() + 10 * 60 * 1000),
     });
-    const signature = (await eth.request({ method: "personal_sign", params: [toHex(message), address] })) as string;
+    const signature = await timed<string>(eth, { method: "personal_sign", params: [toHex(message), address] }, 120_000);
     return await api.siwe(message, signature);
   } catch (e) {
     if (e instanceof Error && "status" in e) throw e; // ApiError

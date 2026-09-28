@@ -40,21 +40,23 @@ function LoginCard({ next }: { next: string | null }) {
   const { me, connect, login } = useAuth();
   const [mode, setMode] = useState<"w" | "p">(next ? "p" : "w");
   const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
+  // separate flags: a wallet prompt left waiting must not lock the password form
+  const [wBusy, setWBusy] = useState(false);
+  const [pBusy, setPBusy] = useState(false);
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const siwe = async () => {
-    setErr(""); setBusy(true);
+    setErr(""); setWBusy(true);
     try {
       const m = await connect();
       if (m?.role !== "admin") setErr(t("ad.bad.wallet"));
-    } catch (e) { setErr(errText(e, t)); } finally { setBusy(false); }
+    } catch (e) { setErr(errText(e, t)); } finally { setWBusy(false); }
   };
   const pass = async (e: React.FormEvent) => {
-    e.preventDefault(); setErr(""); setBusy(true);
+    e.preventDefault(); setErr(""); setPBusy(true);
     try { await login(u.trim(), p); setP(""); }
     catch (x) { setErr(x instanceof ApiError && x.status === 429 ? t("ad.bad.rate") : x instanceof ApiError && (x.status === 401 || x.status === 403) ? t("ad.bad.pass") : errText(x, t)); }
-    finally { setBusy(false); }
+    finally { setPBusy(false); }
   };
   return (
     <div className="login">
@@ -68,14 +70,15 @@ function LoginCard({ next }: { next: string | null }) {
       {mode === "w" ? (
         <div style={{ display: "grid", gap: 12 }} role="tabpanel">
           <p className="sub muted">{t("ad.walletp")}</p>
-          <button className="btn" type="button" onClick={siwe} disabled={busy}>{busy ? <span className="spinner" aria-hidden="true" /> : null}{t("ad.siwe")}</button>
+          <button className="btn" type="button" onClick={siwe} disabled={wBusy}>{wBusy ? <span className="spinner" aria-hidden="true" /> : null}{t("ad.siwe")}</button>
+          {wBusy && <p className="note" role="status" style={{ margin: 0 }}>{t("err.walletWait")}</p>}
         </div>
       ) : (
         <form style={{ display: "grid", gap: 12 }} onSubmit={pass} role="tabpanel">
           <p className="banner gold" style={{ margin: 0 }}><span><b>{t("demo.creds")}</b> · {t("demo.tag")}</span></p>
           <label className="lf"><span>{t("ad.user")}</span><input type="text" autoComplete="username" value={u} onChange={(e) => setU(e.target.value)} required /></label>
           <label className="lf"><span>{t("ad.pass")}</span><input type="password" autoComplete="current-password" value={p} onChange={(e) => setP(e.target.value)} required /></label>
-          <button className="btn" type="submit" disabled={busy}>{t("ad.enter")}</button>
+          <button className="btn" type="submit" disabled={pBusy}>{pBusy ? <span className="spinner" aria-hidden="true" /> : null}{t("ad.enter")}</button>
         </form>
       )}
       <p className="err" role="alert">{err}</p>

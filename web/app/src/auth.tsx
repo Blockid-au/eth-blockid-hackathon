@@ -151,6 +151,8 @@ export function errText(e: unknown, t: (k: DictKey) => string): string {
     const code = (e as Error & { code?: string }).code;
     if (code === "nomm") return t("toast.nomm");
     if (code === "rejected") return t("err.rejected");
+    if (code === "timeout") return t("err.walletTimeout");
+    if (code === "pending") return t("err.walletPending");
     return "MetaMask: " + e.message;
   }
   if (e instanceof ApiError) {

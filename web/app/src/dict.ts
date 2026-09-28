@@ -40,6 +40,9 @@ const appEn = {
   "err.network": "Network error. Check your connection and try again.",
   "err.rejected": "Request rejected in the wallet.",
   "err.nomm": "MetaMask not found in this browser.",
+  "err.walletTimeout": "Your wallet did not answer. Click the MetaMask icon in the browser toolbar, approve or reject the waiting request, then try again.",
+  "err.walletPending": "A request is already waiting in MetaMask. Click the MetaMask icon in the browser toolbar to finish it, then try again.",
+  "err.walletWait": "Confirm in your wallet (click the MetaMask icon if no window opened).",
 
   "home.stats.eyebrow": "Live on the testnet",
   "home.stats.h2": "The platform today",
@@ -699,6 +702,9 @@ const appVi: Record<AppKey, string> = {
   "err.network": "Lỗi mạng. Kiểm tra kết nối rồi thử lại.",
   "err.rejected": "Yêu cầu đã bị từ chối trong ví.",
   "err.nomm": "Không tìm thấy MetaMask trong trình duyệt này.",
+  "err.walletTimeout": "Ví không phản hồi. Bấm biểu tượng MetaMask trên thanh công cụ trình duyệt, chấp nhận hoặc từ chối yêu cầu đang chờ, rồi thử lại.",
+  "err.walletPending": "Đang có một yêu cầu chờ trong MetaMask. Bấm biểu tượng MetaMask trên thanh công cụ để hoàn tất, rồi thử lại.",
+  "err.walletWait": "Xác nhận trong ví (bấm biểu tượng MetaMask nếu không thấy cửa sổ hiện ra).",
 
   "home.stats.eyebrow": "Trực tiếp trên testnet",
   "home.stats.h2": "Nền tảng hôm nay",
