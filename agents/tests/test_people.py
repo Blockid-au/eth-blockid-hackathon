@@ -143,7 +143,13 @@ def test_person_report_role_fit(tmp_path):
     # matched with a verified fact / matched without any evidence -> unverified / missing
     assert st == {"agri-food supply chain expertise": "matched", "enterprise sales": "unverified",
                   "regulatory affairs": "missing"}
-    assert fit["components"]["gaps"]["score"] == round(100 * (1 + 0.25 + 0) / 3, 1)
+    # HR v3: the gaps component is the Verified fit's (a match with no evidence counts 0); the claimed value is kept
+    assert fit["components"]["gaps"]["score"] == round(100 * (1 + 0 + 0) / 3, 1)
+    assert fit["components"]["gaps"]["suggested"] == round(100 * (1 + 0.25 + 0) / 3, 1)
+    assert fit["lens"] == "jd" and fit["score"] == fit["verified_score"] <= fit["claimed_score"]
+    assert fit["knockouts"] == ["regulatory affairs"] and fit["cap"] == 60  # a must-have is missing
+    assert set(card["fits"]) == {"jd", "current_role"} and card["fits"]["current_role"]["template"]["key"] == "ceo"
+    assert card["decision"]["fit_lens"] == "jd"
     assert fit["components"]["stage_scale_match"]["score"] == 50 and fit["components"]["stage_scale_match"]["capped"]
     assert card["contribution"] == round(0.5 * card["score"] + 0.5 * fit["score"], 1)
     assert res["counters"]["search_budget"] == 3

@@ -50,10 +50,11 @@ from ..deps import Deps
 from ..llm import last_provider, primary_provider, provider_label, reset_listener, set_listener
 from ..schemas import EvidenceItem
 from ..tools.brave import fetch_page, sanitize_query
+from . import cv_ledger, hr_fit
 from .cv_review import CVReview
 
 AGENT = "people_analyst"
-VERSION = "hr-1"
+VERSION = "hr-2"
 
 PERSON_WEIGHTS = {"domain_fit": 25, "track_record": 25, "leadership": 15, "functional_depth": 15,
                   "verifiability": 10, "commitment": 10}
@@ -71,7 +72,7 @@ KINDS = ("founder", "cofounder", "executive", "employee", "advisor")
 FETCH_PER_QUERY = 2
 SNIPPETS_PER_QUERY = 3
 PAGE_EXCERPT = 3_500
-MAX_PAGES_IN_PROMPT = 10
+MAX_PAGES_IN_PROMPT = 12
 CV_CHARS = 12_000
 UNREADABLE_HOSTS = ("linkedin.com", "facebook.com", "instagram.com", "x.com", "twitter.com")
 
@@ -297,6 +298,7 @@ class RequirementMatch(BaseModel):
     status: Literal["matched", "partial", "missing"] = "missing"
     fact_ids: list[str] = []
     self_reported: bool = False
+    claim_ids: list[str] = Field(default=[], description="CV claim ids (c1..) the match rests on when self-reported")
     note: str = Field(default="", max_length=300)
 
 
@@ -320,6 +322,11 @@ class PersonAnalysis(BaseModel):
     gaps: list[str] = []
     questions: list[str] = []
     functions: list[Literal["tech", "commercial", "domain", "finance"]] = []
+    # HR v3 (docs/PLAN-HR-V3.md): CV claims mapped to facts, CV role relevance, current-role fit, alternative role
+    claim_checks: list[cv_ledger.ClaimCheck] = []
+    role_relevance: list[hr_fit.RoleRelevance] = []
+    role_fit: FitSuggestion | None = None
+    alt_role: hr_fit.AltRole | None = None
 
 
 class Component(BaseModel):
@@ -361,7 +368,20 @@ information, build the professional profile of ONE person and suggest scores. Ru
 - fit (only when a TARGET is given): skills_match, domain_match, stage_scale_match, seniority_match,
   track_record_relevance with rationale and fact_ids; requirements = the target's key requirements (a role: its
   listed requirements; a business: 4-8 derived from its sector, stage and product), each matched / partial /
-  missing with fact_ids or self_reported and a short note; risks; interview_questions (3-6).
+  missing with fact_ids or self_reported and a short note; risks; interview_questions (3-6). Treat the target's
+  knockouts as must-have requirements. When a match rests on the CV, set self_reported=true AND list the CV claim
+  ids (claim_ids) it rests on.
+- role_fit (only when a CURRENT ROLE is given, else null): the same shape as fit, judging the person against the
+  listed competencies of the role they hold (each competency one requirement, must_have=true); without listed
+  competencies derive 4-6 for that role at the business's stage.
+- claim_checks (only when CV CLAIMS are listed): for every claim id, the fact ids that support it (same person, same
+  organisation) and, ONLY if an evidence page that names this person and the same organisation states a different
+  title, period, degree or number, a conflict {source_url, quote copied character for character, field: title |
+  dates | degree | metric, source_value: what the page says}. A missing mention is NOT a conflict.
+- role_relevance (only when a CV TIMELINE is given): for each numbered role, its relevance to the TARGET (or to the
+  current role when there is no target): high / medium / low with a short reason.
+- alt_role: only when the person clearly fits another role better than the target / current role: that role, a
+  0-100 score and why; else null.
 - strengths, gaps, questions (what an investor should ask this person), functions (tech, commercial, domain,
   finance) the person really covers."""
 
@@ -909,19 +929,48 @@ def _target_block(target: dict | None) -> str:
         return "TARGET: none (no fit assessment; set fit to null)"
     if target.get("type") == "role":
         reqs = "\n".join(f"- {r}" for r in (target.get("requirements") or [])[:30])
+        ko = "\n".join(f"- {r}" for r in (target.get("knockouts") or [])[:6])
         return (f"TARGET (role): {target.get('title', '')} at {target.get('company', '')}\n"
-                f"Description: {(target.get('description') or '')[:5000]}\nRequirements:\n{reqs}")
+                + (f"Seniority: {target['seniority']}\n" if target.get("seniority") else "")
+                + (f"Minimum years of relevant experience: {target['min_years']}\n" if target.get("min_years")
+                   else "")
+                + f"Description: {(target.get('description') or '')[:5000]}\nRequirements:\n{reqs}"
+                + (f"\nKnockouts (hard criteria):\n{ko}" if ko else ""))
+    needs = "; ".join((target.get("needs") or [])[:5])
     return (f"TARGET (business — founder–business fit): {target.get('company') or ''}\n"
             f"Website: {target.get('website') or ''}\nSector: {target.get('sector') or 'unknown'}; stage: "
             f"{target.get('stage') or 'unknown'}; country: {target.get('country') or ''}\n"
             f"Product / business: {(target.get('description') or '')[:1500]}\n"
-            f"Market: {(target.get('market') or '')[:800]}")
+            f"Market: {(target.get('market') or '')[:800]}"
+            + (f"\nWhat the business needs now (gaps from the last team review): {needs}" if needs else ""))
 
 
-def _person_prompt(p: dict, target: dict | None, evidence: list, notes: list[str]) -> str:
+def _current_role_block(p: dict, target: dict | None, tpl: dict | None) -> str:
+    role = (p.get("role") or "").strip()
+    if not role:
+        return "CURRENT ROLE: none (set role_fit to null)\n"
+    at = (target or {}).get("company") if (target or {}).get("type") == "business" else ""
+    head = f"CURRENT ROLE (the role this person holds or is listed for): {role}" + (f" at {at}" if at else "")
+    if tpl:
+        comps = "\n".join(f"- {c}" for c in tpl["competencies"])
+        return f"{head} — template {tpl['label']}, stage band {tpl['stage_band']}\nCompetencies to judge:\n{comps}\n"
+    return f"{head}\nCompetencies to judge: derive 4-6 for this role at the business's stage\n"
+
+
+def _claims_block(claims: list[dict]) -> str:
+    if not claims:
+        return ""
+    return "CV CLAIMS (self-reported; check each against the evidence pages):\n" + "\n".join(
+        f"{c['id']}. [{c['kind']}] {c['text']}" + (f" — metric {c['metric']}" if c["metric"] else "")
+        for c in claims) + "\n"
+
+
+def _person_prompt(p: dict, target: dict | None, evidence: list, notes: list[str], *, tpl: dict | None = None,
+                   claims: list[dict] | None = None) -> str:
     cv = redact((p.get("cv") or "")[:CV_CHARS])
     return (
-        f"PERSON: {p['full_name']} — role: {p.get('role') or 'unknown'} ({p.get('kind')})\n{_target_block(target)}\n\n"
+        f"PERSON: {p['full_name']} — role: {p.get('role') or 'unknown'} ({p.get('kind')})\n{_target_block(target)}\n"
+        f"{_current_role_block(p, target, tpl)}{_claims_block(claims or [])}\n"
         f"<data>\nFOUNDER-PROVIDED (self-reported, not verified):\nheadline: {redact(p.get('headline') or '')}\n"
         f"bio: {redact(p.get('bio') or '')}\nfull_time: {p.get('full_time')}; equity_pct: {p.get('equity_pct')}; "
         f"start_year: {p.get('start_year')}\nCV:\n{cv}\n"
@@ -945,9 +994,123 @@ def _anchors(team: dict, target: dict | None, p: dict, draft: CVDraft) -> list[s
     return list(dict.fromkeys(out))
 
 
+def _lookups(deps: Deps):
+    """Structured public lookups (tools/people_lookups.py). Tests with a fake fetcher get none unless they inject
+    `deps.people_lookups`."""
+    if getattr(deps, "people_lookups", None) is not None:
+        return deps.people_lookups
+    kinds = tuple(getattr(deps.settings, "hr_lookups", ()) or ())
+    if deps.fetcher is not None or not kinds:
+        return None
+    from ..tools.people_lookups import PeopleLookups
+
+    return PeopleLookups(deps.evidence, kinds=kinds)
+
+
+def _store_lookup(rs: "Research", tr: Tracker, p: dict, got: dict, recs: list[dict]) -> None:
+    if not got:
+        return
+    rec = got.get("record")
+    if rec:
+        recs.append(rec)
+    page = got.get("page")
+    if page and rs.store(_subject(rs.team_id, p["id"]), page["url"], page["title"], "", page["text"],
+                         f"lookup:{(rec or {}).get('kind', '')}", page["kind"]):
+        tr.count(pages_read=1)
+    if rec:
+        label = {"github": "GitHub", "openalex": "OpenAlex", "wayback": "Web archive"}.get(rec["kind"], rec["kind"])
+        tr.note(f"{label}"
+                f": {rec['detail']}", level="found" if rec.get("found") else "info", person=p["full_name"],
+                source=rec.get("url"))
+
+
+def early_lookups(rs: "Research", tr: Tracker, lk, people: list[dict], reviews: dict, recs: dict) -> None:
+    """GitHub profiles the person / CV links to; the earliest archived copy of provided pages naming the person."""
+    for p in people:
+        links = list(p.get("urls") or [])
+        rv = reviews.get(p["id"])
+        if rv is not None:
+            links += rv.review["read"].get("links") or []
+        from ..tools.people_lookups import github_logins
+
+        for login in github_logins(links):
+            _store_lookup(rs, tr, p, lk.github(login), recs[p["id"]])
+        n = 0
+        for ev, text in rs.deps.evidence.for_subject(_subject(rs.team_id, p["id"]), limit=20):
+            if n >= 2 or ev.kind != "provided" or not _readable(ev.url) or "api.github.com" in ev.url:
+                continue
+            if names_person(text or "", p["full_name"]):
+                n += 1
+                _store_lookup(rs, tr, p, lk.wayback(ev.url, rs._get), recs[p["id"]])
+
+
+def claim_research(rs: "Research", tr: Tracker, lk, people: list[dict], reviews: dict, company: str,
+                   budget: int, cap: int, recs: dict) -> dict[int, set[str]]:
+    """Searches aimed at each CV's most important claims (the CV structure is ready by now in most runs; it is
+    waited for at most 90 s). Returns the organisations searched per person (org keys)."""
+    searched: dict[int, set[str]] = {p["id"]: set() for p in people}
+    for p in sorted(people, key=priority):
+        rv = reviews.get(p["id"])
+        if rv is None:
+            continue
+        tl = rv.structure(timeout=90.0)
+        if not tl:
+            tr.note("The CV was not structured in time; its claims are checked against the general research only",
+                    level="warn", person=p["full_name"])
+            continue
+        prelim = cv_ledger.claims_from_review({"timeline": tl, "insights": rv.review.get("insights")}, rv.cv)
+        if lk is not None:
+            orgs = [c["org"] for c in prelim if c["kind"] in ("education", "role") and c["org"]]
+            if any(c["kind"] == "education" for c in prelim) or (rv.review.get("insights") or {}).get(
+                    "seniority") in ("senior", "lead", "executive"):
+                _store_lookup(rs, tr, p, lk.openalex(p["full_name"], orgs), recs[p["id"]])
+        if rs.search is None or budget <= 0:
+            continue
+        qs = cv_ledger.claim_queries(p["full_name"], prelim, company, [x["query"] for x in rs.searches], budget)
+        qs = qs[:max(0, cap - len(rs.searches))]
+        if not qs:
+            continue
+        rs.planned_searches = max(rs.planned_searches, len(rs.searches)) + len(qs)
+        tr.note(f"Searching the CV's claims of {p['full_name']}: {_plural(len(qs), 'search', 'searches')}",
+                person=p["full_name"])
+        by_id = {c["id"]: c for c in prelim}
+        for cid, q in qs:
+            rs._one(p, q)
+            searched[p["id"]].add(org_key(by_id[cid]["org"]))
+    return searched
+
+
 def _readable(url: str) -> bool:
     return bool(re.match(r"^https?://", url or "")) and not any(
         host(url) == h or host(url).endswith("." + h) for h in UNREADABLE_HOSTS)
+
+
+def person_fits(p: dict, a: PersonAnalysis, ids: dict[str, str], info: bool, target: dict | None,
+                tpl: dict | None, ledger: dict | None, rv: CVReview | None) -> dict[str, dict]:
+    """The v3 fit lenses (agents/hr_fit.py): business or JD from `fit`, current role from `role_fit`."""
+    by_claim = {c["id"]: c for c in (ledger or {}).get("claims") or []}
+    roles = ((rv.review.get("timeline") or {}).get("roles") or []) if rv is not None else []
+    out: dict[str, dict] = {}
+    for key, sug in (("main", a.fit if target else None), ("current_role", a.role_fit if (p.get("role") or "").strip()
+                                                           else None)):
+        if sug is None:
+            continue
+        lens = key if key == "current_role" else ("jd" if target["type"] == "role" else "business")
+        base = fit_score(sug, ids, info, "role" if lens != "business" else "business")
+        req_claims = {r.requirement: r.claim_ids for r in sug.requirements}
+        primary = lens != "current_role" or not target
+        rel = hr_fit.relevant_experience(roles, a.role_relevance, (target or {}).get("min_years")
+                                         if lens == "jd" else None) if primary else None
+        title = (f"Fit to the role: {target.get('title')}" if lens == "jd" else
+                 f"Fit to the business: {target.get('company') or 'this business'}" if lens == "business" else
+                 f"Fit to the current role: {p.get('role')}")
+        out[lens] = hr_fit.lens_fit(base, lens, claims=by_claim, req_claims=req_claims,
+                                    knockouts=(target or {}).get("knockouts") if lens == "jd" else None,
+                                    relevant=rel, template=tpl if lens == "current_role" else None,
+                                    alt=a.alt_role if primary else None, title=title)
+        if lens == "current_role":
+            out[lens]["label"] = "current-role fit"
+    return out
 
 
 def analyse(team: dict, people: list[dict], deps: Deps, *, target: dict | None = None,
@@ -977,8 +1140,10 @@ def _analyse(team: dict, people: list[dict], deps: Deps, target: dict | None, pr
     company = " ".join(_SUFFIX.sub(" ", company).replace(",", " ").split())
     per_person = s.hr_searches_per_person
     per_team = s.hr_searches_per_team if mode == "team" else s.hr_searches_per_person
-    planned = 0 if rs.search is None else min(per_team, sum(len(person_queries(p, company)[:per_person])
-                                                            for p in people))
+    n_cv = sum(1 for p in people if len((p.get("cv") or "").strip()) >= 200)
+    claim_cap = s.hr_searches_per_team if mode == "team" else per_person + s.hr_claim_searches_per_person
+    planned = 0 if rs.search is None else min(claim_cap, min(per_team, sum(
+        len(person_queries(p, company)[:per_person]) for p in people)) + s.hr_claim_searches_per_person * n_cv)
     fetches = len({u for p in people for u in (p.get("urls") or [])[:6] if _readable(u)})
     tr.plan(people, fetches=fetches, searches=planned, team=mode == "team")
     tr.phase("reading")
@@ -1006,13 +1171,23 @@ def _run(team, people, deps, target, prog, tr, current, rs, company, per_person,
     for p in people:
         current["person"] = p["full_name"]
         notes_by[p["id"]] = rs.provided(p)
+    lk = _lookups(deps)
+    lookup_recs: dict[int, list[dict]] = {p["id"]: [] for p in people}
+    if lk is not None:
+        early_lookups(rs, tr, lk, people, reviews, lookup_recs)
     tr.phase("searching")
-    rs.run_searches(people, company, per_person, per_team)
+    # generic searches leave room for the claim-led ones (at most half of the team budget)
+    claim_budget = s.hr_claim_searches_per_person if reviews else 0
+    cap = s.hr_searches_per_team if mode == "team" else per_person + claim_budget
+    generic_cap = per_team if not reviews else max(3, min(per_team, cap - min(claim_budget * len(reviews), cap // 2)))
+    rs.run_searches(people, company, per_person, generic_cap)
     if rs.search is None:
         tr.note("No web search service is configured; only the links provided are used", level="warn")
+    searched_orgs = claim_research(rs, tr, lk, people, reviews, company, claim_budget, cap, lookup_recs) \
+        if reviews else {}
 
-    counters = {"searches": len(rs.searches), "search_budget": s.hr_searches_per_team if mode == "team"
-                else s.hr_searches_per_person, "pages_fetched": rs.pages_fetched, "facts_verified": 0,
+    counters = {"searches": len(rs.searches), "search_budget": cap, "pages_fetched": rs.pages_fetched,
+                "facts_verified": 0,
                 "facts_unconfirmed": 0, "facts_dropped_sensitive": 0, "llm_calls": 0}
     models: dict[str, str] = {}
     cards, sources, seen_src = [], [], {}
@@ -1039,10 +1214,14 @@ def _run(team, people, deps, target, prog, tr, current, rs, company, per_person,
         tr.begin("person_model", p["full_name"], "Reading the sources", _plural(n_pages, "page"))
         tr.note(f"{first} is reading {_plural(n_pages, 'page')} about {p['full_name']}", person=p["full_name"])
         rv = reviews.get(p["id"])
+        claims: list[dict] = []
         if rv is not None:
             rv.result()
+            claims = cv_ledger.claims_from_review(rv.review, rv.cv)
+        tpl = hr_fit.role_template(p.get("role") or "", (target or {}).get("stage"))
         t0 = time.monotonic()
-        a = deps.ask(AGENT, s.hr_tier, SYSTEM_PERSON, _person_prompt(p, target, evidence, notes_by[p["id"]])
+        a = deps.ask(AGENT, s.hr_tier, SYSTEM_PERSON, _person_prompt(p, target, evidence, notes_by[p["id"]], tpl=tpl,
+                                                                     claims=claims)
                      + (rv.prompt_block() if rv is not None else ""), PersonAnalysis)
         tr.end("person_model")
         counters["llm_calls"] += 1
@@ -1065,10 +1244,27 @@ def _run(team, people, deps, target, prog, tr, current, rs, company, per_person,
             f["source_id"] = seen_src[key]
         info = has_founder_info(p)
         quality, subs = person_quality(a.scores, ids, info)
-        fit = fit_score(a.fit, ids, info, target["type"]) if (a.fit and target) else None
+        ledger, trust = None, None
+        if rv is not None and claims:
+            searched = {c["id"] for c in claims if org_key(c["org"]) in searched_orgs.get(p["id"], set())}
+            ledger = cv_ledger.build_ledger(
+                claims, facts, a.claim_checks, ids, evidence, person=p["full_name"],
+                business_host=host(team.get("website") or (target or {}).get("website") or ""), searched=searched,
+                anchors=anchors, provided=provided, lookups=lookup_recs.get(p["id"]))
+            trust = cv_ledger.trust_index(ledger, ((rv.review.get("timeline") or {}).get("stats")))
+            if trust:
+                old = subs["verifiability"]
+                subs["verifiability"] = {**old, "score": trust["score"], "suggested": old["suggested"],
+                                         "capped": False, "computed": True, "self_reported": False,
+                                         "rationale": f"CV Trust Index — {trust['summary']}"}
+                quality = weighted(subs, PERSON_WEIGHTS)
+        fits = person_fits(p, a, ids, info, target, tpl, ledger, rv)
+        fit = fits.get("jd") or fits.get("business")
         card = {"person_id": p["id"], "full_name": p["full_name"], "role": p.get("role") or "",
                 "kind": p.get("kind") or "employee", "multiplier": multiplier(p), "score": quality,
-                "subscores": subs, "fit": fit, "contribution": contribution(quality, fit), "profile": profile,
+                "subscores": subs, "fit": fit, "fits": fits, "trust": trust,
+                "decision": hr_fit.decision(fits, trust, ledger, subs["verifiability"]["score"]),
+                "contribution": contribution(quality, fit), "profile": profile,
                 "facts": facts,
                 "self_reported": {"headline": redact(p.get("headline") or "") or None,
                                   "bio": redact(p.get("bio") or "") or None, "full_time": p.get("full_time"),
@@ -1081,7 +1277,7 @@ def _run(team, people, deps, target, prog, tr, current, rs, company, per_person,
                 "functions": sorted(set(a.functions) & set(FUNCTIONS)), "model": models[f"person:{p['id']}"],
                 "notes": notes_by[p["id"]]}
         if rv is not None:
-            card["cv_review"] = rv.finish(facts, names_org)
+            card["cv_review"] = rv.finish(ledger)
         cards.append(card)
         counters["facts_verified"] += len(facts)
         counters["facts_unconfirmed"] += len(unconfirmed)
@@ -1149,13 +1345,24 @@ def _run(team, people, deps, target, prog, tr, current, rs, company, per_person,
                    "role_multipliers": ROLE_MULTIPLIERS,
                    "team_formula": f"{PEOPLE_SHARE} x role-weighted mean of contributions + {TEAM_SHARE} x team "
                                    f"component - {RED_FLAG_POINTS:g} per verified red flag (max {RED_FLAG_MAX:g})",
-                   "contribution": f"{QUALITY_FIT_SPLIT} x quality + {1 - QUALITY_FIT_SPLIT} x fit "
+                   "contribution": f"{QUALITY_FIT_SPLIT} x quality + {1 - QUALITY_FIT_SPLIT} x verified fit "
                                    "(quality alone when there is no fit)",
                    "cap_without_evidence": CAP_WITHOUT_EVIDENCE,
+                   "trust": {"status_weights": cv_ledger.STATUS_WEIGHT, "high": cv_ledger.TRUST_HIGH,
+                             "medium": cv_ledger.TRUST_MEDIUM, "importance": "current role 3; roles in the last 5 "
+                             "years and the highest degree 2; others 1"},
+                   "fit_rules": {"verified_fit": "CV-only evidence counts half, a contradicted CV claim 0",
+                                 "cap_must_missing": hr_fit.CAP_MUST_MISSING,
+                                 "cap_must_contradicted": hr_fit.CAP_MUST_CONTRADICTED,
+                                 "verdicts": {v: lo for lo, v in hr_fit.VERDICTS}},
                    "notes": ["The model only suggests sub-scores with cited facts; code computes every score.",
                              "A fact is verified only when its quote is on a stored page that names the person and "
                              "the company (or a self-reported organisation), or on a URL the founder provided.",
                              "Self-reported information (bio, CV, commitment) is labelled and never verifies itself.",
+                             "Every CV claim is checked against the verified facts by code: identity, organisation, "
+                             "title, dates, degree, number. Not found is not the same as false; a conflict needs "
+                             "human review.",
+                             "Career breaks and part-time periods are never scored.",
                              "Public professional information only; sensitive categories are filtered out.",
                              "Advisory only - not an employment, credit or investment decision."],
                    "models": models, "search_providers": list(deps.search_for(AGENT).names)

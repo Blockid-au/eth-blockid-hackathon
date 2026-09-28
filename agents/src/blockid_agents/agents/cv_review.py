@@ -4,8 +4,8 @@ Three parts land one after another on the live screen (Tracker.cv):
   read       - instant, code only: words, sections found, years covered, links, private details removed
   timeline   - model reads the roles / education; code computes tenure, total years, gaps and overlaps
   insights   - model: skills with level, measurable results, leadership, strengths, concerns, claims to check
-The two model calls run in parallel. After the facts are verified, `finish` marks each CV claim confirmed when a
-verified public fact names its organisation. Everything here is self-reported and never verifies itself.
+The two model calls run in parallel. After the facts are verified, `finish` attaches the claim ledger (cv_ledger.py:
+each claim checked by code against the verified facts). Everything here is self-reported and never verifies itself.
 """
 from __future__ import annotations
 
@@ -218,6 +218,7 @@ class CVReview:
         self.p, self.tr, self.sensitive = person, tracker, sensitive
         self.pid, self.name = person["id"], person["full_name"]
         cv = redact((person.get("cv") or "")[:CV_REVIEW_CHARS])
+        self.cv = cv
         self.review: dict = {"read": read_stats(cv), "timeline": None, "insights": None, "claims": [],
                              "models": {}}
         tracker.cv(self.pid, "read", self.review["read"])
@@ -276,6 +277,14 @@ class CVReview:
                 "concerns": self._clean(s.concerns, 6), "questions": self._clean(s.questions, 6),
                 "claims": [c.model_dump() for c in s.claims[:8] if not self.sensitive(c.text)]}
 
+    def structure(self, timeout: float = 90.0) -> dict | None:
+        """The timeline part (waits for it, bounded); None when it failed or is not ready in time."""
+        try:
+            self.f_struct.result(timeout=timeout)
+        except Exception:  # noqa: BLE001 - timeout / failure: the claims use the general research only
+            return None
+        return self.review.get("timeline")
+
     def result(self, timeout: float = 200.0) -> dict:
         for f in (self.f_struct, self.f_ins):
             try:
@@ -289,22 +298,26 @@ class CVReview:
         tl = self.review.get("timeline")
         if not tl:
             return ""
-        lines = [f"- {r['title']} @ {r['org']} ({r['start'] or '?'}–{r['end'] or '?'})" for r in tl["roles"][:12]]
+        lines = [f"{i}. {r['title']} @ {r['org']} ({r['start'] or '?'}–{r['end'] or '?'})"
+                 for i, r in enumerate(tl["roles"][:12], 1)]
         st = tl["stats"]
         return ("CV TIMELINE (self-reported, structured):\n" + "\n".join(lines)
                 + f"\n~{st['years']:g} years; gaps: {', '.join(g['from'] + '..' + g['to'] for g in st['gaps']) or 'none'}\n")
 
-    def finish(self, facts: list[dict], names_org) -> dict:
-        """Mark each CV claim confirmed when a verified public fact names its organisation."""
-        claims = []
-        for c in (self.review.get("insights") or {}).get("claims", []):
-            org = (c.get("org") or "").strip()
-            hit = [f["id"] for f in facts if org and names_org(f"{f.get('text', '')} {f.get('quote', '')}", org)]
-            claims.append({**c, "status": "confirmed" if hit else "unconfirmed", "fact_ids": hit[:4]})
-        self.review["claims"] = claims
-        if claims:
-            n = sum(1 for c in claims if c["status"] == "confirmed")
-            self.tr.cv(self.pid, "claims", claims)
-            self.tr.note(f"{n} of {len(claims)} CV claim(s) confirmed by public sources", person=self.name,
-                         level="found" if n else "info")
+    def finish(self, ledger: dict | None) -> dict:
+        """Attach the claim ledger (agents/cv_ledger.py, built by the People Analyst after the facts are verified).
+        `claims` keeps the v2 shape (confirmed = verified or partly verified) for older clients."""
+        if not ledger:
+            self.review["claims"] = []
+            return self.review
+        self.review["ledger"] = ledger
+        self.review["claims"] = [{"text": c["text"], "org": c["org"], "kind": c["kind"],
+                                  "status": "confirmed" if c["status"] in ("verified", "partly_verified")
+                                  else "unconfirmed", "fact_ids": c["fact_ids"][:4]} for c in ledger["claims"]]
+        self.tr.cv(self.pid, "ledger", ledger)
+        n = ledger["counts"]
+        self.tr.note(f"Checked {len(ledger['claims'])} CV claims: {n['verified']} verified, {n['partly_verified']} "
+                     f"partly, {n['not_found']} not found, {n['unverifiable']} unverifiable"
+                     + (f", {n['contradicted']} in conflict (needs human review)" if n["contradicted"] else ""),
+                     person=self.name, level="warn" if n["contradicted"] else "found")
         return self.review

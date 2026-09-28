@@ -10,6 +10,58 @@ import { initials, partLabel, useHrTitle } from "./common";
 import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, cleanWhy, EvLabel, fmtDate, halfWidth, Icon, srcIndex, type Conf } from "./evidence";
 import { ConsentFooter, MethodBox, Panel, ReportActions, ScoreInline, SourcesTable, TabNav } from "./reportParts";
 import { ReportState, useHrReport } from "./HrPerson";
+import { TrustChip, VerdictBadge } from "./verify";
+import { fitVerdict, reqEvidence } from "./v3";
+
+/** Current-role fit chip (hr-2), "–" when the lens is missing. */
+function RoleFit({ c }: { c: PersonCard }) {
+  const f = c.fits?.current_role;
+  if (!f) return <span className="muted">–</span>;
+  return <VerdictBadge verdict={fitVerdict(f)} score={f.score} />;
+}
+
+/** Heat map: the business lens's requirements (what the business needs now) × people. */
+function NeedsHeatmap({ people, pUrl }: { people: PersonCard[]; pUrl: (c: PersonCard) => string }) {
+  const { t } = useI18n();
+  const cols = people.filter((c) => (c.fits?.business?.requirements?.length ?? 0) > 0);
+  if (!cols.length) return null;
+  const rows: string[] = [];
+  const seen = new Set<string>();
+  for (const c of cols) for (const r of c.fits!.business!.requirements!) { const k = r.requirement.trim().toLowerCase(); if (!seen.has(k) && rows.length < 12) { seen.add(k); rows.push(r.requirement.trim()); } }
+  const cell = (c: PersonCard, req: string) => c.fits?.business?.requirements?.find((r) => r.requirement.trim().toLowerCase() === req.toLowerCase());
+  return (
+    <div className="hp-card">
+      <h2>{t("hv.hm.h")} <span className="count">{t("hv.hm.n", { r: rows.length, p: cols.length })}</span></h2>
+      <p className="hp-lead">{t("hv.hm.p")}</p>
+      <div className="hp-tbl">
+        <table className="hv-heat">
+          <caption className="sr-only">{t("hv.hm.h")}</caption>
+          <thead><tr><th scope="col">{t("hv.hm.need")}</th>{cols.map((c) => <th key={c.person_id} scope="col"><Link to={pUrl(c)} title={c.full_name}>{c.full_name.split(/\s+/)[0]}</Link></th>)}</tr></thead>
+          <tbody>
+            {rows.map((req) => (
+              <tr key={req}>
+                <th scope="row">{req}</th>
+                {cols.map((c) => {
+                  const r = cell(c, req);
+                  const st = !r ? "na" : r.status === "matched" ? "met" : r.status === "partial" ? "part" : "miss";
+                  const ev = r ? reqEvidence(r) : "none";
+                  const lab = st === "na" ? "–" : t(st === "met" ? "hr.pr.res.met" : st === "part" ? "hr.pr.res.part" : "hr.pr.res.nf");
+                  return (
+                    <td key={c.person_id} className={"h-" + st + (r ? " e-" + ev : "")} title={r ? `${lab} · ${t(("hv.ev." + ev) as DictKey)}` : undefined}>
+                      <span aria-hidden="true">{st === "met" ? "●" : st === "part" ? "◐" : st === "miss" ? "○" : "·"}</span>
+                      <span className="sr-only">{lab}{r ? " · " + t(("hv.ev." + ev) as DictKey) : ""}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="hv-heatlegend"><span className="h-met">● {t("hr.pr.res.met")}</span><span className="h-part">◐ {t("hr.pr.res.part")}</span><span className="h-miss">○ {t("hr.pr.res.nf")}</span><span className="e-cv_only">{t("hv.hm.cvonly")}</span></p>
+    </div>
+  );
+}
 
 const TEAM_TABS = ["overview", "people", "gaps", "sources"] as const;
 type TTab = (typeof TEAM_TABS)[number];
@@ -35,6 +87,7 @@ function TeamReportView({ team, tab }: { team: Team; tab: TTab }) {
   const valId = team.valuation_id;
   const tabs: [TTab, DictKey, number?][] = [["overview", "hr.tab.overview"], ["people", "hr.tab.people", rep.people.length], ["gaps", "hr.tab.gaps"], ["sources", "hr.tab.sources", ix.byId.size]];
   const points = (tb.score * 0.3);
+  const v2 = rep.people.some((c) => c.trust || c.fits?.current_role);
   return (
     <div className="wrap hp-page">
       <div className="hp-printhead">
@@ -85,7 +138,7 @@ function TeamReportView({ team, tab }: { team: Team; tab: TTab }) {
           <h2>{t("hr.tr.comp")} <span className="count">{t("hr.tr.comp.n", { n: rep.people.length })}</span></h2>
           <div className="hp-tbl">
             <table className="hp-comp hp-teamcomp">
-              <thead><tr><th scope="col">{t("hr.np.sum.person")}</th><th scope="col">{t("hr.p.kind")}</th><th scope="col" className="r">{t("hr.tr.weight")}</th><th scope="col">{t("hr.me.col.score")}</th><th scope="col" /></tr></thead>
+              <thead><tr><th scope="col">{t("hr.np.sum.person")}</th><th scope="col">{t("hr.p.kind")}</th><th scope="col" className="r">{t("hr.tr.weight")}</th><th scope="col">{t("hr.me.col.score")}</th>{v2 && <th scope="col">{t("hv.col.trust")}</th>}{v2 && <th scope="col">{t("hv.col.rolefit")}</th>}<th scope="col" /></tr></thead>
               <tbody>
                 {people.map((c) => (
                   <tr key={c.person_id}>
@@ -93,6 +146,8 @@ function TeamReportView({ team, tab }: { team: Team; tab: TTab }) {
                     <td>{t(("hr.kind." + c.kind) as DictKey)}</td>
                     <td className="r mono">{fmt(c.multiplier ?? 1, 1)}×</td>
                     <td><ScoreInline score={c.fit?.score ?? c.score} conf={personConf(c)} kind={c.fit ? "fit" : "q"} /></td>
+                    {v2 && <td>{c.trust ? <TrustChip band={c.trust.band} /> : <span className="muted">–</span>}</td>}
+                    {v2 && <td><RoleFit c={c} /></td>}
                     <td className="r"><Link to={pUrl(c)}>{t("hr.tr.open")} →</Link></td>
                   </tr>
                 ))}
@@ -100,6 +155,7 @@ function TeamReportView({ team, tab }: { team: Team; tab: TTab }) {
             </table>
           </div>
         </div>
+        <NeedsHeatmap people={people} pUrl={pUrl} />
         <div className="hp-panel">
           <div className="hp-card">
             <h2>{t("hr.r.map")}</h2>
@@ -145,6 +201,12 @@ function TeamReportView({ team, tab }: { team: Team; tab: TTab }) {
                   <span className="num">{fmt(Math.round(sc))}<small>{bandWord(t, sc, pc, c.fit ? "fit" : "q")}</small></span>
                 </div>
                 <ConfPill conf={pc} />
+                {(c.trust || c.fits?.current_role) && (
+                  <div className="hv-chips">
+                    {c.trust && <TrustChip band={c.trust.band} />}
+                    {c.fits?.current_role && <VerdictBadge lens="current_role" verdict={fitVerdict(c.fits.current_role)} score={c.fits.current_role.score} />}
+                  </div>
+                )}
                 {c.strengths[0] && <p style={{ margin: 0, fontSize: ".88rem" }}><b>{t("hr.card.top")}:</b> {c.strengths[0]}</p>}
                 {c.gaps[0] && <p style={{ margin: 0, fontSize: ".88rem" }}><b>{t("hr.card.gap")}:</b> {c.gaps[0]}</p>}
                 <div className="row" style={{ justifyContent: "space-between" }}>

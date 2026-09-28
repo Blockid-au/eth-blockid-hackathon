@@ -255,7 +255,15 @@ class Settings:
         x.lower() for x in _csv("HR_SEARCH_PROVIDERS", "claude,brave")))
     hr_tier: str = field(default_factory=lambda: _env("HR_TIER", "cloud"))
     hr_searches_per_person: int = field(default_factory=lambda: min(int(_env("HR_SEARCHES_PER_PERSON", "3")), 3))
-    hr_searches_per_team: int = field(default_factory=lambda: min(int(_env("HR_SEARCHES_PER_TEAM", "12")), 12))
+    # team cap 20 (HR v3, owner decision D1: room for the claim-led searches); per person: 3 general + up to 3 aimed
+    # at the CV's most important claims (docs/PLAN-HR-V3.md §1.2)
+    hr_searches_per_team: int = field(default_factory=lambda: min(int(_env("HR_SEARCHES_PER_TEAM", "20")), 20))
+    hr_claim_searches_per_person: int = field(default_factory=lambda: min(int(_env(
+        "HR_CLAIM_SEARCHES_PER_PERSON", "3")), 3))
+    # free structured lookups for the CV cross-check (tools/people_lookups.py); empty = none
+    hr_lookups: tuple[str, ...] = field(default_factory=lambda: tuple(
+        x.lower() for x in _csv("HR_LOOKUPS", "wayback,github,openalex")
+        if x.lower() in ("wayback", "github", "openalex")))
     hr_runs_per_day: int = field(default_factory=lambda: int(_env("HR_RUNS_PER_DAY", "5")))
     hr_max_active: int = field(default_factory=lambda: int(_env("HR_MAX_ACTIVE", "5")))
     hr_public_url: str = field(default_factory=lambda: _env("HR_PUBLIC_URL", "https://hr.blockid.au").rstrip("/"))

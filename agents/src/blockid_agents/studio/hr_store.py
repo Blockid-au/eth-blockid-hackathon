@@ -770,6 +770,11 @@ def summary(t: dict, public_url: str) -> dict:
                    "fit_label": (c.get("fit") or {}).get("label"),
                    "fit_matched": ((c.get("fit") or {}).get("matched") or [])[:3],
                    "fit_missing": ((c.get("fit") or {}).get("missing") or [])[:3],
+                   "trust_band": (c.get("trust") or {}).get("band"),
+                   "role_fit": ((c.get("fits") or {}).get("current_role") or {}).get("score"),
+                   "role_fit_verdict": ((c.get("fits") or {}).get("current_role") or {}).get("verdict"),
+                   "role_fit_label": (((c.get("fits") or {}).get("current_role") or {}).get("template") or {}).get(
+                       "label"),
                    "status": "done" if t.get("status") in ("done", "failed") else "working",
                    "url": person_url(t, c.get("person_id"), public_url)} for c in cards]
     else:  # not done yet: names + roles + partial numbers from the live progress
@@ -835,7 +840,8 @@ def resolve_target(db: Studio, t: dict, deps: Deps | None = None) -> dict | None
     if not tg:
         return None
     if tg.get("type") == "role":
-        return {k: tg.get(k) for k in ("type", "company", "title", "description", "requirements")}
+        return {k: tg.get(k) for k in ("type", "company", "title", "description", "requirements", "min_years",
+                                       "seniority", "knockouts")}
     vid = tg.get("valuation_id")
     if not vid and tg.get("ticker"):
         c = db.one("SELECT valuation_id, name, website FROM studio.companies WHERE ticker=%s", (tg["ticker"].upper(),))
@@ -845,7 +851,9 @@ def resolve_target(db: Studio, t: dict, deps: Deps | None = None) -> dict | None
             tg["website"] = tg.get("website") or c["website"]
     out = {"type": "business", "valuation_id": vid, "ticker": tg.get("ticker"), "website": tg.get("website"),
            "company": tg.get("company"), "sector": None, "stage": None, "country": None, "description": None,
-           "market": None}
+           "market": None,
+           # what the business needs now: the gaps of the last team review of this report (a re-run)
+           "needs": [x for x in (((t.get("result") or {}).get("team") or {}).get("gaps") or [])[:5]]}
     v = db.get_valuation(vid) if vid else None
     if v:
         res = v.get("result") or {}

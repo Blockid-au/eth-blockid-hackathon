@@ -12,6 +12,7 @@ import { aiEn, aiVi } from "./dict.ai";
 import { opsEn, opsVi } from "./dict.ops";
 import { jobsEn, jobsVi } from "./dict.jobs";
 import { v5En, v5Vi } from "./dict.v5";
+import { hv3En, hv3Vi } from "./dict.hrv3";
 
 /** App strings added on top of the prototype copy. VI must cover every EN key (checked by the type). */
 const appEn = {
@@ -1336,6 +1337,6 @@ const appVi: Record<AppKey, string> = {
   "ad.d.audit": "Mọi thao tác admin: ai làm và khi nào.",
 };
 
-export const en = { ...protoEn, ...appEn, ...invEn, ...updEn, ...divEn, ...v3En, ...ofEn, ...fx1En, ...fx2En, ...hrEn, ...hlEn, ...aiEn, ...opsEn, ...jobsEn, ...v5En };
+export const en = { ...protoEn, ...appEn, ...invEn, ...updEn, ...divEn, ...v3En, ...ofEn, ...fx1En, ...fx2En, ...hrEn, ...hlEn, ...aiEn, ...opsEn, ...jobsEn, ...v5En, ...hv3En };
 export type DictKey = keyof typeof en;
-export const vi: Record<DictKey, string> = { ...protoVi, ...appVi, ...invVi, ...updVi, ...divVi, ...v3Vi, ...ofVi, ...fx1Vi, ...fx2Vi, ...hrVi, ...hlVi, ...aiVi, ...opsVi, ...jobsVi, ...v5Vi };
+export const vi: Record<DictKey, string> = { ...protoVi, ...appVi, ...invVi, ...updVi, ...divVi, ...v3Vi, ...ofVi, ...fx1Vi, ...fx2Vi, ...hrVi, ...hlVi, ...aiVi, ...opsVi, ...jobsVi, ...v5Vi, ...hv3Vi };

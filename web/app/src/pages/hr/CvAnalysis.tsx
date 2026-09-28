@@ -2,9 +2,11 @@
    (partial.people[].cv). Everything here comes from the person's own CV (self-reported); a claim turns
    "confirmed" only when a verified public fact names the same organisation. */
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { useI18n } from "../../i18n";
 import type { DictKey } from "../../dict";
 import { Icon, SrcChips, type SrcIndex } from "./evidence";
+import { ledgerCounts } from "./v3";
 import { monthOf, type CvClaimR, type CvLive, type CvReview, type CvRoleR, type CvSkillR, type CvTimeline } from "./cvTypes";
 
 const LEVELS: CvSkillR["level"][] = ["expert", "strong", "working"];
@@ -113,12 +115,14 @@ function Claims({ claims, ix }: { claims: CvClaimR[]; ix: SrcIndex }) {
 }
 
 /** Report tab. */
-export function CvAnalysis({ rv, ix }: { rv: CvReview | null | undefined; ix: SrcIndex }) {
+export function CvAnalysis({ rv, ix, verifyHref }: { rv: CvReview | null | undefined; ix: SrcIndex; verifyHref?: string | null }) {
   const { t, fmt } = useI18n();
   const dur = useDur();
   if (!rv) return <div className="hp-card"><h2>{t("hr3.tab")}</h2><p className="hp-lead">{t("hr3.none")}</p></div>;
   const tl = rv.timeline, ins = rv.insights, st = tl?.stats ? { ...tl.stats, overlaps: preciseOverlaps(tl.roles) } : undefined;
-  const claims = rv.claims?.length ? rv.claims : ins?.claims ?? [];
+  // hr-2: the claim ledger (Verification tab) replaces the old confirmed / unconfirmed claims block
+  const ledger = rv.ledger ?? null;
+  const claims = ledger ? [] : rv.claims?.length ? rv.claims : ins?.claims ?? [];
   return (
     <>
       <div className="hp-card hx-cvhead">
@@ -136,6 +140,7 @@ export function CvAnalysis({ rv, ix }: { rv: CvReview | null | undefined; ix: Sr
           {st && <Stat v={fmt(st.gaps.length)} l={t("hr3.st.gaps")} tone={st.gaps.length ? "warn" : undefined} />}
           {ins && <Stat v={fmt(ins.achievements.length)} l={t("hr3.st.results")} tone={ins.achievements.length ? "ok" : undefined} />}
           {claims.length > 0 && <Stat v={`${fmt(claims.filter((c) => c.status === "confirmed").length)}/${fmt(claims.length)}`} l={t("hr3.st.claims")} />}
+          {ledger && (ledger.claims?.length ?? 0) > 0 && <Stat v={`${fmt(ledgerCounts(ledger).verified)}/${fmt(ledger.claims.length)}`} l={t("hv.cv.stat")} tone={ledgerCounts(ledger).contradicted ? "warn" : undefined} />}
         </div>
         <p className="hp-foot">{t("hr3.self", { w: fmt(rv.read.words) })}{rv.read.years ? " · " + t("hr3.covers", { a: rv.read.years[0], b: rv.read.years[1] }) : ""}</p>
       </div>
@@ -186,6 +191,13 @@ export function CvAnalysis({ rv, ix }: { rv: CvReview | null | undefined; ix: Sr
       )}
 
       {claims.length > 0 && <div className="hp-card"><h2>{t("hr3.claims.h")}</h2><Claims claims={claims} ix={ix} /></div>}
+      {ledger && verifyHref && (
+        <Link className="hx-cvcallout hv-callout hr-noprint" to={verifyHref}>
+          <span className="ic" aria-hidden="true">✓</span>
+          <span><b>{t("hv.cv.moved.h")}</b><small>{t("hv.cv.moved.p", { n: fmt(ledger.claims?.length ?? 0) })}</small></span>
+          <span className="go">{t("hv.ov.open")} →</span>
+        </Link>
+      )}
 
       {((tl?.education.length ?? 0) > 0 || (tl?.certifications.length ?? 0) > 0 || (tl?.languages.length ?? 0) > 0 || (ins?.questions.length ?? 0) > 0) && (
         <div className="hp-duo">
@@ -224,7 +236,8 @@ function Step({ done, busy, label, sub, children }: { done: boolean; busy: boole
 export function CvLivePanel({ cv, status }: { cv: CvLive | null | undefined; status: string }) {
   const { t, fmt } = useI18n();
   if (!cv?.read) return null;
-  const r = cv.read, tl = cv.timeline, ins = cv.insights, cl = cv.claims;
+  const r = cv.read, tl = cv.timeline, ins = cv.insights, cl = cv.claims, lg = cv.ledger;
+  const lc = lg ? ledgerCounts(lg) : null;
   const busy = status === "working" || status === "waiting";
   return (
     <section className="hx-cvlive" aria-label={t("hr3.live.h")} aria-live="polite">
@@ -237,7 +250,12 @@ export function CvLivePanel({ cv, status }: { cv: CvLive | null | undefined; sta
         <Step busy={busy} done={!!ins} label={t("hr3.live.ins")} sub={ins ? t("hr3.live.ins.s", { k: fmt(ins.skills.length), a: fmt(ins.achievements.length) }) : t("hr3.live.wait")}>
           {ins && ins.skills.length > 0 && <span className="chips">{ins.skills.slice(0, 6).map((s) => <i key={s.name} className={"l-" + s.level}>{s.name}</i>)}</span>}
         </Step>
-        <Step busy={status === "working"} done={!!cl} label={t("hr3.live.cl")} sub={cl ? t("hr3.claims.sum", { n: fmt(cl.filter((c) => c.status === "confirmed").length), m: fmt(cl.length) }) : t("hr3.live.cl.wait")} />
+        {cl && !lg ? (
+          <Step busy={status === "working"} done label={t("hr3.live.cl")} sub={t("hr3.claims.sum", { n: fmt(cl.filter((c) => c.status === "confirmed").length), m: fmt(cl.length) })} />
+        ) : (
+          <Step busy={status === "working"} done={!!lc} label={t("hv.live.h")}
+            sub={lc ? t("hv.live.done", { v: fmt(lc.verified), c: fmt(lc.contradicted), n: fmt(lc.not_found) }) + (lc.partly_verified ? " · " + t("hv.live.part", { p: fmt(lc.partly_verified) }) : "") : t("hv.live.wait")} />
+        )}
       </ol>
     </section>
   );

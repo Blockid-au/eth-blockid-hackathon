@@ -9,8 +9,32 @@ export interface CvSkillR { name: string; level: "expert" | "strong" | "working"
 export interface CvAchR { text: string; metric?: string; org?: string }
 export interface CvClaimR { text: string; org?: string; kind: string; status?: "confirmed" | "unconfirmed"; fact_ids?: string[] }
 export interface CvInsights { summary: string; seniority: "entry" | "mid" | "senior" | "lead" | "executive"; skills: CvSkillR[]; achievements: CvAchR[]; leadership: string[]; strengths: string[]; concerns: string[]; questions: string[]; claims: CvClaimR[] }
-export interface CvReview { read: CvReadStats; timeline: CvTimeline | null; insights: CvInsights | null; claims: CvClaimR[]; models?: Record<string, string> }
-export type CvLive = Partial<{ read: CvReadStats; timeline: CvTimeline; insights: CvInsights; claims: CvClaimR[] }>;
+/* hr-2 claim ledger (docs/PLAN-HR-V3.md §1, §9): every CV claim checked against the public sources. */
+export type ClaimStatus = "verified" | "partly_verified" | "not_found" | "unverifiable" | "contradicted";
+export const CLAIM_STATUSES: ClaimStatus[] = ["verified", "partly_verified", "not_found", "unverifiable", "contradicted"];
+export type ClaimDim = "identity" | "org" | "title" | "dates" | "metric" | "degree";
+export interface LedgerClaim {
+  id: string;
+  kind: "role" | "education" | "certification" | "venture" | "achievement" | "award" | "publication" | string;
+  text: string; org?: string | null; title?: string | null; start?: string | null; end?: string | null; metric?: string | null;
+  cv_quote?: string | null;
+  importance?: 1 | 2 | 3 | number;
+  status: ClaimStatus | string;
+  dims?: Partial<Record<ClaimDim, boolean | null>> | null; // null = not applicable
+  fact_ids?: string[];
+  best_tier?: 1 | 2 | 3 | 4 | number | null;
+  sources?: { url: string; tier?: number | null }[];
+  conflict?: { url: string; quote: string; field?: string | null; source_value?: string | null; tier?: number | null } | null; // stripped for share / holder views
+  note?: string | null;
+}
+export interface Ledger {
+  claims: LedgerClaim[];
+  counts?: Partial<Record<ClaimStatus, number>>;
+  namesakes?: { url: string; reason?: string | null }[]; // stripped for share / holder views
+  lookups?: { kind: "wayback" | "github" | "openalex" | string; query?: string | null; url?: string | null; found: boolean; detail?: string | null }[];
+}
+export interface CvReview { read: CvReadStats; timeline: CvTimeline | null; insights: CvInsights | null; claims: CvClaimR[]; models?: Record<string, string>; ledger?: Ledger | null }
+export type CvLive = Partial<{ read: CvReadStats; timeline: CvTimeline; insights: CvInsights; claims: CvClaimR[]; ledger: Ledger }>;
 
 /** "2019-03" / "2019" / "present" -> months since year 0. */
 export function monthOf(s: string | undefined, end = false): number | null {

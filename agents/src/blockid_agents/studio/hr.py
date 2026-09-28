@@ -52,7 +52,10 @@ PersonIn (create / replace people / valuation start / person report):
 
 Target (person reports; team reports use their business automatically):
     {"type": "business", "valuation_id": str?, "ticker": str?, "website": str?}   # one of the three
-    {"type": "role", "company": str, "title": str, "description": str (<= 5000), "requirements": [str] (<= 30)}
+    {"type": "role", "company": str, "title": str, "description": str (<= 5000), "requirements": [str] (<= 30),
+     "min_years": int?, "seniority": "entry|mid|senior|lead|executive"?, "knockouts": [str] (<= 6)}
+    Requirements / knockouts that touch a protected attribute are moved to "flagged": [{"text", "reason"}] on the
+    stored target and never scored (hr_fit.split_protected).
 
 Endpoints
 ---------
@@ -65,6 +68,10 @@ POST   /v1/hr/people-reports
        -> 200 ReportOut (mode "person"; queued unless run=false)
 PUT    /v1/hr/teams/{id}/people        {"people": [PersonIn, 1..20]}  -> ReportOut (replaces all; resets to draft)
 PUT    /v1/hr/teams/{id}/target        {"target": Target|null}         -> ReportOut (person reports; resets to draft)
+POST   /v1/hr/jd/parse                 {"text": JD (40..12000)} -> {"title", "seniority", "min_years", "domain",
+                                        "must": [str], "nice": [str], "knockouts": [str], "skills": [str],
+                                        "flagged": [{"text", "reason"}]}   # one cached model call; 429 over
+                                        JD_PARSE_PER_USER_HOUR, 503 when no model is available
 POST   /v1/hr/teams/{id}/run           -> ReportOut (status "queued"); 429 over HR_RUNS_PER_DAY per wallet
 GET    /v1/hr/teams/{id}[?share=<token>]              -> ReportOut   (works for both modes)
 GET    /v1/hr/people-reports/{id}[?share=<token>]     -> ReportOut   (alias)
@@ -183,7 +190,13 @@ PersonCard
                                        "status": "matched|partial|missing|unverified", "fact_ids": [str],
                                        "self_reported": bool, "note": str}],
                      "matched": [str], "missing": [str], "risks": [str], "interview_questions": [str]},
-      "contribution": 0..100,                     # what the team score uses
+      HR v3 (report version "hr-2"; docs/PLAN-HR-V3.md §9): fit also carries lens / claimed_score /
+      verified_score (= score) / verdict / knockouts / cap / relevant / template / alt_role and requirements[].evidence
+      + claim_ids; "fits": {"business"?, "jd"?, "current_role"?}; "trust": CV Trust Index | null;
+      "decision": {"quadrant", "fit_lens", "fit_score", "claimed_score", "trust_band", "reasons", "verify"};
+      "cv_review": {..., "ledger": {"claims", "counts", "namesakes", "lookups"}}. Share-link / holder viewers get
+      trust.score = null, claims[].conflict = null, namesakes = [] and ledger.restricted = true (owner decision D2).
+      "contribution": 0..100,                     # what the team score uses (0.5 quality + 0.5 verified fit)
       "profile": CVProfile,
       "facts": [{"id": "p12f1", "text", "quote", "source_id": "s3", "url",
                  "category": "role|venture|exit|education|achievement|publication|skill|other"}],
@@ -231,6 +244,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from ..agents.hr_fit import JDParse, SYSTEM_JD, clean_jd, split_protected
 from ..agents.people import redact
 from . import urlcheck
 from .auth import COOKIE, Session
@@ -240,6 +254,7 @@ from .hr_store import HrStore, apply_to_valuation, error_detail, progress_view, 
 
 log = logging.getLogger(__name__)
 SUGGEST_MODEL_PER_USER_HOUR = 5  # model-assisted people suggestions per wallet per hour (per API process)
+JD_PARSE_PER_USER_HOUR = 20  # model JD reads per wallet per hour (identical JDs are served from a 30-day cache)
 SUGGEST_MODEL_PER_DAY = 200  # and in total per day (per API process)
 
 
@@ -312,6 +327,14 @@ class RoleTarget(Body):
     description: str = Field(default="", max_length=5000)
     requirements: list[Annotated[str, Field(min_length=1, max_length=300)]] = Field(default_factory=list,
                                                                                     max_length=30)
+    # HR v3 (docs/PLAN-HR-V3.md §2.2): from the JD parser or typed; knockouts are hard must-haves
+    min_years: int | None = Field(default=None, ge=0, le=40)
+    seniority: Literal["entry", "mid", "senior", "lead", "executive"] | None = None
+    knockouts: list[Annotated[str, Field(min_length=1, max_length=300)]] = Field(default_factory=list, max_length=6)
+
+
+class JDBody(Body):
+    text: str = Field(min_length=40, max_length=12_000)
 
 
 Target = Annotated[BusinessTarget | RoleTarget, Field(discriminator="type")]
@@ -450,6 +473,14 @@ def build_hr_router(ctx) -> APIRouter:
             raise HTTPException(403, "only the requester or a platform admin can change this report")
         return t
 
+    def full_detail(sess: Session | None, t: dict) -> bool:
+        """Claim conflicts, namesakes and the trust number: requester, platform / company admins, demo reports.
+        Share-link and holder viewers see bands only (owner decision D2)."""
+        if can_edit(sess, t) or is_demo(t):
+            return True
+        cid = store().linked_company(t) if sess is not None else None
+        return bool(cid) and authz.admin_role(sess, cid) is not None
+
     def view(t: dict, sess: Session | None) -> dict:
         ppl = store().people(t["id"])
         edit = can_edit(sess, t)
@@ -468,7 +499,7 @@ def build_hr_router(ctx) -> APIRouter:
                         "start_year": p.get("start_year"), "equity_pct": p.get("equity_pct"),
                         "urls": p.get("urls") or [], "bio": p.get("bio"),
                         "has_cv": bool((p.get("cv") or "").strip()), "position": p["position"]} for p in ppl],
-            "result": _public_result(t.get("result")),
+            "result": _public_result(t.get("result"), full=full_detail(sess, t)),
             "progress": progress_view(t),
         })
 
@@ -509,7 +540,12 @@ def build_hr_router(ctx) -> APIRouter:
             return None
         if isinstance(tg, BusinessTarget):
             return check_business_target(tg, sess)
-        return tg.model_dump()
+        d = tg.model_dump()
+        # requirements touching a protected attribute are shown back as warnings and never scored
+        d["requirements"], f1 = split_protected(d["requirements"])
+        d["knockouts"], f2 = split_protected(d["knockouts"])
+        d["flagged"] = f1 + f2
+        return d
 
     # -------------------------------------------------------------- create
     @r.post("/v1/hr/teams")
@@ -771,6 +807,53 @@ def build_hr_router(ctx) -> APIRouter:
             p["note"] = f"suggested from {(u.hostname or '').removeprefix('www.')}{u.path.rstrip('/')}"
         return got
 
+    # -------------------------------------------------------------- JD parser (docs/PLAN-HR-V3.md §2.2)
+    jd_user_limit = urlcheck.RateLimiter(limit=JD_PARSE_PER_USER_HOUR, window_s=3600)
+    jd_memo: dict[str, dict] = {}  # per API process, when the evidence DB is not reachable
+
+    @r.post("/v1/hr/jd/parse")
+    def parse_jd(body: JDBody, sess: Session = Depends(require_user)):
+        import hashlib
+
+        from ..agents.site_intake import complete_profile
+        from ..deps import UNTRUSTED_NOTE
+
+        text = redact(body.text)
+        key = "hr:jd:" + hashlib.sha256(text.encode()).hexdigest()
+        ev = evidence_store()
+        hit = jd_memo.get(key)
+        if hit is None and ev is not None:
+            try:
+                hit = ev.cache_get(key, 30 * 86_400)
+            except Exception:  # noqa: BLE001
+                hit = None
+        if hit:
+            return {**hit, "cached": True}
+        llm = suggest_llm()
+        if llm is None:
+            raise HTTPException(503, "the JD reader is not available right now")
+        if not is_admin(sess) and not jd_user_limit.allow(sess.actor.lower()):
+            raise HTTPException(429, "too many JD reads this hour — try again later")
+        try:
+            got = complete_profile(llm, "extract_json", s.hr_tier, f"{SYSTEM_JD}\n\n{UNTRUSTED_NOTE}",
+                                   f"<data>\n{text[:12_000]}\n</data>", JDParse)
+        except Exception as e:  # noqa: BLE001 - busy / invalid output
+            log.info("hr jd parse failed: %s", str(e)[:300])
+            ctx.need_db().audit(sess.actor, "hr_jd_parse", None, ok=False, error=str(e)[:300])
+            raise HTTPException(503, "the JD reader is busy — add the requirements by hand or try again") from None
+        out = clean_jd(got)
+        ctx.need_db().audit(sess.actor, "hr_jd_parse", None, ok=True, must=len(out["must"]),
+                            flagged=len(out["flagged"]))
+        if len(jd_memo) >= 500:
+            jd_memo.clear()
+        jd_memo[key] = out
+        if ev is not None:
+            try:
+                ev.cache_put(key, out)
+            except Exception:  # noqa: BLE001
+                pass
+        return {**out, "cached": False}
+
     # -------------------------------------------------------------- share, delete, blend
     @r.post("/v1/hr/teams/{tid}/share")
     def share(tid: str, sess: Session = Depends(require_user)):
@@ -859,8 +942,23 @@ def build_hr_router(ctx) -> APIRouter:
     return r
 
 
-def _public_result(res: dict | None) -> dict | None:
-    """The stored report minus internal inputs."""
+def _public_result(res: dict | None, *, full: bool = True) -> dict | None:
+    """The stored report minus internal inputs; without `full`, claim conflicts, namesakes and the trust number are
+    removed (bands and statuses stay)."""
     if not res:
         return None
-    return {k: v for k, v in res.items() if k not in ("team_inputs",)}
+    out = {k: v for k, v in res.items() if k not in ("team_inputs",)}
+    if full:
+        return out
+    cards = []
+    for c in out.get("people") or []:
+        c = dict(c)
+        if c.get("trust"):
+            c["trust"] = {**c["trust"], "score": None}
+        rv = c.get("cv_review")
+        if rv and rv.get("ledger"):
+            lg = rv["ledger"]
+            c["cv_review"] = {**rv, "ledger": {**lg, "namesakes": [], "restricted": True,
+                                               "claims": [{**x, "conflict": None} for x in lg.get("claims") or []]}}
+        cards.append(c)
+    return {**out, "people": cards}

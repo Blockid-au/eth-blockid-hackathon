@@ -1,6 +1,6 @@
 /* Person report: /p/:id/:tab? (person-mode report) and /r/:id/p/:key/:tab? (one person inside a team report).
    Layout and wording follow the approved prototype (hr-design/prototype.html): answer first, then evidence, then CV. */
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useI18n } from "../../i18n";
 import type { DictKey } from "../../dict";
@@ -14,10 +14,15 @@ import { LiveRun } from "./live";
 import { EthCtas } from "./ethCta";
 import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, cleanWhy, EvLabel, evOfSource, fmtDate, halfWidth, Icon, SrcChips, srcIndex, type Conf, type SrcIndex } from "./evidence";
 import { CvAnalysis } from "./CvAnalysis";
+import { DecisionCard, Verification } from "./verify";
+import { FitTab } from "./fit";
+import { fitsOf, ledgerCounts } from "./v3";
 import type { CvReview } from "./cvTypes";
 import { ConsentFooter, MethodBox, Panel, PartsTable, ReportActions, ScoreInline, SourcesTable, TabNav } from "./reportParts";
 
-export const PERSON_TABS = ["overview", "score", "requirements", "cv", "cvreview", "assessment", "sources"] as const;
+export const PERSON_TABS = ["overview", "score", "fit", "cv", "cvreview", "verification", "assessment", "sources"] as const;
+/** Old tab URLs that now live under another name (hr-1 links: /requirements → /fit). */
+const TAB_ALIAS: Record<string, PTab> = { requirements: "fit" };
 type PTab = (typeof PERSON_TABS)[number];
 
 /** Load a report (person or team) with polling while it runs; shared by the person and team pages. */
@@ -229,55 +234,6 @@ function Hero({ card, team, rep, ix, path }: { card: PersonCard; team: Team; rep
   );
 }
 
-function Requirements({ card, ix }: { card: PersonCard; ix: SrcIndex }) {
-  const { t } = useI18n();
-  const reqs = card.fit?.requirements ?? [];
-  if (!reqs.length) return <div className="hp-card"><p className="hp-lead">{t(card.fit ? "hr.pr.req.none" : "hr.pr.req.notarget")}</p></div>;
-  const RES: Record<string, [string, ReactNode, DictKey]> = {
-    matched: ["met", Icon.met, "hr.pr.res.met"], partial: ["part", Icon.part, "hr.pr.res.part"], missing: ["miss", Icon.x, "hr.pr.res.nf"], unverified: ["unv", Icon.unc, "hr.pr.res.unv"],
-  };
-  const hasPrio = reqs.some((r) => r.must_have === false) && reqs.some((r) => r.must_have);
-  const groups: [DictKey, typeof reqs][] = hasPrio ? [["hr.pr.req.must", reqs.filter((r) => r.must_have)], ["hr.pr.req.nice", reqs.filter((r) => !r.must_have)]] : [["hr.pr.reqs", reqs]];
-  const count = (list: typeof reqs) => (["matched", "partial", "missing", "unverified"] as const).map((s) => [s, list.filter((r) => r.status === s).length] as const).filter(([, n]) => n > 0);
-  const ev = (r: (typeof reqs)[number]) => (r.status === "missing" ? "none" : r.fact_ids?.length ? "verified" : r.self_reported ? "self" : "unconfirmed") as "none" | "verified" | "self" | "unconfirmed";
-  return (
-    <div className="hp-card">
-      <h2>{t("hr.pr.reqs")} <span className="count">{t("hr.pr.req.count", { n: reqs.length })}</span></h2>
-      <div className="hp-reqsum">
-        {groups.map(([gk, list], gi) => (
-          <span key={gk} style={{ display: "contents" }}>
-            {gi > 0 && <span style={{ color: "var(--line)" }}>|</span>}
-            <span><b>{t(gk)}:</b></span>
-            {count(list).map(([s, n]) => <span key={s} className={"hp-res " + RES[s][0]}>{RES[s][1]}{n} {t(RES[s][2]).toLowerCase()}</span>)}
-          </span>
-        ))}
-      </div>
-      <div className="hp-tbl">
-        <table className="hp-req">
-          <caption className="sr-only">{t("hr.pr.reqs")}</caption>
-          <thead><tr><th scope="col">{t("hr.pr.col.req")}</th><th scope="col">{t("hr.pr.col.result")}</th><th scope="col">{t("hr.pr.col.evidence")}</th><th scope="col">{t("hr.pr.col.sources")}</th></tr></thead>
-          <tbody>
-            {groups.map(([gk, list]) => [
-              hasPrio ? <tr key={gk} className="grp"><td colSpan={4}>{t(gk)}</td></tr> : null,
-              ...list.map((r, i) => {
-                const res = RES[r.status] ?? RES.unverified;
-                return (
-                  <tr key={gk + i}>
-                    <td className="rq">{r.requirement}{r.note && <span className="note">{r.note}</span>}</td>
-                    <td><span className={"hp-res " + res[0]}>{res[1]}{t(res[2])}</span></td>
-                    <td><EvLabel ev={ev(r)} /></td>
-                    <td className="srccell"><SrcChips ix={ix} factIds={r.fact_ids} /></td>
-                  </tr>
-                );
-              }),
-            ])}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 function Cv({ card, ix }: { card: PersonCard; ix: SrcIndex }) {
   const { t } = useI18n();
   const p = card.profile ?? {};
@@ -412,7 +368,7 @@ function Facts({ card, ix }: { card: PersonCard; ix: SrcIndex }) {
 }
 
 /** The full person report for one PersonCard. */
-export function PersonReport({ team, card, base, tab }: { team: Team; card: PersonCard; base: string; tab: PTab }) {
+export function PersonReport({ team, card, base, tab: tabIn }: { team: Team; card: PersonCard; base: string; tab: PTab }) {
   const { t, fmt, lang } = useI18n();
   const rep = team.result!;
   const ix = useMemo(() => srcIndex(rep, card), [rep, card]);
@@ -420,11 +376,16 @@ export function PersonReport({ team, card, base, tab }: { team: Team; card: Pers
   const conf: Conf = confidenceOf(parts).conf;
   const c = rep.counters ?? {};
   const cvr = (card as PersonCard & { cv_review?: CvReview }).cv_review;
+  const ledger = cvr?.ledger ?? null;
+  const tab: PTab = tabIn === "verification" && !ledger ? "overview" : tabIn;
   const tabs: [PTab, DictKey, number?][] = [
-    ["overview", "hr.tab.overview"], ["score", "hr.tab.score"], ["requirements", "hr.tab.requirements", card.fit?.requirements?.length],
-    ["cv", "hr.tab.cv"], ...(cvr ? [["cvreview", "hr3.tab"] as [PTab, DictKey]] : []), ["assessment", "hr.tab.assessment"], ["sources", "hr.tab.sources", ix.byId.size],
+    ["overview", "hr.tab.overview"], ["score", "hr.tab.score"], ["fit", "hv.tab.fit", fitsOf(card).length > 1 ? fitsOf(card).length : card.fit?.requirements?.length],
+    ["cv", "hr.tab.cv"], ...(cvr ? [["cvreview", "hr3.tab"] as [PTab, DictKey]] : []),
+    ...(ledger ? [["verification", "hv.tab.ver", ledger.claims?.length] as [PTab, DictKey, number?]] : []),
+    ["assessment", "hr.tab.assessment"], ["sources", "hr.tab.sources", ix.byId.size],
   ];
   const path = base.replace(/\/$/, "");
+  const lc = ledger ? ledgerCounts(ledger) : null;
   const tgv = team.target;
   const bizTarget = tgv?.type === "business" ? tgv : team.mode === "team" ? { type: "business" as const, website: team.website, valuation_id: team.valuation_id, company: team.name } : null;
   return (
@@ -448,11 +409,19 @@ export function PersonReport({ team, card, base, tab }: { team: Team; card: Pers
         </aside>
         <div className="hp-main">
           <Panel id="overview" cur={tab} title={t("hr.tab.overview")}>
+            <DecisionCard card={card} fitHref={`${path}/fit`} verifyHref={ledger ? `${path}/verification${location.search}` : null} />
             <Hero card={card} team={team} rep={rep} ix={ix} path={path} />
+            {ledger && lc && (
+              <Link className="hx-cvcallout hv-callout hr-noprint" to={`${path}/verification${location.search}`}>
+                <span className="ic" aria-hidden="true">✓</span>
+                <span><b>{t("hv.ov.h")}</b><small>{t("hv.ov.p", { v: fmt(lc.verified), p: fmt(lc.partly_verified), m: fmt(ledger.claims?.length ?? 0), c: fmt(lc.contradicted), n: fmt(lc.not_found) })}</small></span>
+                <span className="go">{t("hv.ov.open")} →</span>
+              </Link>
+            )}
             {cvr?.timeline && (
               <Link className="hx-cvcallout hr-noprint" to={`${path}/cvreview${location.search}`}>
                 <span className="ic" aria-hidden="true">CV</span>
-                <span><b>{t("hr3.ov.h")}</b><small>{t("hr3.ov.p", { y: fmt(cvr.timeline.stats.years), r: fmt(cvr.timeline.stats.roles), g: fmt(cvr.timeline.stats.gaps.length), c: fmt(cvr.claims.filter((x) => x.status === "confirmed").length), m: fmt(cvr.claims.length) })}</small></span>
+                <span><b>{t("hr3.ov.h")}</b><small>{ledger ? t("hv.ov.cv", { y: fmt(cvr.timeline.stats.years), r: fmt(cvr.timeline.stats.roles), g: fmt(cvr.timeline.stats.gaps.length) }) : t("hr3.ov.p", { y: fmt(cvr.timeline.stats.years), r: fmt(cvr.timeline.stats.roles), g: fmt(cvr.timeline.stats.gaps.length), c: fmt((cvr.claims ?? []).filter((x) => x.status === "confirmed").length), m: fmt((cvr.claims ?? []).length) })}</small></span>
                 <span className="go">{t("hr3.ov.open")} →</span>
               </Link>
             )}
@@ -473,9 +442,10 @@ export function PersonReport({ team, card, base, tab }: { team: Team; card: Pers
             </div>
             <div className="hp-card"><h2>{t("hr.pr.method.title")}</h2><MethodBox rep={rep} team={team} /></div>
           </Panel>
-          <Panel id="requirements" cur={tab} title={t("hr.tab.requirements")}><Requirements card={card} ix={ix} /></Panel>
+          <Panel id="fit" cur={tab} title={t("hv.tab.fit")}><FitTab card={card} team={team} ix={ix} /></Panel>
           <Panel id="cv" cur={tab} title={t("hr.tab.cv")}><Cv card={card} ix={ix} /></Panel>
-          <Panel id="cvreview" cur={tab} title={t("hr3.tab")}><CvAnalysis rv={cvr} ix={ix} /></Panel>
+          <Panel id="cvreview" cur={tab} title={t("hr3.tab")}><CvAnalysis rv={cvr} ix={ix} verifyHref={ledger ? `${path}/verification${location.search}` : null} /></Panel>
+          {ledger && cvr && <Panel id="verification" cur={tab} title={t("hv.tab.ver")}><Verification card={card} rv={cvr} ix={ix} /></Panel>}
           <Panel id="assessment" cur={tab} title={t("hr.tab.assessment")}><Assessment card={card} /></Panel>
           <Panel id="sources" cur={tab} title={t("hr.tab.sources")}>
             <div className="hp-card">
@@ -498,7 +468,8 @@ export function HrPersonPage() {
   const { t } = useI18n();
   const q = useHrReport(id);
   const team = q.data;
-  const tab = (PERSON_TABS as readonly string[]).includes(rawTab ?? "") ? (rawTab as PTab) : "overview";
+  const alias = rawTab ? TAB_ALIAS[rawTab] : undefined;
+  const tab = (PERSON_TABS as readonly string[]).includes(rawTab ?? "") ? (rawTab as PTab) : alias ?? "overview";
   const rep = team?.status === "done" ? team.result : null;
   let card: PersonCard | undefined;
   if (rep && key) {
@@ -510,5 +481,6 @@ export function HrPersonPage() {
   if (!key && team.mode === "team") return <Navigate to={`/r/${encodeURIComponent(id)}${location.search}`} replace />;
   if (!card) return <div className="wrap page"><p className="quietline bad">{t("hr.r.notfound")}</p><Link to={`/r/${encodeURIComponent(id)}`}>{t("hr.pr.openteam")} →</Link></div>;
   const base = key ? `/r/${encodeURIComponent(id)}/p/${encodeURIComponent(key)}` : `/p/${encodeURIComponent(id)}`;
+  if (alias) return <Navigate to={`${base}/${alias}${location.search}`} replace />;
   return <PersonReport team={team} card={card} base={base} tab={tab} />;
 }

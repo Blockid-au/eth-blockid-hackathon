@@ -5,7 +5,7 @@ const HR = process.env.HR_URL || "https://hr.blockid.au";
 const P = process.env.HR_PERSON || "t_eb30a2edede5";
 const OUT = process.env.OUT_DIR || "/tmp/hr-audit"; fs.mkdirSync(OUT, { recursive: true });
 const pages = [["home", "/"], ["new", "/new"], ["newp", "/new/person"], ["me", "/me"], ["method", "/method"], ["404", "/zzz"]];
-for (const t of ["", "/score", "/requirements", "/cv", "/assessment", "/sources"]) pages.push([`p${t.replace("/", "-")}`, `/p/${P}${t}`]);
+for (const t of ["", "/score", "/fit", "/cv", "/cvreview", "/verification", "/assessment", "/sources"]) pages.push([`p${t.replace("/", "-")}`, `/p/${P}${t}`]);
 if (process.env.HR_TEAM) for (const t of ["", "/people", "/gaps", "/sources"]) pages.push([`r${t.replace("/", "-")}`, `/r/${process.env.HR_TEAM}${t}`]);
 const widths = (process.env.WIDTHS || "360,390,768,1024,1360").split(",").map(Number);
 const b = await chromium.launch();

@@ -327,7 +327,30 @@ def fake_people_llm() -> FakeLLM:
     def s(score, ids=(), self_reported=False, why="r"):
         return pa.SubScore(score=score, rationale=why, fact_ids=list(ids), self_reported=self_reported)
 
+    def v3(u: str, a):
+        """HR v3 fields: current-role fit from the listed competencies, claims mapped to facts, role relevance."""
+        comps = re.findall(r"^- (.+)$", u.split("Competencies to judge:", 1)[1].split("\n\n", 1)[0], re.M) \
+            if "Competencies to judge:" in u else []
+        claims = re.findall(r"^(c\d+)\. \[(\w+)\] (.+)$", u, re.M)
+        if "CURRENT ROLE (" in u:
+            reqs = [pa.RequirementMatch(requirement=c, status="matched" if i == 0 else "partial",
+                                        fact_ids=["f1"] if i == 0 else [], self_reported=i > 0,
+                                        claim_ids=[claims[0][0]] if (i == 1 and claims) else [])
+                    for i, c in enumerate(comps[:5] or ["leads the function"])]
+            a.role_fit = pa.FitSuggestion(skills_match=s(75, ["f1"]), domain_match=s(70, ["f1"]),
+                                          stage_scale_match=s(60), seniority_match=s(70, self_reported=True),
+                                          track_record_relevance=s(80, ["f1"]), requirements=reqs)
+        a.claim_checks = [pa.cv_ledger.ClaimCheck(claim_id=cid, fact_ids=["f1"]) for cid, _k, t in claims
+                          if "FarmLink" in t]
+        roles = re.findall(r"^(\d+)\. .+ @ ", u, re.M)
+        a.role_relevance = [pa.hr_fit.RoleRelevance(role=int(n), relevance=("high", "medium", "low")[min(i, 2)],
+                                                    reason="fake") for i, n in enumerate(roles)]
+        return a
+
     def person(_s, u):
+        return v3(u, person_v2(_s, u))
+
+    def person_v2(_s, u):
         target = "TARGET (" in u
         fit = pa.FitSuggestion(
             skills_match=s(80, ["f1"]), domain_match=s(90, ["f1"]), stage_scale_match=s(70),

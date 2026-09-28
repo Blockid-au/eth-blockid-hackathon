@@ -167,6 +167,10 @@ export function TeamCard({ valuationId, teamId, summary, weight, sample = false,
           {leads.map(({ p, i }) => {
             const href = p.url ? hrLink(p.url, "/r/" + encodeURIComponent(id)) : hrPersonUrl(id, p.id, i);
             const top = p.fit_matched?.[0], gap = p.fit_missing?.[0];
+            // hr-2: CV trust band + fit to the role the person holds now (older summaries omit both)
+            const tb = ["high", "medium", "low"].includes(String(p.trust_band)) ? String(p.trust_band) : null;
+            const rv = ["strong", "conditional", "weak", "not_suitable"].includes(String(p.role_fit_verdict)) ? String(p.role_fit_verdict)
+              : p.role_fit == null ? "weak" : p.role_fit >= 75 ? "strong" : p.role_fit >= 55 ? "conditional" : p.role_fit >= 35 ? "weak" : "not_suitable";
             return (
               <li key={i} className={p.status ? "st-" + p.status : undefined}>
                 <span className="tl-av" aria-hidden="true">{initials(p.full_name)}</span>
@@ -175,6 +179,12 @@ export function TeamCard({ valuationId, teamId, summary, weight, sample = false,
                   <small>{p.role || t(("hl.kind." + p.kind) as DictKey)}{running && p.status ? " · " + t(("hl.p." + p.status) as DictKey) : ""}</small>
                   {status === "done" && (top || gap) && (
                     <small className="tl-tg">{top && <span className="up">+ {top}</span>}{gap && <span className="dn">− {gap}</span>}</small>
+                  )}
+                  {status === "done" && (tb || p.role_fit != null) && (
+                    <small className="tl-v3">
+                      {tb && <span className={"tr b-" + tb} title={t("hv.trust.tip")}>{t("hv.tl3.trust", { b: t(("hv.tb." + tb) as DictKey) })}</span>}
+                      {p.role_fit != null && <span className={"rf v-" + rv}>{t("hv.tl3.role", { v: t(("hv.v." + rv) as DictKey), s: fmt(p.role_fit, 0) })}</span>}
+                    </small>
                   )}
                 </div>
                 <div className="tl-nums">

@@ -38,6 +38,7 @@ class Deps:
     # per-agent overrides (llm.build_agent_llms / HR_SEARCH_PROVIDERS): agent name -> client / search chain
     agent_llm: dict = field(default_factory=dict)
     agent_search: dict = field(default_factory=dict)
+    people_lookups: object = None  # tools/people_lookups.PeopleLookups (tests inject one; None -> built from settings)
 
     def __post_init__(self):
         if self.search is None and self.brave is not None:

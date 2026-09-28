@@ -86,3 +86,11 @@
 .tl-tile .gradebadge { width: 34px; height: 34px; font-size: 1.05rem; }
 .tl-tile .tl-bar { min-width: 120px; }
 .tl-legend { margin: 0 0 -4px; font-size: .76rem; color: var(--muted); }
+
+/* hr-2: CV trust band + current-role fit per founder */
+.tl-v3 { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.tl-v3 span { font: 600 .68rem/1.2 var(--body); border-radius: 999px; padding: 3px 7px; background: var(--sunken); color: var(--muted); }
+.tl-v3 .tr.b-high, .tl-v3 .rf.v-strong { color: var(--ok); background: var(--up-soft); }
+.tl-v3 .tr.b-medium, .tl-v3 .rf.v-conditional { color: var(--gold); background: var(--gold-soft); }
+.tl-v3 .tr.b-low, .tl-v3 .rf.v-weak { color: var(--warn); background: var(--warn-soft); }
+.tl-v3 .rf.v-not_suitable { color: var(--bad); background: var(--down-soft); }

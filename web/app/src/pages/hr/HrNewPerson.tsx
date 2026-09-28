@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useI18n } from "../../i18n";
 import type { DictKey } from "../../dict";
 import { errText, useAuth } from "../../auth";
-import { api, ApiError, PERSON_KINDS, type HrTarget, type PersonKind } from "../../api";
+import { api, ApiError, PERSON_KINDS, type HrFlagged, type HrSeniority, type HrTarget, type PersonKind } from "../../api";
 import { useAsync } from "../../lib/hooks";
 import { checkName, normUrl, THIS_YEAR, type FieldErr } from "../../lib/people";
 import { FieldError, ROLE_SUGGESTIONS } from "../../components/PeopleEditor";
@@ -14,8 +14,10 @@ import { hostOf, initials, useHrTitle } from "./common";
 import { bizInitials, handedPeople, hueOf, parsePaste, suggestRequirements, type PasteGuess } from "./parse";
 import { CvDrop, type CvMeta } from "./CvDrop";
 import { CV_MAX_CHARS, linksIn, type CvRead } from "./cvFile";
+import { FlaggedNote } from "./fit";
 
-const MAX_MUST = 5, MAX_NICE = 4, MAX_LINKS = 6;
+const MAX_MUST = 5, MAX_NICE = 4, MAX_LINKS = 6, MAX_KO = 5;
+const SENIORITIES: HrSeniority[] = ["entry", "mid", "senior", "lead", "executive"];
 const DRAFT_KEY = "blockid-hr-person-draft-v2";
 type Step = 1 | 2 | 3;
 type Biz = { kind: "valuation" | "listed"; id: string; name: string; sub: string; ticker?: string; website?: string | null };
@@ -24,12 +26,15 @@ interface Draft {
   step: Step; name: string; role: string; kind: PersonKind; headline: string; ft: "" | "yes" | "no"; year: string; equity: string;
   links: string[]; bio: string; cv: string; cvMeta: CvMeta | null; tt: "business" | "role"; biz: Biz | null; bizWeb: string; company: string; title: string; desc: string;
   must: string[]; nice: string[];
+  /* hr-2 role target: minimum relevant years, seniority, knock-out criteria; JD wording flagged by the parser */
+  minYears: string; seniority: "" | HrSeniority; knockouts: string[]; flagged: HrFlagged[];
 }
 const EMPTY: Draft = {
   step: 1, name: "", role: "", kind: "founder", headline: "", ft: "", year: "", equity: "", links: [""], bio: "", cv: "", cvMeta: null,
   tt: "business", biz: null, bizWeb: "", company: "", title: "", desc: "", must: [], nice: [],
+  minYears: "", seniority: "", knockouts: [], flagged: [],
 };
-const STEP_KEYS: Record<Step, RegExp> = { 1: /^(name|role|headline|year|equity|link\d+|bio|cv)$/, 2: /^(biz|bizWeb|company|title|desc)$/, 3: /^(c1|c2)$/ };
+const STEP_KEYS: Record<Step, RegExp> = { 1: /^(name|role|headline|year|equity|link\d+|bio|cv)$/, 2: /^(biz|bizWeb|company|title|desc|minYears)$/, 3: /^(c1|c2)$/ };
 
 function loadDraft(): Draft | null {
   try {
@@ -158,7 +163,9 @@ export function HrNewPerson() {
   /* ---------- requirements ---------- */
   const [reqIn, setReqIn] = useState("");
   const [editing, setEditing] = useState<{ g: "must" | "nice"; i: number; v: string } | null>(null);
-  const suggestions = useMemo(() => suggestRequirements(d.desc + "\n" + d.title).filter((s) => !d.must.concat(d.nice).some((x) => x.toLowerCase() === s.toLowerCase())), [d.desc, d.title, d.must, d.nice]);
+  // keyword suggestions skip anything the JD reader flagged as touching a protected attribute
+  const suggestions = useMemo(() => suggestRequirements(d.desc + "\n" + d.title).filter((s) => !d.must.concat(d.nice).some((x) => x.toLowerCase() === s.toLowerCase())
+    && !d.flagged.some((f) => f.text && s.toLowerCase().includes(f.text.trim().toLowerCase()))), [d.desc, d.title, d.must, d.nice, d.flagged]);
   const full = d.must.length >= MAX_MUST && d.nice.length >= MAX_NICE;
   const addReq = (raw: string) => {
     const r = raw.trim().slice(0, 200);
@@ -173,6 +180,53 @@ export function HrNewPerson() {
     for (const s of suggestions) { if (must.length < MAX_MUST) must.push(s); else if (nice.length < MAX_NICE) nice.push(s); }
     set({ must, nice });
   };
+  /* ---------- "Read the JD": server parser, keyword helper as the fallback ---------- */
+  const [jdBusy, setJdBusy] = useState(false);
+  const [jdMsg, setJdMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [koIn, setKoIn] = useState("");
+  const readJd = async () => {
+    const text = d.desc.trim();
+    if (!text || jdBusy) return;
+    setJdBusy(true); setJdMsg(null);
+    try {
+      const r = await api.hrParseJd(text.slice(0, 5000));
+      const flagged = (r.flagged ?? []).filter((f) => f && f.text);
+      const bad = flagged.map((f) => f.text.trim().toLowerCase());
+      const isFlagged = (x: string) => { const v = x.trim().toLowerCase(); return bad.some((b) => b && (v.includes(b) || b.includes(v))); };
+      const seen = new Set([...d.must, ...d.nice].map((x) => x.toLowerCase()));
+      const must = [...d.must], nice = [...d.nice];
+      let added = 0;
+      const put = (x: string, prefer: "must" | "nice") => {
+        const v = x.trim().slice(0, 200);
+        if (!v || seen.has(v.toLowerCase()) || isFlagged(v)) return;
+        if (prefer === "must" && must.length < MAX_MUST) must.push(v);
+        else if (nice.length < MAX_NICE) nice.push(v);
+        else return;
+        seen.add(v.toLowerCase()); added++;
+      };
+      (r.must ?? []).forEach((x) => put(x, "must"));
+      (r.nice ?? []).forEach((x) => put(x, "nice"));
+      const ko = [...d.knockouts];
+      for (const x of r.knockouts ?? []) { const v = x.trim().slice(0, 200); if (v && ko.length < MAX_KO && !ko.some((k) => k.toLowerCase() === v.toLowerCase()) && !isFlagged(v)) ko.push(v); }
+      const patch: Partial<Draft> = { must, nice, knockouts: ko, flagged };
+      if (!d.title.trim() && r.title) patch.title = r.title.trim().slice(0, 160);
+      if (r.min_years != null && Number.isFinite(Number(r.min_years))) patch.minYears = String(Math.max(0, Math.min(50, Math.round(Number(r.min_years)))));
+      if (r.seniority && (SENIORITIES as string[]).includes(r.seniority)) patch.seniority = r.seniority as HrSeniority;
+      set(patch);
+      setJdMsg({ ok: true, text: t("hv.jd.done", { n: fmt(added), k: fmt(ko.length - d.knockouts.length), f: fmt(flagged.length) }) });
+    } catch (x) {
+      addAllSuggested(); // offline fallback: the keyword helper
+      setJdMsg({ ok: false, text: x instanceof ApiError && x.status === 429 ? t("hv.jd.limit") : t("hv.jd.fail") });
+    } finally {
+      setJdBusy(false);
+    }
+  };
+  const addKo = (raw: string) => {
+    const v = raw.trim().slice(0, 200);
+    if (!v || d.knockouts.length >= MAX_KO || d.knockouts.some((k) => k.toLowerCase() === v.toLowerCase())) return false;
+    set({ knockouts: [...d.knockouts, v] });
+    return true;
+  };
   const saveEdit = () => {
     if (!editing) return;
     const v = editing.v.trim().slice(0, 200);
@@ -185,7 +239,12 @@ export function HrNewPerson() {
   /* ---------- target + validation ---------- */
   const target: HrTarget | null = d.tt === "business"
     ? d.biz ? (d.biz.kind === "valuation" ? { type: "business", valuation_id: d.biz.id } : { type: "business", ticker: d.biz.ticker }) : d.bizWeb.trim() && normUrl(d.bizWeb) ? { type: "business", website: normUrl(d.bizWeb) } : null
-    : { type: "role", company: d.company.trim(), title: d.title.trim(), description: d.desc.trim(), requirements: [...d.must, ...d.nice.map((x) => "Nice to have: " + x)] };
+    : {
+      type: "role", company: d.company.trim(), title: d.title.trim(), description: d.desc.trim(), requirements: [...d.must, ...d.nice.map((x) => "Nice to have: " + x)],
+      ...(d.minYears.trim() && /^\d{1,2}$/.test(d.minYears.trim()) ? { min_years: +d.minYears.trim() } : {}),
+      ...(d.seniority ? { seniority: d.seniority } : {}),
+      ...(d.knockouts.length ? { knockouts: d.knockouts } : {}),
+    };
   const targetName = d.tt === "business" ? d.biz?.name || (d.bizWeb.trim() ? hostOf(normUrl(d.bizWeb) ?? d.bizWeb) : "") : [d.title.trim(), d.company.trim()].filter(Boolean).join(" · ");
 
   const errs = useMemo(() => {
@@ -205,6 +264,7 @@ export function HrNewPerson() {
       if (!d.company.trim()) e.company = { k: "hr.np.e.company" };
       if (!d.title.trim()) e.title = { k: "hr.np.e.title" };
       if (d.desc.length > 5000) e.desc = { k: "hr.np.e.desc" };
+      if (d.minYears.trim() && (!/^\d{1,2}$/.test(d.minYears.trim()) || +d.minYears > 50)) e.minYears = { k: "hv.np.e.minyears" };
     }
     if (!c1) e.c1 = { k: "hr.e.consent" };
     if (!c2) e.c2 = { k: "hr.np.e.use" };
@@ -402,6 +462,23 @@ export function HrNewPerson() {
             {fld("title", "hr.np.title", <input type="text" maxLength={160} value={d.title} placeholder={t("hr.np.title.ph")} onChange={(e) => set({ title: e.target.value })} {...aria("title", d.title)} />, undefined, d.title, true)}
           </div>
           {fld("desc", "hr.np.desc", <textarea rows={5} value={d.desc} placeholder={t("hr.np.desc.ph")} onChange={(e) => set({ desc: e.target.value })} {...aria("desc", d.desc)} />, t("hr.np.desc.hint", { n: fmt(d.desc.length) }), d.desc)}
+          <div className="hv-jdrow">
+            <button className="btn ghost sm" type="button" disabled={jdBusy || d.desc.trim().length < 30} onClick={readJd} aria-describedby="np-jd-msg">
+              {jdBusy ? <span className="spinner" aria-hidden="true" /> : <span aria-hidden="true">✦</span>}{jdBusy ? t("hv.jd.busy") : t("hv.jd.read")}
+            </button>
+            <span id="np-jd-msg" className={"hv-jdmsg" + (jdMsg ? (jdMsg.ok ? " ok" : " warn") : "")} role="status">{jdMsg?.text ?? t("hv.jd.hint")}</span>
+          </div>
+          <FlaggedNote items={d.flagged} />
+          <div className="hp-frow">
+            {fld("minYears", "hv.np.minyears", <input type="text" inputMode="numeric" maxLength={2} placeholder="5" value={d.minYears} onChange={(e) => set({ minYears: e.target.value.replace(/[^\d]/g, "") })} {...aria("minYears", d.minYears)} />, t("hv.np.minyears.hint"), d.minYears)}
+            <div className="hp-fld">
+              <label htmlFor="np-seniority">{t("hv.np.seniority")}</label>
+              <select id="np-seniority" value={d.seniority} onChange={(e) => set({ seniority: e.target.value as Draft["seniority"] })}>
+                <option value="">{t("hv.np.seniority.any")}</option>
+                {SENIORITIES.map((x) => <option key={x} value={x}>{t(("hr3.sen." + x) as DictKey)}</option>)}
+              </select>
+            </div>
+          </div>
           {suggestions.length > 0 && !full && (
             <div className="hx-sugg" aria-live="polite">
               <div className="gh"><span>{Icon.up}{t("hr2.np.sugg")}</span><button type="button" className="linkbtn" onClick={addAllSuggested}>{t("hr2.np.sugg.all")}</button></div>
@@ -433,6 +510,20 @@ export function HrNewPerson() {
             <input type="text" maxLength={200} value={reqIn} placeholder={full ? t("hr.np.req.full") : t("hr.np.req.ph")} aria-label={t("hr.np.req.add")} disabled={full}
               onChange={(e) => setReqIn(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (addReq(reqIn)) setReqIn(""); } }} />
             <button className="btn ghost sm" type="button" disabled={full || !reqIn.trim()} onClick={() => { if (addReq(reqIn)) setReqIn(""); }}>{t("hr.np.req.add")}</button>
+          </div>
+          <div className="hp-reqgroup">
+            <div className="gh">{t("hv.np.ko")} <span>{t("hr.np.req.count", { n: d.knockouts.length, m: MAX_KO })}</span></div>
+            <p className="hint hv-kohint">{t("hv.np.ko.hint")}</p>
+            <div className="hp-chips">
+              {d.knockouts.map((k) => (
+                <span key={k} className="hp-rchip hv-kochip"><span className="txt" title={k}>{k}</span><button type="button" aria-label={t("hr.p.remove")} onClick={() => set({ knockouts: d.knockouts.filter((x) => x !== k) })}>✕</button></span>
+              ))}
+            </div>
+            <div className="hp-addreq">
+              <input type="text" maxLength={200} value={koIn} placeholder={t("hv.np.ko.ph")} aria-label={t("hv.np.ko.add")} disabled={d.knockouts.length >= MAX_KO}
+                onChange={(e) => setKoIn(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (addKo(koIn)) setKoIn(""); } }} />
+              <button className="btn ghost sm" type="button" disabled={d.knockouts.length >= MAX_KO || !koIn.trim()} onClick={() => { if (addKo(koIn)) setKoIn(""); }}>{t("hr.np.req.add")}</button>
+            </div>
           </div>
         </div>
       )}

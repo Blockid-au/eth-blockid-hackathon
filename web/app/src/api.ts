@@ -551,10 +551,18 @@ export interface PersonIn {
 }
 export type HrTarget =
   | { type: "business"; valuation_id?: string | null; ticker?: string | null; website?: string | null }
-  | { type: "role"; company: string; title: string; description: string; requirements: string[] };
+  | { type: "role"; company: string; title: string; description: string; requirements: string[]; min_years?: number | null; seniority?: HrSeniority | null; knockouts?: string[] };
+export type HrSeniority = "entry" | "mid" | "senior" | "lead" | "executive";
+/** Wording in a JD that touches a protected attribute (AU law): shown as a warning, left out of scoring. */
+export interface HrFlagged { text: string; reason: string }
+/** POST /v1/hr/jd/parse {text} (docs/PLAN-HR-V3.md §2.2, §9). */
+export interface HrJdParse {
+  title?: string | null; seniority?: HrSeniority | string | null; min_years?: number | null; domain?: string | null;
+  must?: string[]; nice?: string[]; knockouts?: string[]; skills?: string[]; flagged?: HrFlagged[];
+}
 export type HrTargetView =
   | { type: "business"; valuation_id?: string | null; ticker?: string | null; website?: string | null; company?: string | null; sector?: string | null; stage?: string | null; description?: string | null }
-  | { type: "role"; company?: string | null; title?: string | null; description?: string | null; requirements?: string[] };
+  | { type: "role"; company?: string | null; title?: string | null; description?: string | null; requirements?: string[]; min_years?: number | null; seniority?: string | null; knockouts?: string[]; flagged?: HrFlagged[] };
 export type TeamStatus = "draft" | "queued" | "running" | "done" | "failed";
 export type HrMode = "team" | "person";
 export type TeamFunction = "tech" | "commercial" | "domain" | "finance";
@@ -600,7 +608,12 @@ export interface CvProfile {
   links?: { url: string; label?: string | null }[];
   completeness_pct?: number | null;
 }
-export interface FitRequirement { requirement: string; must_have?: boolean; status: "matched" | "partial" | "missing" | "unverified" | string; fact_ids?: string[]; self_reported?: boolean; note?: string | null }
+/** Evidence level of a requirement row (hr-2): verified facts · the CV only · a source contradicts the CV · nothing. */
+export type FitEvidence = "verified" | "cv_only" | "contradicted" | "none";
+export interface FitRequirement { requirement: string; must_have?: boolean; status: "matched" | "partial" | "missing" | "unverified" | string; fact_ids?: string[]; self_reported?: boolean; note?: string | null; evidence?: FitEvidence | string; claim_ids?: string[] }
+export type FitLens = "business" | "jd" | "current_role";
+export type FitVerdict = "strong" | "conditional" | "weak" | "not_suitable";
+export interface FitRelevantRole { org: string; title: string; relevance: "high" | "medium" | "low" | string; reason?: string; months?: number | null }
 export interface PersonFit {
   target_type: "business" | "role";
   label?: string;
@@ -611,7 +624,29 @@ export interface PersonFit {
   missing?: string[];
   risks?: string[];
   interview_questions?: string[];
+  /* hr-2 (docs/PLAN-HR-V3.md §9); all optional so hr-1 reports still render */
+  lens?: FitLens;
+  title?: string;
+  claimed_score?: number | null;
+  verified_score?: number | null;
+  verdict?: FitVerdict | string;
+  knockouts?: string[];
+  cap?: number | null;
+  relevant?: { years: number; min_years?: number | null; roles?: FitRelevantRole[] } | null;
+  template?: { key: string; label: string; stage_band?: string | null } | null;
+  alt_role?: { role: string; score: number; reason?: string | null } | null;
 }
+export type TrustBand = "high" | "medium" | "low";
+/** CV Trust Index (hr-2). score is null on share / holder views (bands only). */
+export interface PersonTrust {
+  score: number | null;
+  band: TrustBand | string;
+  coverage_pct?: number | null;
+  contradicted_key?: number;
+  consistency?: { overlaps?: number; date_issues?: number } | null;
+}
+export type DecisionQuadrant = "proceed" | "verify_first" | "other_role" | "stop";
+export interface PersonDecision { quadrant: DecisionQuadrant | string; fit_lens?: FitLens | string; fit_score?: number | null; trust_band?: TrustBand | string | null; reasons?: string[]; verify?: string[] }
 export interface PersonCard {
   person_id: number;
   full_name: string;
@@ -631,6 +666,10 @@ export interface PersonCard {
   questions: string[];
   functions: TeamFunction[];
   model?: string | null;
+  /* hr-2 */
+  fits?: Partial<Record<FitLens, PersonFit>> | null;
+  trust?: PersonTrust | null;
+  decision?: PersonDecision | null;
 }
 export interface TeamBlock {
   score: number;
@@ -700,6 +739,8 @@ export interface TeamSummary {
     /** fit to THIS business: label, matched/missing requirements (top 3) */
     fit_label?: string | null; fit_matched?: string[]; fit_missing?: string[];
     status?: HrPartialPerson["status"]; url?: string | null; // url = hr link to the person inside the team report (/r/<team>/p/<pid>)
+    /** hr-2: CV trust band and the fit to the role the person holds now */
+    trust_band?: TrustBand | string | null; role_fit?: number | null; role_fit_verdict?: FitVerdict | string | null;
   }[];
   strengths: string[];
   gaps: string[];
@@ -742,6 +783,8 @@ const hrApi = {
   hrUnshare: (id: string) => request<{ ok: boolean }>("DELETE", `/v1/hr/teams/${enc(id)}/share`),
   hrSuggestPeople: (q: { valuation_id?: string | null; website?: string | null }) =>
     request<HrSuggestions>("GET", `/v1/hr/suggest-people?${q.valuation_id ? "valuation_id=" + encodeURIComponent(q.valuation_id) : "website=" + encodeURIComponent(q.website ?? "")}`),
+  /** Read a pasted JD into title / must / nice / knockouts (rate-limited; callers fall back to the keyword helper). */
+  hrParseJd: (text: string) => request<HrJdParse>("POST", "/v1/hr/jd/parse", { text }),
   hrApplyToValuation: (id: string) => request<{ applied: boolean; reason: string | null }>("POST", `/v1/hr/teams/${enc(id)}/apply-to-valuation`),
 };
 
