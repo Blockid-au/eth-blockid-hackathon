@@ -77,7 +77,7 @@ Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid
   `agents-api`. The API verifies the ID token (`studio/accounts.py`) and links `google:<sub>` to the browser key's address.
 - **Email from info@blockid.au** (`studio/mailer.py`, Google Workspace): either
   `SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=info@blockid.au SMTP_PASSWORD=<App Password>` or the Workspace SMTP
-  relay `SMTP_HOST=smtp-relay.gmail.com` with this VM's IP 34.151.85.207 allow-listed (no user/password).
+  relay `SMTP_HOST=smtp-relay.gmail.com` with this VM's IP 34.151.170.203 (ephemeral, see "Public IP changes") allow-listed (no user/password).
   `MAIL_FROM="BlockID Business Passport <info@blockid.au>"`; replies go to info@blockid.au. Test as admin:
   `POST /api/v1/admin/mail/test {"to": "..."}`. A welcome email is sent on the first Google sign-in.
 - CSP allows `https://accounts.google.com/gsi/*` (copy of the live snippet: `deploy/nginx/blockid-security-headers.conf`).
@@ -136,3 +136,26 @@ Plan: [PLAN-OPS.md](PLAN-OPS.md) · per-incident fixes: [RUNBOOK-INCIDENTS.md](R
 | `OPS_IP_SALT_SECRET` | `SESSION_SECRET` | secret of the daily visitor-hash salt |
 
 All thresholds and paths: `agents/src/blockid_agents/ops/config.py`.
+
+## Public IP changes (28 Sep 2026)
+
+The VM has an **ephemeral** external IP (it changed from 34.151.85.207 to 34.151.170.203 on the 28 Sep reboot).
+`blockid-public-ip.timer` runs `/usr/local/sbin/blockid-update-public-ip` (source `scripts/ops/update-public-ip.sh`,
+units in `deploy/systemd/`) 30 s after boot and every 15 min. It:
+
+- reads the IP from the GCP metadata server and keeps it in `/var/lib/blockid-public-ip/last-ip`;
+- updates the Cloudflare A records `eth`, `hr`, `scan.blockid.au` (keeps proxied/TTL) when `/etc/blockid/cloudflare.env` has a token;
+- replaces the old IP anywhere in `/etc/nginx`, refreshes `conf.d/cloudflare-realip.conf` from cloudflare.com/ips, then `nginx -t` + reload;
+- logs a warning for things it cannot change (Google Workspace SMTP relay allow-list, provider allow-lists).
+
+One-time owner setup (Cloudflare → My Profile → API Tokens → "Edit zone DNS", zone blockid.au):
+
+```bash
+sudo install -d -m 700 /etc/blockid
+sudo sh -c 'umask 077; printf "CF_API_TOKEN=%s\nCF_ZONE=blockid.au\nCF_RECORDS=\"eth.blockid.au hr.blockid.au scan.blockid.au\"\n" "PASTE_TOKEN" > /etc/blockid/cloudflare.env'
+sudo systemctl start blockid-public-ip.service && journalctl -t blockid-public-ip -n 20
+```
+
+Reinstall after editing the script: `sudo install -m 755 scripts/ops/update-public-ip.sh /usr/local/sbin/blockid-update-public-ip`.
+Better long-term fix: reserve a static IP (`gcloud compute addresses create blockid-app --addresses=34.151.170.203 --region=australia-southeast1`
+from a machine with owner credentials; the VM's service account lacks the scope) — then the timer only guards nginx.

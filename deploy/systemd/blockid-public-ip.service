@@ -1,0 +1,10 @@
+[Unit]
+Description=BlockID: sync public IP to Cloudflare DNS and nginx
+Wants=network-online.target
+After=network-online.target nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/blockid-update-public-ip
+# exit 2 = Cloudflare not configured/failed; nginx part still ran
+SuccessExitStatus=2
