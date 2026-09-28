@@ -39,7 +39,7 @@ dev = ["pytest>=8", "ruff>=0.6", "numpy-financial>=1.0"]  # numpy-financial: DCF
 where = ["src"]
 
 [tool.setuptools.package-data]
-blockid_agents = ["studio/*.sql", "market_data/*.json"]
+blockid_agents = ["studio/*.sql", "market_data/*.json", "agents/data/*.csv"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
