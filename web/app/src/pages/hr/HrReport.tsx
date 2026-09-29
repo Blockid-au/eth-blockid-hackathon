@@ -9,7 +9,7 @@ import { EthCtas } from "./ethCta";
 import { initials, partLabel, useHrTitle } from "./common";
 import { BandTrack, bandOf, bandWord, confidenceOf, ConfPill, cleanWhy, EvLabel, fmtDate, halfWidth, Icon, srcIndex, type Conf } from "./evidence";
 import { ConsentFooter, MethodBox, Panel, ReportActions, ScoreInline, SourcesTable, TabNav } from "./reportParts";
-import { ReportState, useHrReport } from "./HrPerson";
+import { ReportState, reportMissing, useHrReport } from "./HrPerson";
 import { TrustChip, VerdictBadge } from "./verify";
 import { fitVerdict, reqEvidence } from "./v3";
 
@@ -249,7 +249,7 @@ export function HrReport() {
   const { t } = useI18n();
   const q = useHrReport(id);
   const team = q.data;
-  useHrTitle(team?.name ?? t("hr.r.eyebrow"));
+  useHrTitle(team?.name ?? t(reportMissing(q) ? "hr.r.nf.eyebrow" : "hr.r.eyebrow"));
   const tab = (TEAM_TABS as readonly string[]).includes(rawTab ?? "") ? (rawTab as TTab) : "overview";
   if (team?.mode === "person") return <Navigate to={`/p/${encodeURIComponent(id)}${location.search}`} replace />;
   if (!team || team.status !== "done" || !team.result) return <ReportState q={q} id={id} />;

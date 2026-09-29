@@ -30,7 +30,11 @@ export function useHrReport(id: string) {
   const [params] = useSearchParams();
   const share = params.get("share");
   const { me } = useAuth();
-  const q = useAsync<Team>(() => api.hrTeam(id, share), [id, share, me?.address, me?.username]);
+  // anything that is not a report (empty body, HTML fallback page) is shown as "not found", never as a blank report
+  const q = useAsync<Team>(() => api.hrTeam(id, share).then((d) => {
+    if (!d || typeof d !== "object" || typeof d.status !== "string") throw new ApiError(404, "unknown report");
+    return d;
+  }), [id, share, me?.address, me?.username]);
   const active = !!q.data && ACTIVE_HR.includes(q.data.status);
   const { reload } = q;
   // poll every 2 s while it runs, every 5 s while the tab is hidden; refresh at once when the tab comes back
@@ -47,6 +51,30 @@ export function useHrReport(id: string) {
   return q;
 }
 
+/** True when the report request came back 404 (unknown id, or a response that is not a report). */
+export const reportMissing = (q: { data?: unknown; error: unknown }) => !q.data && q.error instanceof ApiError && q.error.status === 404;
+
+/** 404 for /r/:id, /p/:id and an unknown person key inside a team report: a heading, what happened, a way back. */
+export function ReportNotFound({ id, teamLink }: { id: string; teamLink?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <div className="wrap page">
+      <div className="pane stateCard soft" role="status">
+        <span className="eyebrow">{t(teamLink ? "hr.r.nf.person.eyebrow" : "hr.r.nf.eyebrow")}</span>
+        <h1>{t(teamLink ? "hr.r.nf.person.h" : "hr.r.nf.h")}</h1>
+        <p>{t(teamLink ? "hr.r.nf.person.p" : "hr.r.nf.p")}</p>
+        {id && <p className="muted-sm">{t("hr.r.nf.id")}: <span className="mono">{id}</span></p>}
+        <div className="row">
+          {teamLink
+            ? <Link className="btn" to={`/r/${encodeURIComponent(id)}`}>{t("hr.pr.openteam")}</Link>
+            : <Link className="btn" to="/me">{t("hr.r.nf.mine")}</Link>}
+          <Link className="btn ghost" to="/">{t("hr.r.nf.home")}</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Error / progress states shared by both report pages. Returns null when the report is ready to show. */
 export function ReportState({ q, id }: { q: ReturnType<typeof useHrReport>; id: string }) {
   const { t } = useI18n();
@@ -55,6 +83,7 @@ export function ReportState({ q, id }: { q: ReturnType<typeof useHrReport>; id: 
   const [running, setRunning] = useState(false);
   const team = q.data;
   if (q.loading && !team) return <Loading />;
+  if (reportMissing(q)) return <ReportNotFound id={id} />;
   if (q.error && !team) {
     const e = q.error;
     const priv = e instanceof ApiError && (e.status === 401 || e.status === 403);
@@ -69,7 +98,7 @@ export function ReportState({ q, id }: { q: ReturnType<typeof useHrReport>; id: 
               <Link className="btn ghost" to="/new/person">{t("hr.nav.person")}</Link>
             </div>
           </div>
-        ) : e instanceof ApiError && e.status === 404 ? <p className="quietline bad">{t("hr.r.notfound")}</p> : <ErrorBox error={e} retry={q.reload} />}
+        ) : <ErrorBox error={e} retry={q.reload} />}
       </div>
     );
   }
@@ -476,10 +505,10 @@ export function HrPersonPage() {
     const m = /^n(\d+)$/.exec(key);
     card = m ? rep.people[+m[1] - 1] : rep.people.find((c) => String(c.person_id) === key);
   } else if (rep) card = rep.people[0];
-  useHrTitle(card?.full_name ?? team?.name ?? t("hr.pr.eyebrow"));
+  useHrTitle(card?.full_name ?? team?.name ?? t(reportMissing(q) ? "hr.r.nf.eyebrow" : rep && !card ? "hr.r.nf.person.eyebrow" : "hr.pr.eyebrow"));
   if (!team || !rep) return <ReportState q={q} id={id} />;
   if (!key && team.mode === "team") return <Navigate to={`/r/${encodeURIComponent(id)}${location.search}`} replace />;
-  if (!card) return <div className="wrap page"><p className="quietline bad">{t("hr.r.notfound")}</p><Link to={`/r/${encodeURIComponent(id)}`}>{t("hr.pr.openteam")} →</Link></div>;
+  if (!card) return <ReportNotFound id={id} teamLink />;
   const base = key ? `/r/${encodeURIComponent(id)}/p/${encodeURIComponent(key)}` : `/p/${encodeURIComponent(id)}`;
   if (alias) return <Navigate to={`${base}/${alias}${location.search}`} replace />;
   return <PersonReport team={team} card={card} base={base} tab={tab} />;

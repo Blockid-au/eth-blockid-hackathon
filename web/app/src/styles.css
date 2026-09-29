@@ -514,7 +514,7 @@ td .xbtn:hover { color: var(--bad); background: var(--sunken); }
 
 /* friendly empty / private states */
 .stateCard { display: grid; gap: 10px; justify-items: start; max-width: 60ch; padding: 28px; }
-.stateCard h2 { font-size: 1.5rem; }
+.stateCard h1, .stateCard h2 { font-size: 1.5rem; }
 .stateCard p { color: var(--muted); }
 
 /* testnet demo guide for judges */

@@ -231,6 +231,7 @@ export function Footer() {
           )}
         </span>
         <span><Link to="/hsk">{t("nav.hsk")}</Link></span>
+        <span><Link to="/terms">{t("foot.terms")}</Link>{" · "}<Link to="/privacy">{t("foot.privacy")}</Link></span>
         <span>{t("foot.legal")}</span>
       </div>
     </footer>

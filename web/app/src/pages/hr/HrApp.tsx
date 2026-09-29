@@ -1,11 +1,11 @@
 /* hr.blockid.au: the "BlockID HR" app. Same SPA build as eth.blockid.au; App.tsx renders this on the hr host. */
-import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { useI18n } from "../../i18n";
 import { errText, useAuth } from "../../auth";
 import { isMock } from "../../api";
 import { BlockIDLogo, FlagEN, FlagVI } from "../../components/Layout";
-import { ErrorBoundary } from "../../components/Boundary";
+import { ErrorBoundary, PageLoading } from "../../components/Boundary";
 import { shortAddr } from "../../lib/addr";
 import { ethUrl } from "../../lib/hrhost";
 import { NotFound } from "../NotFound";
@@ -18,6 +18,8 @@ import { HrMine } from "./HrMine";
 import { HrMethod } from "./HrMethod";
 import { ActiveJobs } from "../../components/ActiveJobs";
 import "../../components/hr.css";
+
+const LegalPage = lazy(() => import("../legal/Legal"));
 
 // The HR palette ("talent & innovation") is scoped to this class; eth.blockid.au never loads this module.
 if (typeof document !== "undefined") document.documentElement.classList.add("hr-app");
@@ -150,6 +152,7 @@ function HrFooter() {
         <span><a href={ethUrl("/")}>{t("hr.foot.eth")}</a></span>
         <span>{t("hr.foot.remove")}</span>
         <span>{t("foot.contact")}: <a href="mailto:info@blockid.au">info@blockid.au</a></span>
+        <span><Link to="/terms">{t("foot.terms")}</Link>{" · "}<Link to="/privacy">{t("foot.privacy")}</Link></span>
         <span>{t("foot.legal")}</span>
       </div>
     </footer>
@@ -173,6 +176,9 @@ export default function HrApp() {
             <Route path="/p/:id/:tab?" element={<HrPersonPage />} />
             <Route path="/method" element={<HrMethod />} />
             <Route path="/me" element={<HrMine />} />
+            <Route path="/terms" element={<Suspense fallback={<PageLoading />}><LegalPage kind="terms" /></Suspense>} />
+            <Route path="/privacy" element={<Suspense fallback={<PageLoading />}><LegalPage kind="privacy" /></Suspense>} />
+            <Route path="/legal" element={<Navigate to="/terms" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </ErrorBoundary>
