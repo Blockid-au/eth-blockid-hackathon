@@ -151,7 +151,7 @@ function HrFooter() {
         <span>{t("hr.foot.site")}</span>
         <span><a href={ethUrl("/")}>{t("hr.foot.eth")}</a></span>
         <span>{t("hr.foot.remove")}</span>
-        <span>{t("foot.contact")}: <a href="mailto:info@blockid.au">info@blockid.au</a></span>
+        <span>{t("foot.contact")}: <a href="mailto:admin@blockid.au">admin@blockid.au</a></span>
         <span><Link to="/terms">{t("foot.terms")}</Link>{" · "}<Link to="/privacy">{t("foot.privacy")}</Link></span>
         <span>{t("foot.legal")}</span>
       </div>

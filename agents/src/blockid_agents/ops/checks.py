@@ -627,7 +627,7 @@ def _automation(env: OpsEnv):
 @check("email.delivery", "Email delivery", "warn", "email-delivery",
        "Incident emails, reports and welcome emails are not delivered (they stay stored in Admin > Ops).",
        ["Admin > Ops > send test email; the error text says why (auth, TLS, relay not allowed).",
-        "App Password: SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=info@blockid.au SMTP_PASSWORD=<app password>.",
+        "App Password: SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=admin@blockid.au SMTP_PASSWORD=<app password>.",
         "Workspace relay: SMTP_HOST=smtp-relay.gmail.com with the VM public IP allow-listed (ephemeral; re-allow after a stop/start).",
         f"Edit /opt/blockid/app.env then `{COMPOSE} up -d --no-build --force-recreate agents-api`."])
 def _email(env: OpsEnv):

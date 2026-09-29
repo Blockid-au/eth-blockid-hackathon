@@ -170,7 +170,7 @@ export function MethodBox({ rep, team }: { rep: TeamReport; team: Team }) {
           <li>{t("hr.pr.p.2")}</li>
           <li>{t("hr.pr.p.3")}</li>
         </ul>
-        <p style={{ marginTop: 10 }} className="hr-noprint"><a className="btn ghost sm" href={`mailto:info@blockid.au?subject=${encodeURIComponent("BlockID HR report " + team.id + " — mistake")}`}>{t("hr.pr.mistake")}</a></p>
+        <p style={{ marginTop: 10 }} className="hr-noprint"><a className="btn ghost sm" href={`mailto:admin@blockid.au?subject=${encodeURIComponent("BlockID HR report " + team.id + " — mistake")}`}>{t("hr.pr.mistake")}</a></p>
       </div>
     </div>
   );
@@ -184,7 +184,7 @@ export function ConsentFooter({ team, names }: { team: Team; names: string }) {
       <h2 id="cf-h">{Icon.shield}{t("hr.pr.cf.h")}</h2>
       <div>
         <p>{t("hr.pr.cf.agreed", { n: names, d: team.consented_at ? fmtDate(team.consented_at, lang) : "–" })}</p>
-        <p style={{ marginTop: 8 }}>{t("hr.pr.cf.remove")} <a href="mailto:info@blockid.au">info@blockid.au</a>.</p>
+        <p style={{ marginTop: 8 }}>{t("hr.pr.cf.remove")} <a href="mailto:admin@blockid.au">admin@blockid.au</a>.</p>
       </div>
       <div>
         <p><b>{t("hr.pr.cf.never")}</b></p>

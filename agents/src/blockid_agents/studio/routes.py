@@ -340,7 +340,7 @@ def build_router(ctx: StudioContext) -> APIRouter:
     def mail_test(body: MailTestBody, sess: Session = Depends(require_admin)):
         if not mailer.configured:
             raise HTTPException(503, "email is not configured (SMTP_HOST is empty)")
-        ok = mailer.send(body.to, "BlockID test email", "This is a test email from info@blockid.au.\n\n"
+        ok = mailer.send(body.to, "BlockID test email", "This is a test email from admin@blockid.au.\n\n"
                          "If you can read this, sending works. Reply to check that receiving works too.")
         audit(sess, "mail_test", body.to, ok=ok)
         if not ok:

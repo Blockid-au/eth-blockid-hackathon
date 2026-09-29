@@ -12,3 +12,11 @@ services:
       - "127.0.0.1:26657:26657"
   explorer:
     ports: ["127.0.0.1:8082:80"]
+  agents-worker:
+    # Two workers so one long valuation does not hold up every other user's run (usage caps are open, docs/GATES.md).
+    # Valuation / HR claims use FOR UPDATE SKIP LOCKED; the AI gateway's concurrency slots are per process, so the
+    # scarce Claude bridge gets 1 slot per worker (2 in total, as before).
+    deploy:
+      replicas: 2
+    environment:
+      AI_CONCURRENCY_CLAUDE_BRIDGE: "1"

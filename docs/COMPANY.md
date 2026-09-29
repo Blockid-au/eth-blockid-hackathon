@@ -123,7 +123,7 @@ advice" on every valuation report.
 | 8 | Insurance: professional indemnity + cyber (+ public liability) | selling reports that others rely on; holding CV / PII data | G2 |
 | 9 | Privacy officer name and complaint contact (e.g. privacy@blockid.au) | Privacy Policy (APP 1) | G1 |
 | 10 | Agreement with Vietnam Blockchain Corporation (IP ownership, data access, services) | IP certainty for investors and white-label partners | G2 |
-| 11 | Google Workspace / SMTP credentials for info@blockid.au | alerts, receipts, welcome and report emails | G1 |
+| 11 | Google Workspace / SMTP credentials for admin@blockid.au | alerts, receipts, welcome and report emails | G1 |
 | 12 | Warm leads among Auschain's existing clients who might pilot BlockID (named contact, consent to approach) | S2 pilot pipeline | G1 → S2 |
 | 13 | **R&D Tax Incentive**: register the BlockID R&D activities (AI valuation, provenance, tokenised registry) with AusIndustry. For FY2025-26 (ended 30 Jun 2026) the deadline is 30 Apr 2027. Companies under A$20M turnover get a refundable offset. Keep timesheets and git history as evidence. | cash runway | before 30 Apr 2027 |
 | 14 | Export grants (EMDG) if Vietnam sales start; accountant to check eligibility | VN go-to-market | S4 |

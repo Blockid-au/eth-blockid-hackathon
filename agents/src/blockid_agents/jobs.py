@@ -68,10 +68,12 @@ class JobQueue:
             row = c.execute("SELECT * FROM jobs WHERE status='queued' ORDER BY created_at LIMIT 1").fetchone()
             if not row:
                 return None
-            c.execute(
+            cur = c.execute(
                 "UPDATE jobs SET status='running', attempts=attempts+1, updated_at=? WHERE id=? AND status='queued'",
                 (time.time(), row["id"]),
             )
+            if cur.rowcount == 0:  # another worker container claimed it first (the lock is per process)
+                return None
             return dict(row) | {"payload": json.loads(row["payload"])}
 
     def pending(self) -> int:

@@ -20,7 +20,7 @@ US$12,500; no results date published; Sydney in-person demo was 26 Sep 2026. Pro
 Checklist (all required before billing goes live; live date = G0 + 7 days):
 - [ ] Results announced — placement / prize / feedback: _…_ (link: _…_)
 - [ ] Result + feedback recorded in `FACTS.md` and the Devfolio entry frozen
-- [ ] Judging caps restored from `/opt/blockid/app.env.bak-judging`; `agents-api` recreated; limits checked
+- [x] Usage caps: owner decision 29 Sep 2026 — keep them open for users (HR_RUNS_PER_DAY / VALUATIONS_PER_DAY / VALUATIONS_GLOBAL_PER_DAY = 100000, HR_MAX_ACTIVE = VALUATIONS_MAX_ACTIVE = 0 = no "busy" refusal, jobs queue); do NOT restore `/opt/blockid/app.env.bak-judging`
 - [ ] Judge accounts marked `judge` (free for 30 more days)
 - [ ] Traffic baseline exported from `/admin/ops` (hackathon period)
 - [ ] `BILLING_START_AT` chosen and announced on /pricing 14 days ahead (target 01 Nov 2026 if results by 25 Oct)

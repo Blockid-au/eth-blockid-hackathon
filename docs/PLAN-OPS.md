@@ -36,5 +36,5 @@
   it can be viewed in admin. Optional daily digest (`OPS_DAILY_DIGEST=1`).
 
 ## 5. Delivery requires SMTP
-Email uses `studio/mailer.py` (info@blockid.au via Google Workspace). Until `SMTP_*` is set, incidents and reports
+Email uses `studio/mailer.py` (admin@blockid.au via Google Workspace). Until `SMTP_*` is set, incidents and reports
 are stored and shown in admin with "not emailed — SMTP not configured"; they are sent when SMTP works.

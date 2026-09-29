@@ -38,7 +38,7 @@ def test_mailer_unconfigured_skips_and_builds_headers(monkeypatch):
     m = Mailer()
     assert not m.configured and m.send("x@y.z", "s", "t") is False
     msg = m.build("x@y.z", "Hi", "body")
-    assert "info@blockid.au" in msg["From"] and msg["Reply-To"] == "info@blockid.au"
+    assert "admin@blockid.au" in msg["From"] and msg["Reply-To"] == "admin@blockid.au"
     subj, text, html = welcome("Ana", "0xabc", "vi")
     assert "0xabc" in text and subj.startswith("Chào mừng") and "<p>" in html
 

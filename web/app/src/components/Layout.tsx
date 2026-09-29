@@ -206,7 +206,7 @@ export function Footer() {
         </span>
         <span className="foot-contact" ref={qrRef}>
           {t("foot.contact")}:{" "}
-          <a href="mailto:info@blockid.au">info@blockid.au</a>{" · "}
+          <a href="mailto:admin@blockid.au">admin@blockid.au</a>{" · "}
           <a href="https://www.linkedin.com/in/dovanlong" target="_blank" rel="noopener noreferrer">LinkedIn · Long Do</a>
           <button
             type="button"

@@ -114,8 +114,8 @@ const incidents: Inc[] = [
     impact: "Nobody is e-mailed about incidents; check this page instead.",
     runbook_id: "email-delivery", runbook_url: RUNBOOK + "#email-delivery",
     fix_steps: [
-      "Create an app password for info@blockid.au in Google Workspace (Security → App passwords).",
-      "Set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=info@blockid.au`, `SMTP_PASSWORD=…` in `deploy/.env`.",
+      "Create an app password for admin@blockid.au in Google Workspace (Security → App passwords).",
+      "Set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=admin@blockid.au`, `SMTP_PASSWORD=…` in `deploy/.env`.",
       "Restart the API: `sudo docker compose -f deploy/docker-compose.yml up -d agents-api`.",
       "Press **Send test email** on the Weekly reports tab.",
     ],

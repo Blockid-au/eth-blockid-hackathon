@@ -396,7 +396,7 @@ check is `unknown` and every incident / report shows "not emailed — SMTP not c
 
 **Fix**
 1. Admin > Ops > **Send test email** (or `POST /api/v1/admin/ops/test-email`); the reason says what failed.
-2. App Password: `SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=info@blockid.au SMTP_PASSWORD=<App Password>`.
+2. App Password: `SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=admin@blockid.au SMTP_PASSWORD=<App Password>`.
 3. Workspace SMTP relay: `SMTP_HOST=smtp-relay.gmail.com`, VM IP 34.151.170.203 (ephemeral, see "Public IP changes") allow-listed, no user/password.
 4. Edit `/opt/blockid/app.env`, then `$DC up -d --no-build --force-recreate agents-api`; stored incidents and the
    latest report (< 8 days) are sent on the next round.

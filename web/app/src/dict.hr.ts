@@ -14,7 +14,7 @@ export const hrEn = {
   "hr.nav.how": "How scores work",
   "hr.nav.eth": "Business valuations",
   "hr.foot.site": "BlockID HR · hr.blockid.au",
-  "hr.foot.remove": "Listed in a report and want your details removed? Write to info@blockid.au.",
+  "hr.foot.remove": "Listed in a report and want your details removed? Write to admin@blockid.au.",
   "hr.foot.eth": "Business valuation on eth.blockid.au",
 
   "hr.home.eyebrow": "Founding team review",
@@ -43,7 +43,7 @@ export const hrEn = {
   "hr.priv.1": "Whoever asks for a review confirms the people listed agreed to it.",
   "hr.priv.2": "We only look at public professional information: roles, companies, education, publications and awards.",
   "hr.priv.3": "We never collect health, religion, politics, family, home address, phone numbers or personal email.",
-  "hr.priv.4": "Anyone listed can ask for their details to be removed at info@blockid.au.",
+  "hr.priv.4": "Anyone listed can ask for their details to be removed at admin@blockid.au.",
   "hr.home.final.h": "Valuing a business?",
   "hr.home.final.p": "The founding team carries 30% of the business score on eth.blockid.au. Link the team review to the valuation and the score updates.",
   "hr.home.final.btn": "Start a business valuation",
@@ -111,7 +111,7 @@ export const hrEn = {
   "hr.p.remove": "Remove",
   "hr.p.equity.total": "Equity listed: {p}%",
   "hr.p.consent": "These people agreed to a review of their public professional information",
-  "hr.p.consent.sub": "Public professional information only. Anyone listed can ask for removal at info@blockid.au.",
+  "hr.p.consent.sub": "Public professional information only. Anyone listed can ask for removal at admin@blockid.au.",
 
   "hr.e.name": "Enter the full name.",
   "hr.e.name.long": "Keep the name under 120 characters.",
@@ -719,7 +719,7 @@ export const hrVi: Record<keyof typeof hrEn, string> = {
   "hr.nav.how": "Cách tính điểm",
   "hr.nav.eth": "Định giá doanh nghiệp",
   "hr.foot.site": "BlockID HR · hr.blockid.au",
-  "hr.foot.remove": "Có tên trong báo cáo và muốn gỡ thông tin? Viết cho info@blockid.au.",
+  "hr.foot.remove": "Có tên trong báo cáo và muốn gỡ thông tin? Viết cho admin@blockid.au.",
   "hr.foot.eth": "Định giá doanh nghiệp trên eth.blockid.au",
 
   "hr.home.eyebrow": "Đánh giá đội ngũ sáng lập",
@@ -748,7 +748,7 @@ export const hrVi: Record<keyof typeof hrEn, string> = {
   "hr.priv.1": "Người yêu cầu đánh giá xác nhận những người được liệt kê đã đồng ý.",
   "hr.priv.2": "Chúng tôi chỉ xem thông tin nghề nghiệp công khai: vai trò, công ty, học vấn, bài viết và giải thưởng.",
   "hr.priv.3": "Chúng tôi không bao giờ thu thập sức khỏe, tôn giáo, chính trị, gia đình, địa chỉ nhà, số điện thoại hay email cá nhân.",
-  "hr.priv.4": "Bất kỳ ai có tên đều có thể yêu cầu gỡ thông tin qua info@blockid.au.",
+  "hr.priv.4": "Bất kỳ ai có tên đều có thể yêu cầu gỡ thông tin qua admin@blockid.au.",
   "hr.home.final.h": "Đang định giá một doanh nghiệp?",
   "hr.home.final.p": "Đội ngũ sáng lập chiếm 30% điểm doanh nghiệp trên eth.blockid.au. Liên kết bản đánh giá đội ngũ với bản định giá và điểm sẽ được cập nhật.",
   "hr.home.final.btn": "Bắt đầu định giá doanh nghiệp",
@@ -816,7 +816,7 @@ export const hrVi: Record<keyof typeof hrEn, string> = {
   "hr.p.remove": "Xóa",
   "hr.p.equity.total": "Tổng cổ phần đã nhập: {p}%",
   "hr.p.consent": "Những người này đã đồng ý cho đánh giá thông tin nghề nghiệp công khai của họ",
-  "hr.p.consent.sub": "Chỉ thông tin nghề nghiệp công khai. Bất kỳ ai có tên đều có thể yêu cầu gỡ qua info@blockid.au.",
+  "hr.p.consent.sub": "Chỉ thông tin nghề nghiệp công khai. Bất kỳ ai có tên đều có thể yêu cầu gỡ qua admin@blockid.au.",
 
   "hr.e.name": "Nhập họ và tên.",
   "hr.e.name.long": "Tên không quá 120 ký tự.",

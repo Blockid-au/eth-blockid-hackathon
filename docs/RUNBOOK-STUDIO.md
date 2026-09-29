@@ -75,10 +75,10 @@ Blockscout: `cd deploy/blockscout && sudo docker compose --env-file /opt/blockid
 - **Google:** set `GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com` in `/opt/blockid/app.env` (OAuth client of type
   *Web application*, authorised JavaScript origin `https://eth.blockid.au`, no redirect URI needed), then recreate
   `agents-api`. The API verifies the ID token (`studio/accounts.py`) and links `google:<sub>` to the browser key's address.
-- **Email from info@blockid.au** (`studio/mailer.py`, Google Workspace): either
-  `SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=info@blockid.au SMTP_PASSWORD=<App Password>` or the Workspace SMTP
+- **Email from admin@blockid.au** (`studio/mailer.py`, Google Workspace): either
+  `SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_USER=admin@blockid.au SMTP_PASSWORD=<App Password>` or the Workspace SMTP
   relay `SMTP_HOST=smtp-relay.gmail.com` with this VM's IP 34.151.170.203 (ephemeral, see "Public IP changes") allow-listed (no user/password).
-  `MAIL_FROM="BlockID Business Passport <info@blockid.au>"`; replies go to info@blockid.au. Test as admin:
+  `MAIL_FROM="BlockID Business Passport <admin@blockid.au>"`; replies go to admin@blockid.au. Test as admin:
   `POST /api/v1/admin/mail/test {"to": "..."}`. A welcome email is sent on the first Google sign-in.
 - CSP allows `https://accounts.google.com/gsi/*` (copy of the live snippet: `deploy/nginx/blockid-security-headers.conf`).
 - First-visit check: `scripts/screenshots/try-demo.mjs` (home → Try it now → portfolio → account → /start).
@@ -93,7 +93,7 @@ Plan: [PLAN-OPS.md](PLAN-OPS.md) · per-incident fixes: [RUNBOOK-INCIDENTS.md](R
   one per fingerprint), recovery resolves them. Emails go to `OPS_ALERT_TO`: critical immediately, warnings batched
   every 15 min, a reminder after 2 h if not acknowledged, one on resolve, at most 10 an hour.
 - **Without SMTP** everything is stored and shown in Admin > Ops with "not emailed — SMTP not configured". Once
-  `SMTP_*` is set (see "Email from info@blockid.au" above) and `agents-api` is recreated, open incidents and the
+  `SMTP_*` is set (see "Email from admin@blockid.au" above) and `agents-api` is recreated, open incidents and the
   latest report (< 8 days) are sent on the next round. Test: Admin > Ops > Send test email, or
   `POST /api/v1/admin/ops/test-email`.
 - **Worker heartbeat:** `agents-worker` writes `studio.ops_checks_state` row `_hb:worker` every 30 s.
