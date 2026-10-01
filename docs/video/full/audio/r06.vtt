@@ -1,0 +1,12 @@
+1
+00:00:00,050 --> 00:00:02,919
+Nothing moves further until a person approves it.
+
+2
+00:00:02,919 --> 00:00:11,954
+The admin console lists every waiting item in flow order: valuations, issuance, chain sync, new shares, dividends, updates and offerings.
+
+3
+00:00:11,954 --> 00:00:16,383
+Approvals are signed by an admin wallet, and only then does the issuer act.
+

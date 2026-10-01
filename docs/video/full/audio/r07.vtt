@@ -1,0 +1,8 @@
+1
+00:00:00,050 --> 00:00:08,942
+After approval, the isolated issuer, the only part with a key, creates the share register on BlockID chain and copies it to Ethereum Hoodi and HashKey Chain.
+
+2
+00:00:08,942 --> 00:00:13,990
+This cap table is read straight from the chain: every holder, wallet and share count.
+

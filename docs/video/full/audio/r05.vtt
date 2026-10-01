@@ -1,0 +1,16 @@
+1
+00:00:00,050 --> 00:00:07,026
+The result is a plain valuation report: a grade from A to E, a business score, and a low, mid and high value.
+
+2
+00:00:07,026 --> 00:00:11,335
+Each part explains its score, and every figure links to the page it came from.
+
+3
+00:00:11,335 --> 00:00:14,680
+A finding that cites a page the agent never read is dropped.
+
+4
+00:00:14,680 --> 00:00:16,669
+No source, no number.
+

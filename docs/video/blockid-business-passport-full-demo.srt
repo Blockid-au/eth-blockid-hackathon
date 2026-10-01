@@ -1,0 +1,459 @@
+1
+00:00:00,650 --> 00:00:03,650
+Hi, we are BlockID, from Sydney.
+
+2
+00:00:03,650 --> 00:00:05,760
+This is BlockID Business Passport:
+
+3
+00:00:05,760 --> 00:00:07,745
+know the business you invest in.
+
+4
+00:00:07,745 --> 00:00:10,381
+In the next few minutes we'll show the core features,
+
+5
+00:00:10,381 --> 00:00:12,718
+the user flow for investors and for businesses,
+
+6
+00:00:12,718 --> 00:00:15,602
+the technology underneath, and where the project is today.
+
+7
+00:00:16,550 --> 00:00:18,061
+Why does this matter?
+
+8
+00:00:18,061 --> 00:00:20,423
+Investing in a business is hard to follow,
+
+9
+00:00:20,423 --> 00:00:22,335
+and the numbers are hard to trust.
+
+10
+00:00:22,335 --> 00:00:25,257
+After you invest, you lose sight of sales,
+
+11
+00:00:25,257 --> 00:00:26,788
+profit and new shares.
+
+12
+00:00:26,788 --> 00:00:28,532
+Ownership sits in a spreadsheet,
+
+13
+00:00:28,532 --> 00:00:31,038
+so your stake can shrink and nobody tells you.
+
+14
+00:00:31,038 --> 00:00:33,835
+And dividends are slow, or never arrive.
+
+15
+00:00:34,778 --> 00:00:37,230
+So we built one passport per business.
+
+16
+00:00:37,230 --> 00:00:39,287
+Every investor can understand it,
+
+17
+00:00:39,287 --> 00:00:41,033
+follow it, own it, get paid,
+
+18
+00:00:41,033 --> 00:00:42,778
+and check it for themselves.
+
+19
+00:00:43,742 --> 00:00:46,828
+This is the live app at eth dot blockid dot au,
+
+20
+00:00:46,828 --> 00:00:48,075
+running on testnet.
+
+21
+00:00:48,075 --> 00:00:50,531
+There is no sign-up and no wallet to install:
+
+22
+00:00:50,531 --> 00:00:53,968
+on your first visit you land in a shared demo investor account,
+
+23
+00:00:53,968 --> 00:00:54,896
+with sample data.
+
+24
+00:00:54,896 --> 00:00:57,092
+My portfolio shows every business you hold,
+
+25
+00:00:57,092 --> 00:00:59,952
+what your shares are worth at the latest approved price,
+
+26
+00:00:59,952 --> 00:01:02,301
+and the dividends already paid to your wallet.
+
+27
+00:01:03,266 --> 00:01:04,623
+Open a holding.
+
+28
+00:01:04,623 --> 00:01:06,449
+You see your shares and your stake,
+
+29
+00:01:06,449 --> 00:01:09,319
+a price that only moves when a new value is checked and
+
+30
+00:01:09,319 --> 00:01:11,614
+approved, the dividends paid to your wallet,
+
+31
+00:01:11,614 --> 00:01:13,388
+and the business updates: revenue,
+
+32
+00:01:13,388 --> 00:01:14,849
+gross profit and net result.
+
+33
+00:01:14,849 --> 00:01:17,980
+Every investor gets the same update at the same time.
+
+34
+00:01:18,926 --> 00:01:23,104
+Now the business side, which is also how an investor checks any business.
+
+35
+00:01:23,104 --> 00:01:24,485
+Paste a website.
+
+36
+00:01:24,485 --> 00:01:26,117
+We check the address first,
+
+37
+00:01:26,117 --> 00:01:27,628
+then the research starts.
+
+38
+00:01:27,628 --> 00:01:30,783
+A business can add its own numbers to improve the result.
+
+39
+00:01:31,730 --> 00:01:33,838
+Research runs as a team of AI agents,
+
+40
+00:01:33,838 --> 00:01:35,946
+and each step reports as it finishes:
+
+41
+00:01:35,946 --> 00:01:38,510
+read the website, build the business profile,
+
+42
+00:01:38,510 --> 00:01:42,556
+find competitors and market data within a fixed budget of web searches,
+
+43
+00:01:42,556 --> 00:01:44,265
+analyse the market, and score.
+
+44
+00:01:44,265 --> 00:01:46,218
+The agents hold no keys.
+
+45
+00:01:46,218 --> 00:01:48,003
+They can only propose.
+
+46
+00:01:48,950 --> 00:01:51,517
+The result is a plain valuation report:
+
+47
+00:01:51,517 --> 00:01:52,833
+a grade from A to E,
+
+48
+00:01:52,833 --> 00:01:54,676
+a business score, and a low,
+
+49
+00:01:54,676 --> 00:01:55,926
+mid and high value.
+
+50
+00:01:55,926 --> 00:01:57,549
+Each part explains its score,
+
+51
+00:01:57,549 --> 00:02:00,235
+and every figure links to the page it came from.
+
+52
+00:02:00,235 --> 00:02:03,580
+A finding that cites a page the agent never read is dropped.
+
+53
+00:02:03,580 --> 00:02:05,569
+No source, no number.
+
+54
+00:02:06,530 --> 00:02:09,399
+Nothing moves further until a person approves it.
+
+55
+00:02:09,399 --> 00:02:13,214
+The admin console lists every waiting item in flow order:
+
+56
+00:02:13,214 --> 00:02:16,225
+valuations, issuance, chain sync, new shares,
+
+57
+00:02:16,225 --> 00:02:18,434
+dividends, updates and offerings.
+
+58
+00:02:18,434 --> 00:02:20,828
+Approvals are signed by an admin wallet,
+
+59
+00:02:20,828 --> 00:02:22,863
+and only then does the issuer act.
+
+60
+00:02:23,822 --> 00:02:25,901
+After approval, the isolated issuer,
+
+61
+00:02:25,901 --> 00:02:27,344
+the only part with a key,
+
+62
+00:02:27,344 --> 00:02:31,328
+creates the share register on BlockID chain and copies it to Ethereum
+
+63
+00:02:31,328 --> 00:02:32,714
+Hoodi and HashKey Chain.
+
+64
+00:02:32,714 --> 00:02:35,538
+This cap table is read straight from the chain:
+
+65
+00:02:35,538 --> 00:02:37,762
+every holder, wallet and share count.
+
+66
+00:02:38,714 --> 00:02:42,041
+From the same workspace, a business can open a share offering,
+
+67
+00:02:42,041 --> 00:02:45,475
+and investors see the dilution before any new shares are issued.
+
+68
+00:02:45,475 --> 00:02:47,737
+A dividend rule is approved once.
+
+69
+00:02:47,737 --> 00:02:49,809
+After twenty-four hours to cancel,
+
+70
+00:02:49,809 --> 00:02:51,454
+it is paid to every wallet,
+
+71
+00:02:51,454 --> 00:02:52,856
+and holders pay no gas.
+
+72
+00:02:53,822 --> 00:02:54,738
+Check it.
+
+73
+00:02:54,738 --> 00:02:56,012
+Don't trust us.
+
+74
+00:02:56,012 --> 00:02:59,427
+The verify page hashes the full report in your browser and compares
+
+75
+00:02:59,427 --> 00:03:01,822
+it with the hash recorded on three blockchains.
+
+76
+00:03:01,822 --> 00:03:03,143
+All three match.
+
+77
+00:03:03,143 --> 00:03:06,060
+Now change one number, and the check turns red.
+
+78
+00:03:07,010 --> 00:03:09,769
+On HashKey Chain we run the real-world asset stack:
+
+79
+00:03:09,769 --> 00:03:13,773
+identity registry, share token, dividend distributor and cap table anchor,
+
+80
+00:03:13,773 --> 00:03:18,371
+plus our AgentProvenance contract, which records which agent proposed each action and
+
+81
+00:03:18,371 --> 00:03:19,724
+which person approved it.
+
+82
+00:03:20,678 --> 00:03:22,761
+Investors also back people.
+
+83
+00:03:22,761 --> 00:03:24,805
+Our second app, BlockID HR,
+
+84
+00:03:24,805 --> 00:03:26,773
+reviews the founding team.
+
+85
+00:03:26,773 --> 00:03:29,166
+It reads public professional information,
+
+86
+00:03:29,166 --> 00:03:30,742
+and a CV when one is given,
+
+87
+00:03:30,742 --> 00:03:33,136
+then checks each requirement of the role:
+
+88
+00:03:33,136 --> 00:03:34,887
+met, partly met, or not found,
+
+89
+00:03:34,887 --> 00:03:37,047
+and whether the evidence is verified.
+
+90
+00:03:37,047 --> 00:03:39,196
+Not found is never treated as false,
+
+91
+00:03:39,196 --> 00:03:41,404
+and every score links to its sources.
+
+92
+00:03:42,362 --> 00:03:45,623
+Under the hood, only approved actions reach the chain.
+
+93
+00:03:45,623 --> 00:03:48,123
+AI analysis runs with no keys.
+
+94
+00:03:48,123 --> 00:03:50,552
+An admin wallet signs one approval.
+
+95
+00:03:50,552 --> 00:03:52,897
+Only then does the isolated issuer act,
+
+96
+00:03:52,897 --> 00:03:56,385
+and AgentProvenance records who proposed and who approved.
+
+97
+00:03:56,385 --> 00:03:57,814
+Agents propose.
+
+98
+00:03:57,814 --> 00:03:59,121
+Humans approve.
+
+99
+00:03:59,121 --> 00:04:00,481
+Chains prove.
+
+100
+00:04:01,430 --> 00:04:02,965
+Where are we today?
+
+101
+00:04:02,965 --> 00:04:04,981
+The whole flow runs live on testnet,
+
+102
+00:04:04,981 --> 00:04:08,341
+with fourteen sample listings built from public information,
+
+103
+00:04:08,341 --> 00:04:11,029
+forty-two share token contracts on three chains,
+
+104
+00:04:11,029 --> 00:04:12,989
+and every report verified on chain.
+
+105
+00:04:12,989 --> 00:04:17,017
+Since the Sydney demo we added founding team reviews with CV checks,
+
+106
+00:04:17,017 --> 00:04:20,394
+an improved valuation model, and terms and privacy pages.
+
+107
+00:04:20,394 --> 00:04:24,108
+More than five hundred automated tests run on every change.
+
+108
+00:04:24,108 --> 00:04:26,144
+We have no real users yet.
+
+109
+00:04:27,098 --> 00:04:30,561
+Next: our first pilot businesses in Australia and Vietnam,
+
+110
+00:04:30,561 --> 00:04:34,740
+investor communities, and licensed partners for custody and offerings.
+
+111
+00:04:34,740 --> 00:04:36,169
+Agents propose.
+
+112
+00:04:36,169 --> 00:04:37,476
+Humans approve.
+
+113
+00:04:37,476 --> 00:04:38,836
+Chains prove.
+
+114
+00:04:38,836 --> 00:04:41,728
+Try it yourself at eth dot blockid dot au.
+
+115
+00:04:41,728 --> 00:04:42,752
+Thank you.
