@@ -9,9 +9,9 @@ r06	rec:admin	A person approves every step, signed by an admin wallet. Only then
 r07	rec:captable	The share register lives on BlockID chain, mirrored to Ethereum and HashKey Chain.
 r08	rec:offering	Businesses open offerings with the dilution shown first, and dividends reach every wallet with no gas.
 r09	rec:verify	Don't trust us. Your browser checks the report against three blockchains. Change one number, and it turns red.
-m02	slide:deck-09	What does each side get? Investors get a checked value, the same update at the same time, proof of ownership, and dividends on time. In return, the business keeps a live share register, as Australian and Vietnamese law already require, reports on schedule, and has a person approve every new share and dividend.
-m03	slide:deck-10	This also prepares for tokenised assets. On-chain real-world assets grew from about seven to thirty-nine billion dollars in nineteen months, and Citi expects five and a half trillion by 2030. New rules demand proper custody. In BlockID, keys sit only in an isolated issuer, every holder is verified, and a licensed custodian can plug in.
-r10	rec:hsk	On HashKey Chain, AgentProvenance records which agent proposed, and which person approved.
+m02	slide:deck-09	Investors get a checked value, the same update at the same time, proof of ownership, and dividends on time. In return, the business keeps a live share register, as the law already requires, reports on schedule, and has every new share approved.
+m03	slide:deck-10	On-chain real-world assets grew from about seven to thirty-nine billion dollars in nineteen months, and Citi expects five and a half trillion by 2030. New rules demand proper custody: in BlockID, keys sit only in an isolated issuer, and a licensed custodian can plug in.
 r11	rec:hr	BlockID HR checks the founding team: each requirement against public sources and the CV.
+t01	slide:deck-12	Who builds it? Founder Do Van Long and co-founder Truong Quoc Tuan, both former CTOs of major Vietnamese corporations and holders of Australia's Global Talent visa, lead a tech team in Vietnam and a business team in Sydney, built to scale globally.
 p01	slide:progress	Today the full flow runs on testnet: fourteen sample listings, forty-two token contracts on three chains, every report verified, and over five hundred tests. No real users yet.
 s09	slide:close	Next: pilot businesses in Australia and Vietnam, investor communities, and licensed custody partners. Agents propose. Humans approve. Chains prove. Try it at eth dot blockid dot au.

@@ -1,4 +1,4 @@
-// BlockID Business Passport — 3-minute investor pitch (12 slides, one message each, plain words).
+// BlockID Business Passport — 3-minute investor pitch (13 slides, one message each, plain words).
 // Copy follows docs/FACTS.md (Messaging). Screenshots: live eth.blockid.au, 27 Sep 2026 (img/bp-*.png).
 // Founder contact QR: img/founder-qr.jpg (owner-supplied image) is placed as-is (never resized out of ratio, cropped or re-encoded).
 const fs = require("fs");
@@ -15,7 +15,7 @@ const C = {
   teal: "22A07F", mint: "7FE0C2", gold: "E3A83A", blue: "5D8AD6", red: "E4675A", purple: "9B7BD4",
 };
 const H = "Arial", B = "Calibri";
-const N = 12;
+const N = 13;
 
 async function icon(Comp, color = "#FFFFFF", size = 256) {
   const svg = ReactDOMServer.renderToStaticMarkup(React.createElement(Comp, { color, size: String(size) }));
@@ -45,6 +45,26 @@ async function img(file, box) {
       shadow: { type: "outer", color: "000000", blur: 14, offset: 5, angle: 90, opacity: 0.5 } });
     s.addImage({ data: im.data, x, y, w, h });
     return { w, h };
+  };
+
+  // live screenshot of eth.blockid.au (img/live-*.png, 1440x900 @2x, light theme) inside a browser window with its real URL
+  async function live(name, crop = {}) {
+    const f = `img/live-${name}.png`, m = await sharp(f).metadata();
+    const b = { left: 0, top: 0, width: m.width, height: m.height, ...Object.fromEntries(Object.entries(crop).map(([k, v]) => [k, v * 2])) };
+    b.height = Math.min(b.height, m.height - b.top);
+    const buf = await sharp(f).extract(b).png().toBuffer();
+    return { data: "image/png;base64," + buf.toString("base64"), ratio: b.width / b.height };
+  }
+  const browser = (s, im, x, y, w, url) => {
+    const bar = 0.3, h = w / im.ratio;
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: x - 0.04, y: y - 0.04, w: w + 0.08, h: h + bar + 0.08, fill: { color: "D9DFDD" }, line: { color: "D9DFDD" }, rectRadius: 0.07,
+      shadow: { type: "outer", color: "000000", blur: 16, offset: 6, angle: 90, opacity: 0.55 } });
+    s.addShape(pres.shapes.RECTANGLE, { x, y, w, h: bar, fill: { color: "ECEFEE" }, line: { color: "ECEFEE" } });
+    ["FF5F57", "FEBC2E", "28C840"].forEach((c, i) => s.addShape(pres.shapes.OVAL, { x: x + 0.12 + i * 0.17, y: y + 0.095, w: 0.11, h: 0.11, fill: { color: c }, line: { color: c } }));
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: x + 0.7, y: y + 0.05, w: Math.min(w - 0.9, 4.2), h: 0.2, fill: { color: "FFFFFF" }, line: { color: "D9DFDD" }, rectRadius: 0.05 });
+    T(s, url, { x: x + 0.8, y: y + 0.05, w: Math.min(w - 1.0, 4.0), h: 0.2, fontSize: 8.5, color: "4A5A56", valign: "middle" });
+    s.addImage({ data: im.data, x, y: y + bar, w, h });
+    return { w, h: h + bar };
   };
   const dot = async (s, Comp, x, y, d, fill) => {
     s.addShape(pres.shapes.OVAL, { x, y, w: d, h: d, fill: { color: fill }, line: { color: fill } });
@@ -77,6 +97,11 @@ async function img(file, box) {
   };
 
   const logo = await img("logo-mark-transparent.png");
+  const L = {
+    portfolio: await live("portfolio"), position: await live("position"), updates: await live("position-updates"),
+    report: await live("report-score"), cap: await live("captable"), admin: await live("admin"), hsk: await live("hsk"),
+    ok: await live("verify-ok", { top: 160, height: 640 }), bad: await live("verify-bad", { top: 160, height: 640 }),
+  };
   const I = {
     hero: await img("bp-hero.png", { top: 120, height: 1180 }),
     card: await img("bp-hero-card.png"),
@@ -99,8 +124,8 @@ async function img(file, box) {
     "and dividends paid straight to their wallet.", { x: 0.55, y: 3.85, w: 5.9, h: 1.9, fontSize: 17, color: C.muted, valign: "top" });
   rr(s, 0.55, 5.95, 5.9, 0.6, C.card2, C.teal);
   T(s, "Understand it  ·  Follow it  ·  Own it  ·  Get paid  ·  Check it", { x: 0.55, y: 5.95, w: 5.9, h: 0.6, fontSize: 15, bold: true, color: C.mint, align: "center", valign: "middle" });
-  const hs = shot(s, I.hero, 6.6, 1.55, 6.25);
-  const hy = 1.55 + hs.h + 0.3;
+  const hs = browser(s, L.portfolio, 6.85, 1.5, 5.75, "eth.blockid.au/i  ·  demo investor account");
+  const hy = 1.5 + hs.h + 0.25;
   [["14", "sample listings (demo data)"], ["42", "share records on blockchain"], ["3", "blockchains, every record checkable"]].forEach(([n, l], i) => {
     const x = 6.6 + i * 2.13; rr(s, x, hy, 1.99, 1.05, C.card);
     T(s, n, { x: x + 0.15, y: hy + 0.08, w: 1.7, h: 0.5, fontFace: H, fontSize: 22, bold: true, color: i === 1 ? C.gold : C.teal });
@@ -164,15 +189,15 @@ async function img(file, box) {
     T(s, t, { x: 1.5, y, w: 1.8, h: 0.85, fontFace: H, fontSize: 17, bold: true, color: c, valign: "middle" });
     T(s, d, { x: 3.3, y, w: 3.75, h: 0.85, fontSize: 14, color: C.text, valign: "middle" });
   }
-  shot(s, I.card, 8.1, 1.75, 4.4, 5.0);
-  T(s, "What a shareholder sees", { x: 7.6, y: 6.75, w: 5.4, h: 0.3, fontSize: 11.5, color: C.dim, align: "center", italic: true });
+  browser(s, L.position, 7.45, 1.8, 5.35, "eth.blockid.au/i/demo/EBA");
+  T(s, "What a shareholder sees: the live demo account", { x: 7.6, y: 6.75, w: 5.4, h: 0.3, fontSize: 11.5, color: C.dim, align: "center", italic: true });
   foot(s);
 
   s.addNotes("[0:42–0:52] So we built one passport per business. Every investor can understand it, follow it, own it, get paid, and check it for themselves.");
   // ============ 5. Understand it
   s = newSlide();
   head(s, 5, "Understand it", "A fair value you can trace, approved by a person.");
-  shot(s, I.report, 0.55, 1.75, 7.2, 5.1);
+  browser(s, L.report, 0.55, 1.75, 7.4, "eth.blockid.au/v/be5a8a832b474459/report  ·  Canva");
   rr(s, 8.2, 1.75, 4.6, 5.05, C.card);
   point(s, 8.45, 2.0, 4.2, "Paste a website. Get a plain report in minutes.");
   point(s, 8.45, 2.8, 4.2, "Clear business score A–E and a low · mid · high value.");
@@ -185,7 +210,7 @@ async function img(file, box) {
   // ============ 6. Own it
   s = newSlide();
   head(s, 6, "Own it", "Your shares are on the record. The record is your proof.", C.purple);
-  shot(s, I.cap, 0.55, 1.75, 6.4, 5.1);
+  browser(s, L.cap, 0.55, 1.75, 6.65, "eth.blockid.au/c/ARW/cap-table");
   rr(s, 7.4, 1.75, 5.4, 5.05, C.card);
   point(s, 7.65, 2.0, 5.0, "Every holder, wallet and share count in one share register.", C.purple);
   point(s, 7.65, 2.8, 5.0, "Recorded on blockchain and copied to two public blockchains.", C.purple);
@@ -198,7 +223,7 @@ async function img(file, box) {
   // ============ 7. Follow it + get paid
   s = newSlide();
   head(s, 7, "Follow it · Get paid", "Same update for everyone. Dividends to your wallet.", C.gold);
-  shot(s, I.card, 0.9, 1.75, 4.3, 5.05);
+  browser(s, L.updates, 0.55, 1.8, 5.1, "eth.blockid.au/i/demo/EBA");
   const steps = [
     ["1", "Business shares its numbers", "weekly, monthly, quarterly or yearly", C.blue],
     ["2", "Plain-language update + fair value", "a person approves it before it goes out", C.teal],
@@ -219,8 +244,8 @@ async function img(file, box) {
   // ============ 8. Check it
   s = newSlide();
   head(s, 8, "Check it", "Don't trust us. Check it yourself, in your browser.", C.mint);
-  const v = shot(s, I.ok, 0.55, 1.8, 5.95);
-  shot(s, I.bad, 6.85, 1.8, 5.95);
+  const v = browser(s, L.ok, 0.55, 1.8, 5.95, "eth.blockid.au/verify/EBA");
+  browser(s, L.bad, 6.85, 1.8, 5.95, "eth.blockid.au/verify/EBA  ·  tamper test");
   const yv = 1.8 + v.h + 0.35;
   rr(s, 0.55, yv, 5.95, 0.7, C.card2, C.teal);
   T(s, "✓  The report matches the record on 3 blockchains", { x: 0.75, y: yv, w: 5.6, h: 0.7, fontSize: 15, bold: true, color: C.teal, valign: "middle" });
@@ -233,7 +258,6 @@ async function img(file, box) {
     await dot(s, vs[i][0], x + 0.15, y + 0.12, 0.56, i === 2 ? C.teal : C.blue);
     T(s, vs[i][1], { x: x + 0.85, y, w: 3.0, h: 0.8, fontSize: 13.5, color: C.text, valign: "middle" });
   }
-  T(s, "No login needed: eth.blockid.au/verify", { x: 0.55, y: yv + 1.95, w: 12.2, h: 0.4, fontSize: 16, bold: true, color: C.mint, align: "center" });
   foot(s);
 
 
@@ -283,69 +307,64 @@ async function img(file, box) {
   s.addNotes("[1:57–2:15] This also prepares for tokenised assets. Tokenised real-world assets on-chain grew from about seven to thirty-nine billion dollars in nineteen months (rwa.xyz), and Citi expects five and a half trillion by 2030. New rules in Europe, Vietnam and Australia require proper custody. In BlockID, keys sit only in an isolated issuer, every holder is verified, every record is anchored on three chains, and a licensed custodian can plug in.");
   // ============ 11. Architecture: how the layers talk
   s = newSlide();
-  head(s, 11, "How it's built", "Two blockchain layers. Only approved actions reach them.", C.blue);
-  const lab = (y, h, t, sub, c) => {
-    rr(s, 0.55, y, 1.75, h, C.card2, c, 0.08);
-    T(s, [{ text: t, options: { fontFace: H, fontSize: 12.5, bold: true, color: c, breakLine: true } },
-      { text: sub, options: { fontSize: 9.5, color: C.muted } }], { x: 0.62, y, w: 1.62, h, align: "center", valign: "middle", paraSpaceBefore: 2 });
-  };
-  const box = (x, y, w, h, t, sub, c, fill = C.card) => {
-    rr(s, x, y, w, h, fill, c, 0.08);
-    T(s, t, { x: x + 0.1, y: y + 0.07, w: w - 0.2, h: 0.34, fontFace: H, fontSize: 12.5, bold: true, color: c, align: "center" });
-    if (sub) T(s, sub, { x: x + 0.1, y: y + 0.4, w: w - 0.2, h: h - 0.45, fontSize: 9.5, color: C.text, align: "center", valign: "top" });
-  };
-  const line = (x1, y1, x2, y2, c = C.muted, both = false) =>
-    s.addShape(pres.shapes.LINE, { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1) || 0.001, h: Math.abs(y2 - y1) || 0.001,
-      flipH: x2 < x1, flipV: y2 < y1, line: { color: c, width: 1.75, endArrowType: "triangle", beginArrowType: both ? "triangle" : undefined } });
-  const tag = (x, y, w, t, c) => T(s, t, { x, y, w, h: 0.26, fontSize: 9, italic: true, color: c, align: "center" });
-
-  // row A: people
-  lab(1.62, 0.72, "PEOPLE", "who uses it", C.mint);
-  box(2.5, 1.62, 2.55, 0.72, "Investors", "portfolio · updates · dividends", C.mint);
-  box(5.2, 1.62, 2.55, 0.72, "Businesses", "list · shareholders · updates", C.mint);
-  box(7.9, 1.62, 2.55, 0.72, "Approvers", "a person signs every step", C.gold);
-  // row B: app + services
-  lab(2.62, 1.05, "APP & SERVICES", "off-chain, no keys except issuer", C.teal);
-  box(2.5, 2.62, 1.9, 1.05, "Web app", "eth.blockid.au\nGoogle · browser key · MetaMask", C.teal);
-  box(4.55, 2.62, 1.9, 1.05, "Analysis", "AI reads sources,\nformula sets value\n(no keys)", C.teal);
-  box(6.6, 2.62, 1.75, 1.05, "Approval", "admin wallet signs\none approval", C.gold);
-  box(8.5, 2.62, 1.95, 1.05, "Issuer", "only key holder\nisolated network\nacts on approved rows", C.red);
-  line(4.41, 3.15, 4.54, 3.15); line(6.46, 3.15, 6.59, 3.15); line(8.36, 3.15, 8.49, 3.15);
-  line(3.45, 2.35, 3.45, 2.61, C.muted, true); line(6.47, 2.35, 6.47, 2.61, C.muted, true); line(9.17, 2.35, 9.17, 2.61, C.muted, true);
-  // row C: layer 1
-  lab(3.97, 1.2, "LAYER 1", "BlockID EVM · chain 262626", C.teal);
-  rr(s, 2.5, 3.97, 7.95, 1.2, "10302A", C.teal, 0.08);
-  T(s, "BlockID Chain — the share register of record  ·  gas price 0", { x: 2.65, y: 4.02, w: 7.7, h: 0.34, fontFace: H, fontSize: 13, bold: true, color: C.teal });
-  ["Identity registry\n(KYC holders)", "Share token\n1 token = 1 share", "Dividends\npaid in mAUD", "Report hash\nfair value proof"].forEach((t, i) => {
-    rr(s, 2.65 + i * 1.95, 4.42, 1.8, 0.65, C.card2, C.line, 0.06);
-    T(s, t, { x: 2.65 + i * 1.95, y: 4.42, w: 1.8, h: 0.65, fontSize: 10, color: C.text, align: "center", valign: "middle" });
+  head(s, 11, "How it's built", "Agents propose. Humans approve. Chains prove.", C.blue);
+  browser(s, L.admin, 0.55, 1.75, 6.05, "eth.blockid.au/admin  ·  a person approves");
+  browser(s, L.hsk, 6.75, 1.75, 6.05, "eth.blockid.au/hsk  ·  HashKey Chain, chain 133");
+  const flow = [["AI agents propose", "research and value; no keys, no network path to keys", C.teal],
+    ["A person approves", "admin wallet signs one approval, four-eyes rule on chain", C.gold],
+    ["Isolated issuer acts", "only key holder; writes BlockID Chain, mirrors Ethereum + HashKey", C.purple]];
+  flow.forEach(([t, d, c], i) => {
+    const x = 0.55 + i * 4.13;
+    rr(s, x, 6.0, 3.95, 0.82, C.card, c);
+    T(s, t, { x: x + 0.18, y: 6.04, w: 3.6, h: 0.36, fontFace: H, fontSize: 14, bold: true, color: c });
+    T(s, d, { x: x + 0.18, y: 6.4, w: 3.65, h: 0.38, fontSize: 10.5, color: C.muted });
+    if (i < 2) T(s, "→", { x: x + 3.93, y: 6.0, w: 0.22, h: 0.82, fontSize: 16, bold: true, color: C.muted, align: "center", valign: "middle" });
   });
-  line(9.47, 3.68, 9.47, 3.96, C.red);
-  tag(9.5, 3.68, 1.0, "signs", C.red);
-  // row D: layer 2 + ethereum
-  lab(5.47, 1.2, "LAYER 2", "HashKey Chain · chain 133", C.gold);
-  rr(s, 2.5, 5.47, 5.25, 1.2, "2A2412", C.gold, 0.08);
-  T(s, "HashKey Chain — public proof for real-world assets", { x: 2.65, y: 5.52, w: 5.0, h: 0.34, fontFace: H, fontSize: 13, bold: true, color: C.gold });
-  ["Mirror share token\n(same balances)", "Cap-table root\n(Merkle)", "Agent provenance\n(who proposed)"].forEach((t, i) => {
-    rr(s, 2.65 + i * 1.7, 5.92, 1.58, 0.65, C.card2, C.line, 0.06);
-    T(s, t, { x: 2.65 + i * 1.7, y: 5.92, w: 1.58, h: 0.65, fontSize: 9.5, color: C.text, align: "center", valign: "middle" });
-  });
-  box(7.9, 5.47, 2.55, 1.2, "Ethereum", "Hoodi testnet · chain 560048\nmirror token + cap-table root\n(public anchor)", C.blue);
-  line(5.1, 5.18, 5.1, 5.46, C.gold); tag(5.2, 5.18, 2.4, "sync: same balances + root", C.gold);
-  line(9.17, 5.18, 9.17, 5.46, C.blue);
-  // right: proof column
-  rr(s, 10.7, 1.62, 2.1, 5.05, C.card2, C.mint, 0.1);
-  await dot(s, fa.FaMagnifyingGlass, 11.45, 1.8, 0.6, C.teal);
-  T(s, "Anyone checks", { x: 10.8, y: 2.5, w: 1.9, h: 0.35, fontFace: H, fontSize: 13.5, bold: true, color: C.mint, align: "center" });
-  T(s, "/verify recomputes the report hash in the browser and reads it from all 3 chains.\n\nExplorers:\nscan.blockid.au\nHashKey · Etherscan\n\nMatch = ✓\nAny change = ✗",
-    { x: 10.85, y: 2.9, w: 1.8, h: 3.6, fontSize: 10.5, color: C.text, align: "center", valign: "top" });
-  line(10.46, 4.57, 10.69, 4.57, C.mint); line(10.46, 6.07, 10.69, 6.07, C.mint);
   foot(s);
 
-  s.addNotes("[2:15–2:35] Under the hood, only approved actions reach the chain. AI runs with no keys, an admin wallet signs one approval, and only then does the isolated issuer act. Our AgentProvenance contract on HashKey Chain records who proposed and who approved. Agents propose. Humans approve. Chains prove.");
-  // ============ 12. Live today + business model + ask
+  s.addNotes("[2:15–2:30] Under the hood, only approved actions reach the chain. AI runs with no keys, an admin wallet signs one approval, and only then does the isolated issuer act. Our AgentProvenance contract on HashKey Chain records who proposed and who approved. Agents propose. Humans approve. Chains prove.");
+  // ============ 12. Team: who executes (owner-confirmed facts, docs/TEAM.md)
   s = newSlide();
-  head(s, 12, "Working today · The ask", "Working on testnet. Looking for our first pilot businesses."); 
+  head(s, 12, "The team", "Built by founders who have run tech at scale.", C.mint);
+  const people = [
+    ["DL", "Do Van Long", "Founder & CEO", C.teal, [
+      "Former CTO of major Vietnamese corporations",
+      "Founded Vietnam Blockchain Corporation (2016) and Auschain (Sydney)",
+      "Built Agridential, national-scale blockchain traceability"]],
+    ["TT", "Truong Quoc Tuan", "Co-founder", C.gold, [
+      "Former CTO of major Vietnamese corporations",
+      "Capital-markets experience (Dragon Capital Group)",
+      "Investor, partner and finance side of BlockID"]],
+  ];
+  people.forEach(([ini, name, role, c, pts], i) => {
+    const x = 0.55 + i * 6.2;
+    rr(s, x, 1.7, 6.05, 3.2, C.card, c);
+    s.addShape(pres.shapes.OVAL, { x: x + 0.3, y: 1.95, w: 0.95, h: 0.95, fill: { color: c }, line: { color: c } });
+    T(s, ini, { x: x + 0.3, y: 1.95, w: 0.95, h: 0.95, fontFace: H, fontSize: 24, bold: true, align: "center", valign: "middle", color: C.bg });
+    T(s, name, { x: x + 1.45, y: 1.95, w: 4.4, h: 0.45, fontFace: H, fontSize: 21, bold: true });
+    T(s, role, { x: x + 1.45, y: 2.42, w: 4.4, h: 0.35, fontSize: 14, color: c, bold: true });
+    pts.forEach((t, j) => point(s, x + 0.3, 3.1 + j * 0.42, 5.6, t, c, 13));
+    rr(s, x + 0.3, 4.35, 5.45, 0.38, C.card2, c, 0.08);
+    T(s, "Australia Global Talent visa (subclass 858)", { x: x + 0.3, y: 4.35, w: 5.45, h: 0.38, fontSize: 12.5, bold: true, color: C.text, align: "center", valign: "middle" });
+  });
+  const teams = [
+    [fa.FaCode, "Tech team in Vietnam", "Blockchain, AI and fintech engineers (Vietnam Blockchain Corporation, since 2016)", C.blue],
+    [fa.FaHandshake, "Business team in Sydney", "Pilots, partners and licensing in Australia (Auschain)", C.gold],
+    [fa.FaLayerGroup, "Built end to end, in house", "Smart contracts, AI agents, key-holding issuer, web app, 3 chains", C.teal],
+  ];
+  for (let i = 0; i < teams.length; i++) {
+    const [ic, t, d, c] = teams[i], x = 0.55 + i * 4.13;
+    rr(s, x, 5.1, 3.95, 1.6, C.card);
+    await dot(s, ic, x + 0.2, 5.28, 0.6, c);
+    T(s, t, { x: x + 0.95, y: 5.25, w: 2.9, h: 0.42, fontFace: H, fontSize: 14, bold: true, color: c });
+    T(s, d, { x: x + 0.95, y: 5.68, w: 2.9, h: 0.95, fontSize: 11.5, color: C.muted, valign: "top" });
+  }
+  foot(s);
+  s.addNotes("[2:30–2:45] Who builds it? Founder Do Van Long and co-founder Truong Quoc Tuan are both former CTOs of major Vietnamese corporations and hold Australia's Global Talent visa. A strong tech team in Vietnam and a business team in Sydney built this whole system in house, ready to grow globally.");
+
+  // ============ 13. Live today + business model + ask
+  s = newSlide();
+  head(s, 13, "Working today · The ask", "Working on testnet. Looking for our first pilot businesses."); 
   const st = [["14", "sample listings built from public data"], ["42", "share records on blockchain"], ["3", "blockchains, every record checkable"], ["Next", "first real pilots in AU · VN"]];
   st.forEach((x, i) => {
     const X = 0.55 + i * 2.05; rr(s, X, 1.75, 1.9, 1.45, C.card);
@@ -380,7 +399,7 @@ async function img(file, box) {
   T(s, "linkedin.com/in/dovanlong", { x: 8.95, y: 6.17, w: 3.6, h: 0.35, fontSize: 11.5, color: C.dim });
   foot(s);
 
-  s.addNotes("[2:35–3:00] The whole flow works on testnet today, with fourteen sample listings built from public information and forty-two token contracts on three chains. We have no real users yet. Next: pilot businesses in Australia and Vietnam, investor communities and licensed custody partners. Businesses pay a listing fee, a register subscription, and small transfer and dividend fees. Try it at eth.blockid.au. Thank you.");
+  s.addNotes("[2:45–3:00] The whole flow works on testnet today: fourteen sample listings and forty-two token contracts on three chains, with no real users yet. Next: pilot businesses in Australia and Vietnam, investor communities and licensed custody partners. Businesses pay a listing fee, a register subscription and small transfer and dividend fees. Try it at eth.blockid.au. Thank you.");
   const out = "out/BlockID-Business-Passport-3min.pptx";
   await pres.writeFile({ fileName: out });
   console.log("written", out);

@@ -8,6 +8,13 @@ public sources; the owner confirms or corrects every line before publishing (Lin
 | **Do Van Long** | Co-founder & CEO | 80 % |
 | **Truong Quoc Tuan** | Co-founder | 20 % |
 
+## Owner-confirmed (1 Oct 2026, used on deck slide 12 "The team")
+- Both co-founders are **former CTOs of major Vietnamese corporations**.
+- Both hold the **Australia Global Talent visa (subclass 858)**, to build global fintech, blockchain and AI products from Australia.
+- **Tech team in Vietnam** (Vietnam Blockchain Corporation engineers: blockchain, AI, fintech) and a **business team in
+  Sydney** (Auschain: pilots, partners, licensing) that is growing.
+- The whole system in this repo (contracts, AI agents, key-holding issuer, web app, three chains) was built in house.
+
 ## Do Van Long — co-founder & CEO
 - Founder & CEO of **Vietnam Blockchain Corporation** (VBC, Ho Chi Minh City, founded Oct 2016): blockchain R&D and
   solutions for agriculture, supply chain, logistics, e-commerce, fintech and public services

@@ -27,18 +27,19 @@ LEAD, TAIL, XF, END_HOLD, FPS = 0.6, 0.7, 0.4, 2.5, 30
 FFMPEG = ["sudo", "docker", "run", "--rm", "--user", f"{os.getuid()}:{os.getgid()}", "-v", f"{OUT}:/w",
           "-v", "/usr/share/fonts/truetype/liberation:/fonts:ro",
           "jrottenberg/ffmpeg:6.1-alpine"]
-LABELS = {
-    "r01": "Investor  ·  My portfolio",
-    "r02": "Investor  ·  One holding",
-    "r03": "Business  ·  Paste a website",
-    "r04": "AI research  ·  agents hold no keys",
-    "r05": "Valuation report  ·  every figure sourced",
-    "r06": "Human approval  ·  admin console",
-    "r07": "Share register read from the chain",
-    "r08": "Offerings and dividends",
-    "r09": "Check it  ·  verify on 3 chains",
-    "r10": "HashKey Chain  ·  RWA stack",
-    "r11": "BlockID HR  ·  founding-team review",
+# on-screen message for each recorded scene: (feature label, the one line a muted viewer should take away)
+HEADS = {
+    "r01": ("Investor portal · live on testnet", "Every holding at its approved value. Dividends already in the wallet."),
+    "r02": ("One holding", "Your stake, a checked price, and the same update as every investor."),
+    "r03": ("For businesses", "Paste a website. Get an evidence-based valuation in minutes."),
+    "r04": ("AI research", "AI agents research the business. They hold no keys, they only propose."),
+    "r05": ("Valuation report", "Grade A–E and a value range. Every number links to its source."),
+    "r06": ("Human approval", "Nothing reaches the chain until a person approves it."),
+    "r07": ("Share register on blockchain", "Ownership read straight from the chain, not from a spreadsheet."),
+    "r08": ("Offerings and dividends", "Dilution shown before new shares. Dividends to every wallet, no gas."),
+    "r09": ("Check it yourself", "Your browser checks 3 blockchains. Change one number: it turns red."),
+    "r10": ("HashKey Chain", "On-chain proof of which agent proposed and which person approved."),
+    "r11": ("BlockID HR · founding team", "Know the people: each claim checked against public sources."),
 }
 
 
@@ -110,20 +111,30 @@ def durations() -> dict[str, float]:
     return d
 
 
-def label_png(text: str, path: Path) -> None:
+def band_png(cid: str, path: Path) -> None:
+    """1920x1080 frame overlay: dark surround + bottom message band (recording sits in a 1536x864 window above)."""
     from PIL import Image, ImageDraw, ImageFont
-    font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 30)
-    tw = int(ImageDraw.Draw(Image.new("RGBA", (1, 1))).textlength(text, font=font))
-    im = Image.new("RGBA", (tw + 76, 64), (0, 0, 0, 0))
+    lab, msg = HEADS.get(cid, (cid, ""))
+    bold = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+    im = Image.new("RGBA", (1920, 1080), (10, 19, 17, 255))
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle((0, 0, im.width - 1, 63), radius=32, fill=(10, 19, 17, 225), outline=(34, 160, 127, 255), width=3)
-    d.ellipse((24, 25, 38, 39), fill=(127, 224, 194, 255))
-    d.text((52, 14), text, font=font, fill=(242, 247, 245, 255))
+    d.rectangle((192, 24, 192 + 1536 - 1, 24 + 864 - 1), fill=(0, 0, 0, 0))  # window for the recording
+    d.rounded_rectangle((188, 20, 192 + 1536 + 3, 24 + 864 + 3), radius=10, outline=(37, 64, 58, 255), width=4)
+    d.rectangle((192, 24, 192 + 1536 - 1, 24 + 864 - 1), fill=(0, 0, 0, 0))
+    fl, fm, fb = ImageFont.truetype(bold, 26), ImageFont.truetype(bold, 46), ImageFont.truetype(bold, 22)
+    d.ellipse((192, 919, 210, 937), fill=(127, 224, 194, 255))
+    d.text((224, 912), lab.upper(), font=fl, fill=(34, 160, 127, 255))
+    size = 46
+    while d.textlength(msg, font=fm) > 1536 and size > 30:
+        size -= 2; fm = ImageFont.truetype(bold, size)
+    d.text((192, 958), msg, font=fm, fill=(242, 247, 245, 255))
+    brand = "BlockID Business Passport  ·  eth.blockid.au"
+    d.text((192 + 1536 - d.textlength(brand, font=fb), 914), brand, font=fb, fill=(126, 148, 143, 255))
     im.save(path)
 
 
 def render_clip(cid: str, dur: float) -> Path:
-    """Frames (variable timing) -> constant-fps mp4 of exactly dur seconds, label chip bottom-right."""
+    """Frames (variable timing) -> constant-fps mp4 of exactly dur seconds, framed above the message band."""
     d = HERE / f"clips{SFX}" / cid
     meta = json.loads((d / "frames.json").read_text())
     frames = meta["frames"]
@@ -135,12 +146,12 @@ def render_clip(cid: str, dur: float) -> Path:
         lines += [f"file '{name}'", f"duration {max(0.001, min(nxt, dur) - t):.4f}"]
     lines.append(f"file '{frames[min(len(frames), len(lines) // 2) - 1][0]}'")
     (d / "list.txt").write_text("\n".join(lines) + "\n")
-    lab = HERE / f"clips{SFX}" / f"{cid}-label.png"
-    label_png(LABELS.get(cid, cid), lab)
+    lab = HERE / f"clips{SFX}" / f"{cid}-band.png"
+    band_png(cid, lab)
     out = HERE / f"clips{SFX}" / f"{cid}.mp4"
     ff("-f", "concat", "-safe", "0", "-i", w(d / "list.txt"), "-i", w(lab),
-       "-filter_complex", f"[0:v]scale=1920:1080:flags=lanczos,setsar=1,fps={FPS},tpad=stop_mode=clone:stop_duration=30,"
-       f"trim=duration={dur:.3f}[b];[b][1:v]overlay=W-w-40:H-h-40:format=auto,format=yuv420p[v]",
+       "-filter_complex", f"[0:v]scale=1536:864:flags=lanczos,setsar=1,fps={FPS},tpad=stop_mode=clone:stop_duration=30,"
+       f"trim=duration={dur:.3f},pad=1920:1080:192:24:color=0x0A1311[b];[b][1:v]overlay=0:0:format=auto,format=yuv420p[v]",
        "-map", "[v]", "-c:v", "libx264", "-preset", "medium", "-crf", "16", "-r", str(FPS), w(out))
     return out
 
@@ -199,7 +210,7 @@ def main() -> None:
        "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
        "-movflags", "+faststart", w(clean))
     style = ("FontName=Liberation Sans,FontSize=11,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,"
-             "BackColour=&H99000000,BorderStyle=4,Outline=1,Shadow=0,MarginV=32,MarginL=40,MarginR=40")
+             "BackColour=&H99000000,BorderStyle=4,Outline=1,Shadow=0,MarginV=56,MarginL=40,MarginR=40")
     ff("-i", w(clean), "-vf", f"subtitles=/w/{NAME}.srt:fontsdir=/fonts:force_style='{style}'", "-c:v", "libx264", "-preset",
        "medium", "-crf", "19", "-c:a", "copy", "-movflags", "+faststart", w(OUT / f"{NAME}-captions.mp4"))
     print("total", round(total, 1), "s ->", clean)
