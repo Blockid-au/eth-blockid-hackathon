@@ -7,8 +7,13 @@ import fs from "node:fs";
 
 const APP = process.env.APP_URL || "https://eth.blockid.au";
 const HR = process.env.HR_URL || "https://hr.blockid.au";
-const OUT = "clips";
-const DUR = JSON.parse(fs.readFileSync("durations.json", "utf8"));
+const CUT = process.env.CUT || "full";
+const SFX = CUT === "full" ? "" : "-" + CUT;
+const OUT = "clips" + SFX;
+const DUR = JSON.parse(fs.readFileSync(`durations${SFX}.json`, "utf8"));
+// shorter cuts replay the same actions faster: K = this cut's scene length / the full cut's
+const FULL = JSON.parse(fs.readFileSync("durations.json", "utf8"));
+let K = 1;
 const only = process.argv.slice(2);
 
 const CURSOR = `
@@ -32,11 +37,11 @@ const CURSOR = `
   if (document.body) add(); else addEventListener('DOMContentLoaded', add);
 })();`;
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms * K));
 let mouse = { x: 720, y: 400 };
 
 async function move(p, x, y, steps = 30) {
-  await p.mouse.move(x, y, { steps });
+  await p.mouse.move(x, y, { steps: Math.max(6, Math.round(steps * K)) });
   mouse = { x, y };
 }
 async function moveTo(p, loc, steps = 30) {
@@ -62,7 +67,7 @@ async function scroll(p, dy, ms) {
       };
       requestAnimationFrame(f);
     });
-  }, [dy, ms]);
+  }, [dy, ms * K]);
 }
 async function goto(p, url) {
   await p.goto(url, { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
@@ -214,6 +219,8 @@ const b = await chromium.launch({ args: ["--hide-scrollbars", "--font-render-hin
 for (const [id, fn] of Object.entries(CLIPS)) {
   if (only.length && !only.includes(id)) continue;
   const target = DUR[id];
+  if (target === undefined) continue;
+  K = Math.min(1, target / (FULL[id] || target));
   const ctx = await b.newContext({ viewport: { width: 1440, height: 810 }, deviceScaleFactor: 4 / 3, colorScheme: "light", locale: "en-AU" });
   await ctx.addInitScript(CURSOR);
   const p = await ctx.newPage();

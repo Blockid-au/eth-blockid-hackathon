@@ -20,7 +20,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent
-NAME = "blockid-business-passport-full-demo"
+CUT = os.environ.get("CUT", "full")  # "full" (4:46) or "3min"
+SFX = "" if CUT == "full" else "-" + CUT
+NAME = "blockid-business-passport-full-demo" if CUT == "full" else f"blockid-business-passport-demo-{CUT}"
 LEAD, TAIL, XF, END_HOLD, FPS = 0.6, 0.7, 0.4, 2.5, 30
 FFMPEG = ["sudo", "docker", "run", "--rm", "--user", f"{os.getuid()}:{os.getgid()}", "-v", f"{OUT}:/w",
           "-v", "/usr/share/fonts/truetype/liberation:/fonts:ro",
@@ -97,14 +99,14 @@ def split_cue(a: float, b: float, text: str, max_words: int = 12) -> list[tuple[
 
 
 def rows() -> list[list[str]]:
-    return [line.split("\t") for line in (HERE / "narration.tsv").read_text().splitlines() if line.strip()]
+    return [line.split("\t") for line in (HERE / f"narration{SFX}.tsv").read_text().splitlines() if line.strip()]
 
 
 def durations() -> dict[str, float]:
     rs = rows()
     d = {}
     for i, r in enumerate(rs):
-        d[r[0]] = LEAD + probe(HERE / "audio" / f"{r[0]}.mp3") + TAIL + (END_HOLD if i == len(rs) - 1 else 0)
+        d[r[0]] = LEAD + probe(HERE / f"audio{SFX}" / f"{r[0]}.mp3") + TAIL + (END_HOLD if i == len(rs) - 1 else 0)
     return d
 
 
@@ -122,7 +124,7 @@ def label_png(text: str, path: Path) -> None:
 
 def render_clip(cid: str, dur: float) -> Path:
     """Frames (variable timing) -> constant-fps mp4 of exactly dur seconds, label chip bottom-right."""
-    d = HERE / "clips" / cid
+    d = HERE / f"clips{SFX}" / cid
     meta = json.loads((d / "frames.json").read_text())
     frames = meta["frames"]
     lines = []
@@ -133,9 +135,9 @@ def render_clip(cid: str, dur: float) -> Path:
         lines += [f"file '{name}'", f"duration {max(0.001, min(nxt, dur) - t):.4f}"]
     lines.append(f"file '{frames[min(len(frames), len(lines) // 2) - 1][0]}'")
     (d / "list.txt").write_text("\n".join(lines) + "\n")
-    lab = HERE / "clips" / f"{cid}-label.png"
+    lab = HERE / f"clips{SFX}" / f"{cid}-label.png"
     label_png(LABELS.get(cid, cid), lab)
-    out = HERE / "clips" / f"{cid}.mp4"
+    out = HERE / f"clips{SFX}" / f"{cid}.mp4"
     ff("-f", "concat", "-safe", "0", "-i", w(d / "list.txt"), "-i", w(lab),
        "-filter_complex", f"[0:v]scale=1920:1080:flags=lanczos,setsar=1,fps={FPS},tpad=stop_mode=clone:stop_duration=30,"
        f"trim=duration={dur:.3f}[b];[b][1:v]overlay=W-w-40:H-h-40:format=auto,format=yuv420p[v]",
@@ -146,7 +148,7 @@ def render_clip(cid: str, dur: float) -> Path:
 def main() -> None:
     if "--durations" in sys.argv:
         d = durations()
-        (HERE / "durations.json").write_text(json.dumps({k: round(v, 3) for k, v in d.items()}, indent=1))
+        (HERE / f"durations{SFX}.json").write_text(json.dumps({k: round(v, 3) for k, v in d.items()}, indent=1))
         print(json.dumps(d, indent=1), "total", round(sum(d.values()) - XF * (len(d) - 1), 1))
         return
     rs = rows()
@@ -156,7 +158,7 @@ def main() -> None:
     for r in rs:
         kind, name = r[1].split(":")
         if kind == "rec":
-            seg.append(HERE / "clips" / f"{r[0]}.mp4" if "--captions-only" in sys.argv else render_clip(r[0], dur[r[0]]))
+            seg.append(HERE / f"clips{SFX}" / f"{r[0]}.mp4" if "--captions-only" in sys.argv else render_clip(r[0], dur[r[0]]))
         else:
             seg.append(HERE / "slides" / f"slide-{name}.png")
     D = [dur[r[0]] for r in rs]
@@ -165,7 +167,7 @@ def main() -> None:
 
     srt, k = [], 1
     for i, r in enumerate(rs):
-        for a0, b0, t0 in parse_cues((HERE / "audio" / f"{r[0]}.vtt").read_text()):
+        for a0, b0, t0 in parse_cues((HERE / f"audio{SFX}" / f"{r[0]}.vtt").read_text()):
           for a, b, t in split_cue(a0, b0, t0):
             srt.append(f"{k}\n{srt_time(starts[i] + LEAD + a)} --> {srt_time(starts[i] + LEAD + b)}\n{t}\n")
             k += 1
@@ -178,7 +180,7 @@ def main() -> None:
         else:
             inputs += ["-i", w(s)]
     for r in rs:
-        inputs += ["-i", w(HERE / "audio" / f"{r[0]}.mp3")]
+        inputs += ["-i", w(HERE / f"audio{SFX}" / f"{r[0]}.mp3")]
     f = [f"[{i}:v]scale=1920:1080,setsar=1,fps={FPS},format=yuv420p[s{i}]" for i in range(n)]
     prev, off = "s0", 0.0
     for i in range(1, n):

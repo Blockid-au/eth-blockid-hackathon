@@ -1,0 +1,16 @@
+s01	slide:1	This is BlockID Business Passport, from Sydney: know the business you invest in. Every shareholder, large or small, gets a live view of the business they own, a share register on blockchain, and dividends paid straight to their wallet.
+s02	slide:2	Today, investors lose sight of a business the day they invest. The numbers are hard to trust, ownership sits in a spreadsheet, and dividends are slow, or never arrive.
+r01	rec:portfolio	This is the live app, on testnet. No sign-up: you land in a demo investor account with sample data. My portfolio shows each holding at the latest approved price, and the dividends paid.
+r02	rec:position	Each holding shows your stake, a price that only moves when a new value is approved, and the business updates every investor gets at the same time.
+r03	rec:start	A business, or an investor, starts by pasting a website.
+r04	rec:research	AI agents read the site, find competitors and analyse the market, step by step. They hold no keys. They can only propose.
+r05	rec:report	The report gives a grade, a business score and a value range. Every figure links to its source. No source, no number.
+r06	rec:admin	A person approves every step in the admin console, signed by an admin wallet. Only then does the issuer act.
+r07	rec:captable	The isolated issuer creates the share register on BlockID chain and copies it to Ethereum and HashKey Chain. This cap table is read straight from the chain.
+r08	rec:offering	Businesses can open share offerings with the dilution shown first, and dividends are paid to every wallet, with no gas for holders.
+r09	rec:verify	Don't trust us. Your browser hashes the report and compares it with three blockchains. Change one number, and it turns red.
+r10	rec:hsk	On HashKey Chain, our AgentProvenance contract records which agent proposed each action, and which person approved it.
+r11	rec:hr	BlockID HR reviews the founding team. Each requirement of the role is checked against public sources and the CV: met, partly met, or not found.
+s08	slide:8	Agents propose. Humans approve. Chains prove. AI runs with no keys, one admin approval unlocks the issuer, and every step is recorded on chain.
+p01	slide:progress	Today the whole flow runs live on testnet: fourteen sample listings, forty-two token contracts on three chains, every report verified on chain, and more than five hundred tests. We have no real users yet.
+s09	slide:close	Next: our first pilot businesses in Australia and Vietnam, investor communities and licensed partners. Try it at eth dot blockid dot au. Thank you.

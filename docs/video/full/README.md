@@ -1,4 +1,15 @@
-# Full demo video (EAG Global Buildathon, online round)
+# Demo videos: full (4:46) and 3-minute cut
+
+Two cuts from one pipeline. Pick the cut with `CUT=full` (default) or `CUT=3min`:
+
+| Cut | Narration | Audio · clips | Output |
+|---|---|---|---|
+| full, 4:46 | `narration.tsv` (17 scenes, edge-tts rate +5 %) | `audio/` · `clips/` | `blockid-business-passport-full-demo*.mp4` |
+| 3 min, 2:45 (for "max 3 minutes" rules) | `narration-3min.tsv` (16 scenes, rate +0 %) | `audio-3min/` · `clips-3min/` | `blockid-business-passport-demo-3min*.mp4` · https://eth.blockid.au/deck/blockid-business-passport-demo-3min-captions.mp4 |
+
+The 3-minute cut replays the same recorded actions faster (each scene's speed = its length ÷ the full cut's).
+
+## Full cut (EAG Global Buildathon, online round)
 
 About 4:45, 1920×1080. It covers what the organisers asked for: the core features, the user flow (investor and
 business), the technical highlights and the current progress. It mixes deck slides, two new slides (`slides/progress.html`,
@@ -29,6 +40,9 @@ sudo chown -R $(id -u):$(id -g) clips
 python3 build.py                                   # Docker ffmpeg -> ../blockid-business-passport-full-demo*.mp4
 cp ../blockid-business-passport-full-demo* ../../../web/app/public/deck/
 ```
+
+3-minute cut: same steps with `CUT=3min` (`--rate=+0%`, `narration-3min.tsv`, `audio-3min/`; pass `-e CUT=3min`
+to the Playwright container; copy `../blockid-business-passport-demo-3min*`).
 
 `slides/slide-{1,2,3,8}.png` come from `../bp3/slides` (the 3-minute deck). To re-render the two new slides, run
 `slides/render.mjs` in the same Playwright container.
