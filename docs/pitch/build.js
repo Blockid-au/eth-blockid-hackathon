@@ -65,6 +65,7 @@ async function full(file) {
     { x: 0.6, y: 7.05, w: 12.1, h: 0.3, fontSize: 9.5, color: C.dim, align: "right" });
 
   const logo = await full("logo.png");
+  const linkedinCard = await full("linkedin-qr-card.png");
   const S = {
     hero: await crop("01-home-hero.png", { height: 1800 }),
     radar: await full("09-valuation-radar-contribution.png"),
@@ -276,10 +277,13 @@ async function full(file) {
   txt(s, "Try it now.", { x: 3.1, y: 0.9, w: 9.5, h: 0.9, fontFace: H, fontSize: 40, bold: true });
   txt(s, "Know what your startup is worth, and who owns it.", { x: 3.1, y: 1.85, w: 9.5, h: 0.5, fontSize: 20, italic: true, color: C.teal });
   card(s, 0.6, 3.25, 7.3, 3.45);
-  txt(s, "Long Do (Đỗ Văn Long)", { x: 0.9, y: 3.45, w: 6.8, h: 0.45, fontFace: H, fontSize: 19, bold: true });
-  txt(s, "Founder & CEO, Auschain Pty Ltd (BlockID.au, StartupValueIndex.com)", { x: 0.9, y: 3.9, w: 6.8, h: 0.4, fontSize: 13.5, color: C.gold });
+  txt(s, "Long Do (Đỗ Văn Long)", { x: 0.9, y: 3.45, w: 4.6, h: 0.45, fontFace: H, fontSize: 19, bold: true });
+  txt(s, "Founder & CEO, Auschain Pty Ltd (BlockID.au, StartupValueIndex.com)", { x: 0.9, y: 3.9, w: 4.6, h: 0.4, fontSize: 13, color: C.gold });
   const bio = ["23+ years in IT; founder of Vietnam Blockchain Corporation — 50+ blockchain projects, 45+ awards", "National-scale deployments: Agridential, CovidPass.vn (with Vietnam's Ministry of Health)", "DBA candidate, SSBM Geneva — thesis: the Startup Value Index (SVI)"];
-  txt(s, bio.map((t, j) => ({ text: t, options: { bullet: true, breakLine: j < bio.length - 1 } })), { x: 0.9, y: 4.4, w: 6.8, h: 2.1, fontSize: 13.5, color: C.text, paraSpaceAfter: 8, valign: "top" });
+  txt(s, bio.map((t, j) => ({ text: t, options: { bullet: true, breakLine: j < bio.length - 1 } })), { x: 0.9, y: 4.38, w: 4.5, h: 2.15, fontSize: 13, color: C.text, paraSpaceAfter: 7, valign: "top" });
+  s.addImage({ data: linkedinCard.data, x: 5.65, y: 3.45, w: 2.05, h: 2.05 });
+  txt(s, "Connect on LinkedIn", { x: 5.65, y: 5.65, w: 2.05, h: 0.3, fontSize: 11, color: C.teal, bold: true, align: "center" });
+  txt(s, "Scan to connect with Long Do", { x: 5.65, y: 5.95, w: 2.05, h: 0.3, fontSize: 9.5, color: C.dim, align: "center" });
   card(s, 8.2, 3.25, 4.5, 3.45, C.card2);
   const qr = await QRCode.toBuffer("https://eth.blockid.au", { width: 600, margin: 1, color: { dark: "#0A1311", light: "#FFFFFF" } });
   s.addImage({ data: "image/png;base64," + qr.toString("base64"), x: 8.5, y: 3.5, w: 1.75, h: 1.75 });

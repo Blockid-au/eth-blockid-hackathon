@@ -58,6 +58,7 @@ async function img(file, { top = 0, height } = {}) {
   const foot = (s) => T(s, "eth.blockid.au  ·  Testnet demo, not an offer of securities", { x: 0.55, y: 7.08, w: 12.2, h: 0.28, fontSize: 9.5, color: C.dim, align: "right" });
 
   const logo = await img("logo.png");
+  const linkedinQr = await img("linkedin-qr.png");
   const I = {
     hero: await img("01-home-hero.png", { height: 1800 }),
     wizard: await img("07-new-wizard-step1.png", { height: 1500 }),
@@ -193,13 +194,17 @@ async function img(file, { top = 0, height } = {}) {
   T(s, "Fees: issuance · cap-table SaaS · transfers · dividends", { x: 5.35, y: 6.25, w: 3.6, h: 0.4, fontSize: 11.5, color: C.muted });
   rr(s, 9.35, 1.8, 3.45, 4.95, C.card2, C.teal);
   const qr = await QRCode.toBuffer("https://eth.blockid.au", { width: 600, margin: 1, color: { dark: "#0A1311", light: "#FFFFFF" } });
-  s.addImage({ data: "image/png;base64," + qr.toString("base64"), x: 10.12, y: 2.05, w: 1.9, h: 1.9 });
-  T(s, "Try it now", { x: 9.5, y: 4.1, w: 3.15, h: 0.45, fontFace: H, fontSize: 20, bold: true, align: "center" });
-  T(s, "eth.blockid.au", { x: 9.5, y: 4.55, w: 3.15, h: 0.35, fontSize: 14, color: C.teal, align: "center", bold: true });
-  T(s, "Looking for: pilot startups, accelerators, licensed partners", { x: 9.55, y: 5.05, w: 3.05, h: 0.8, fontSize: 12.5, color: C.text, align: "center" });
-  T(s, "Long Do · long@blockid.au", { x: 9.5, y: 5.95, w: 3.15, h: 0.32, fontSize: 12, color: C.muted, align: "center" });
+  s.addImage({ data: "image/png;base64," + qr.toString("base64"), x: 9.55, y: 1.95, w: 1.4, h: 1.4 });
+  T(s, "App Demo", { x: 9.55, y: 3.4, w: 1.4, h: 0.28, fontSize: 10.5, bold: true, color: C.teal, align: "center" });
+  T(s, "eth.blockid.au", { x: 9.55, y: 3.65, w: 1.4, h: 0.25, fontSize: 8.5, color: C.dim, align: "center" });
+  s.addImage({ data: linkedinQr.data, x: 11.2, y: 1.95, w: 1.4, h: 1.4 });
+  T(s, "LinkedIn", { x: 11.2, y: 3.4, w: 1.4, h: 0.28, fontSize: 10.5, bold: true, color: C.gold, align: "center" });
+  T(s, "Long Do", { x: 11.2, y: 3.65, w: 1.4, h: 0.25, fontSize: 8.5, color: C.dim, align: "center" });
+  T(s, "Try it & Connect", { x: 9.5, y: 4.05, w: 3.15, h: 0.4, fontFace: H, fontSize: 18, bold: true, align: "center" });
+  T(s, "Looking for: pilot startups, accelerators, licensed partners", { x: 9.55, y: 4.55, w: 3.05, h: 0.75, fontSize: 12, color: C.text, align: "center" });
+  T(s, "Long Do · long@blockid.au", { x: 9.5, y: 5.65, w: 3.15, h: 0.32, fontSize: 12, color: C.muted, align: "center" });
   T(s, [{ text: "linkedin.com/in/dovanlong", options: { hyperlink: { url: "https://www.linkedin.com/in/dovanlong", tooltip: "Long Do on LinkedIn" } } }],
-    { x: 9.5, y: 6.27, w: 3.15, h: 0.32, fontSize: 12, color: C.teal, align: "center", bold: true });
+    { x: 9.5, y: 6.02, w: 3.15, h: 0.32, fontSize: 12, color: C.teal, align: "center", bold: true });
   foot(s);
   s.addNotes("[2:25–3:00] This is live today: twelve real companies, thirty-six token contracts on three chains, A$87 billion of valuation on-chain, every hash verified. Our full demo run took Canva from its website to a share register on three chains, a new round, a dividend and a shareholder transfer in eleven minutes. Our customers are founders, accelerators and licensed intermediaries who issue and administer startup equity. Scan the code and try it at eth.blockid.au — we're looking for pilot startups and licensed partners. Thank you.");
 
