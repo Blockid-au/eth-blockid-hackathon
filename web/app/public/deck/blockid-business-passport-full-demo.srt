@@ -395,65 +395,97 @@ Humans approve.
 Chains prove.
 
 100
-00:04:01,430 --> 00:04:02,965
-Where are we today?
+00:04:01,430 --> 00:04:02,608
+Who builds it?
 
 101
-00:04:02,965 --> 00:04:04,981
-The whole flow runs live on testnet,
+00:04:02,608 --> 00:04:06,361
+Founder Do Van Long and co-founder Truong Quoc Tuan are both former
 
 102
-00:04:04,981 --> 00:04:08,341
-with fourteen sample listings built from public information,
+00:04:06,361 --> 00:04:08,490
+CTOs of major Vietnamese corporations,
 
 103
-00:04:08,341 --> 00:04:11,029
-forty-two share token contracts on three chains,
+00:04:08,490 --> 00:04:11,011
+and both hold Australia's Global Talent visa,
 
 104
-00:04:11,029 --> 00:04:12,989
-and every report verified on chain.
+00:04:11,011 --> 00:04:14,596
+to build global fintech, blockchain and AI products from Sydney.
 
 105
-00:04:12,989 --> 00:04:17,017
-Since the Sydney demo we added founding team reviews with CV checks,
+00:04:14,596 --> 00:04:17,722
+A strong tech team in Vietnam and a business team in Australia
 
 106
-00:04:17,017 --> 00:04:20,394
-an improved valuation model, and terms and privacy pages.
+00:04:17,722 --> 00:04:19,385
+built this whole system in house,
 
 107
-00:04:20,394 --> 00:04:24,108
-More than five hundred automated tests run on every change.
+00:04:19,385 --> 00:04:21,049
+and it is ready to grow globally.
 
 108
-00:04:24,108 --> 00:04:26,144
-We have no real users yet.
+00:04:22,010 --> 00:04:23,545
+Where are we today?
 
 109
-00:04:27,098 --> 00:04:30,561
-Next: our first pilot businesses in Australia and Vietnam,
+00:04:23,545 --> 00:04:25,561
+The whole flow runs live on testnet,
 
 110
-00:04:30,561 --> 00:04:34,740
-investor communities, and licensed partners for custody and offerings.
+00:04:25,561 --> 00:04:28,921
+with fourteen sample listings built from public information,
 
 111
-00:04:34,740 --> 00:04:36,169
-Agents propose.
+00:04:28,921 --> 00:04:31,609
+forty-two share token contracts on three chains,
 
 112
-00:04:36,169 --> 00:04:37,476
-Humans approve.
+00:04:31,609 --> 00:04:33,569
+and every report verified on chain.
 
 113
-00:04:37,476 --> 00:04:38,836
-Chains prove.
+00:04:33,569 --> 00:04:37,597
+Since the Sydney demo we added founding team reviews with CV checks,
 
 114
-00:04:38,836 --> 00:04:41,728
-Try it yourself at eth dot blockid dot au.
+00:04:37,597 --> 00:04:40,974
+an improved valuation model, and terms and privacy pages.
 
 115
-00:04:41,728 --> 00:04:42,752
+00:04:40,974 --> 00:04:44,688
+More than five hundred automated tests run on every change.
+
+116
+00:04:44,688 --> 00:04:46,724
+We have no real users yet.
+
+117
+00:04:47,678 --> 00:04:51,141
+Next: our first pilot businesses in Australia and Vietnam,
+
+118
+00:04:51,141 --> 00:04:55,320
+investor communities, and licensed partners for custody and offerings.
+
+119
+00:04:55,320 --> 00:04:56,749
+Agents propose.
+
+120
+00:04:56,749 --> 00:04:58,056
+Humans approve.
+
+121
+00:04:58,056 --> 00:04:59,416
+Chains prove.
+
+122
+00:04:59,416 --> 00:05:02,308
+Try it yourself at eth dot blockid dot au.
+
+123
+00:05:02,308 --> 00:05:03,332
 Thank you.
