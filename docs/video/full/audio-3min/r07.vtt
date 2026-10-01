@@ -1,8 +1,4 @@
 1
-00:00:00,050 --> 00:00:06,362
-The isolated issuer creates the share register on BlockID chain and copies it to Ethereum and HashKey Chain.
-
-2
-00:00:06,362 --> 00:00:09,225
-This cap table is read straight from the chain.
+00:00:00,050 --> 00:00:04,883
+The share register lives on BlockID chain, mirrored to Ethereum and HashKey Chain.
 

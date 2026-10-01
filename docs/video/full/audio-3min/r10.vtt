@@ -1,4 +1,4 @@
 1
-00:00:00,050 --> 00:00:07,000
-On HashKey Chain, our AgentProvenance contract records which agent proposed each action, and which person approved it.
+00:00:00,050 --> 00:00:05,609
+On HashKey Chain, AgentProvenance records which agent proposed, and which person approved.
 

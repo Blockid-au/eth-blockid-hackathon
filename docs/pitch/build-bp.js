@@ -1,4 +1,4 @@
-// BlockID Business Passport — 3-minute investor pitch (8 slides, one message each, plain words).
+// BlockID Business Passport — 3-minute investor pitch (12 slides, one message each, plain words).
 // Copy follows docs/FACTS.md (Messaging). Screenshots: live eth.blockid.au, 27 Sep 2026 (img/bp-*.png).
 // Founder contact QR: img/founder-qr.jpg (owner-supplied image) is placed as-is (never resized out of ratio, cropped or re-encoded).
 const fs = require("fs");
@@ -15,7 +15,7 @@ const C = {
   teal: "22A07F", mint: "7FE0C2", gold: "E3A83A", blue: "5D8AD6", red: "E4675A", purple: "9B7BD4",
 };
 const H = "Arial", B = "Calibri";
-const N = 9;
+const N = 12;
 
 async function icon(Comp, color = "#FFFFFF", size = 256) {
   const svg = ReactDOMServer.renderToStaticMarkup(React.createElement(Comp, { color, size: String(size) }));
@@ -62,6 +62,20 @@ async function img(file, box) {
     { x: 0.55, y: 7.08, w: 12.2, h: 0.28, fontSize: 9.5, color: C.dim, align: "right" });
   const newSlide = () => { const s = pres.addSlide(); s.background = { color: C.bg }; return s; };
 
+  // shared look for native charts on the dark deck: one series, teal marks, muted axis text, no grid
+  const chartBase = (o) => ({
+    chartColors: [C.teal], showLegend: false, showValue: true, dataLabelColor: C.text, dataLabelFontSize: 12, dataLabelFontBold: true,
+    catAxisLabelColor: C.muted, catAxisLabelFontSize: 11, catAxisLabelFontFace: B, valAxisHidden: true,
+    valGridLine: { style: "none" }, catGridLine: { style: "none" }, catAxisLineShow: false, valAxisLineShow: false,
+    plotArea: { fill: { color: C.card } }, chartArea: { fill: { color: C.card } }, barGapWidthPct: 55, ...o,
+  });
+  const src = (s, t, x, y, w) => T(s, t, { x, y, w, h: 0.45, fontSize: 8.5, color: C.dim, valign: "top" });
+  const tile = (s, x, y, w, h, big, t, color = C.teal) => {
+    rr(s, x, y, w, h, C.card);
+    T(s, big, { x: x + 0.2, y: y + 0.12, w: w - 0.4, h: 0.6, fontFace: H, fontSize: 26, bold: true, color });
+    T(s, t, { x: x + 0.2, y: y + 0.72, w: w - 0.4, h: h - 0.8, fontSize: 11.5, color: C.muted, valign: "top" });
+  };
+
   const logo = await img("logo-mark-transparent.png");
   const I = {
     hero: await img("bp-hero.png", { top: 120, height: 1180 }),
@@ -94,8 +108,8 @@ async function img(file, box) {
   });
   T(s, "Working end to end on testnet at eth.blockid.au", { x: 6.6, y: hy + 1.2, w: 6.25, h: 0.35, fontSize: 13, color: C.dim, align: "center", italic: true });
   foot(s);
-  s.addNotes("[0:00–0:20] Know the business you invest in. BlockID Business Passport gives every shareholder, large or small, a live view of the business they own: updates and valuations analysed by AI and approved by a person, a share register on blockchain as proof of ownership, and dividends paid straight to their wallet.");
 
+  s.addNotes("[0:00–0:12] Know the business you invest in. BlockID Business Passport gives every shareholder, large or small, a live view of the business they own: checked updates and valuations, a share register on blockchain as proof of ownership, and dividends paid straight to their wallet.");
   // ============ 2. Problem
   s = newSlide();
   head(s, 2, "The problem", "Investing in a business is hard to follow.", C.red);
@@ -114,11 +128,27 @@ async function img(file, box) {
   }
   T(s, "Big or small, most investors in a business face the same four gaps.", { x: 0.55, y: 6.2, w: 12.2, h: 0.5, fontSize: 18, color: C.gold, bold: true });
   foot(s);
-  s.addNotes("[0:20–0:40] Whether you put in a thousand dollars or a million, investing in a business is hard to follow. You don't really understand it, you lose sight of it after you invest, you're not sure what you own — your stake can shrink and nobody tells you — and dividends are slow or never arrive.");
 
-  // ============ 3. What investors get
+  s.addNotes("[0:12–0:24] Today investors lose sight of a business the day they invest. The numbers are hard to trust, ownership sits in a spreadsheet, so a stake can shrink without notice, and dividends are slow or never arrive.");
+  // ============ 3. Market: size and the unmet need (sources: docs/MARKET-EVIDENCE.md)
   s = newSlide();
-  head(s, 3, "The solution", "One passport per business. Five things every investor gets.");
+  head(s, 3, "The market", "Trillions in private businesses. Investors still can't see inside.", C.gold);
+  rr(s, 0.55, 1.7, 7.25, 4.95, C.card);
+  T(s, "How big is it? (US$ trillion)", { x: 0.8, y: 1.82, w: 6.8, h: 0.35, fontFace: H, fontSize: 14, bold: true });
+  s.addChart(pres.charts.BAR, [{ name: "US$ trillion",
+    labels: ["Global venture capital invested, 2025", "Company equity tracked on Carta today", "Tokenised assets by 2030 (base case)", "Alternative assets under management, 2030"],
+    values: [0.43, 4.5, 5.5, 32] }],
+    chartBase({ x: 0.7, y: 2.25, w: 6.95, h: 3.75, barDir: "bar", dataLabelFormatCode: '"$"0.0#"T"', dataLabelPosition: "outEnd", catAxisLabelFontSize: 11.5 }));
+  src(s, "Sources: Crunchbase, Jan 2026 ($425B VC in 2025) · Carta.com, 2026 ($4.5T+ on platform) · Citi GPS, Jun 2026 ($5.5T base case) · Preqin, Oct 2025 ($32T by 2030).", 0.8, 6.08, 6.8);
+  tile(s, 8.0, 1.7, 4.8, 1.55, "11%", "of value paid back to private-equity investors in 2024, the lowest in a decade (2014–17 average: 29%). Bain, Mar 2025", C.red);
+  tile(s, 8.0, 3.4, 4.8, 1.55, "2.81M + 1M+", "businesses in Australia (ABS, Jun 2026) and Vietnam (NSO, 2025). SMEs are ~90% of all firms (World Bank).", C.gold);
+  tile(s, 8.0, 5.1, 4.8, 1.55, "16%", "of alternative assets are held by individuals, who own ~50% of global wealth: retail access is the growth path. Bain, 2023");
+  foot(s);
+
+  s.addNotes("[0:24–0:42] The need is large. Alternative assets are heading to thirty-two trillion dollars by 2030 (Preqin), and venture investors put in four hundred and twenty-five billion in 2025 (Crunchbase). Yet in 2024 private equity paid back just eleven percent of its value, a ten-year low (Bain). Australia has 2.8 million businesses and Vietnam over a million, and individuals hold half of global wealth but only sixteen percent of alternatives. Investors need trusted values, regular updates and dividends on time.");
+  // ============ 4. What investors get
+  s = newSlide();
+  head(s, 4, "The solution", "One passport per business. Five things every investor gets.");
   const pillars = [
     [fa.FaBookOpen, "Understand it", "A plain report. Every number linked to where it came from.", C.teal],
     [fa.FaChartLine, "Follow it", "Regular updates and a fair value, approved by a person.", C.blue],
@@ -137,11 +167,11 @@ async function img(file, box) {
   shot(s, I.card, 8.1, 1.75, 4.4, 5.0);
   T(s, "What a shareholder sees", { x: 7.6, y: 6.75, w: 5.4, h: 0.3, fontSize: 11.5, color: C.dim, align: "center", italic: true });
   foot(s);
-  s.addNotes("[0:40–1:00] BlockID gives each business a passport, and every investor gets five things: understand it, follow it, own it, get paid, and check it. On the right is what a shareholder sees: the shares they own, their stake, a fair value approved by people, the latest update and the dividend paid to their wallet.");
 
-  // ============ 4. Understand it
+  s.addNotes("[0:42–0:52] So we built one passport per business. Every investor can understand it, follow it, own it, get paid, and check it for themselves.");
+  // ============ 5. Understand it
   s = newSlide();
-  head(s, 4, "Understand it", "A fair value you can trace, approved by a person.");
+  head(s, 5, "Understand it", "A fair value you can trace, approved by a person.");
   shot(s, I.report, 0.55, 1.75, 7.2, 5.1);
   rr(s, 8.2, 1.75, 4.6, 5.05, C.card);
   point(s, 8.45, 2.0, 4.2, "Paste a website. Get a plain report in minutes.");
@@ -150,11 +180,11 @@ async function img(file, box) {
   point(s, 8.45, 4.4, 4.2, "A person checks and approves before anyone sees it.");
   T(s, "Canva: A$64B mid value, every source listed, approved by a person.", { x: 8.45, y: 5.45, w: 4.2, h: 0.9, fontSize: 15, bold: true, color: C.gold });
   foot(s);
-  s.addNotes("[1:00–1:25] Understand it. Paste any business website and in minutes you get a plain report: a business score, a value range, competitors and the sources behind every number. If there's no source, the number is dropped. A person reviews and approves it before investors see it. Here's Canva.");
 
-  // ============ 5. Own it
+  s.addNotes("[0:52–1:05] Understand it. Paste a website and get a plain report in minutes: a grade from A to E and a low, mid and high value. AI agents do the research but hold no keys; every figure links to its source, and a person approves it.");
+  // ============ 6. Own it
   s = newSlide();
-  head(s, 5, "Own it", "Your shares are on the record. The record is your proof.", C.purple);
+  head(s, 6, "Own it", "Your shares are on the record. The record is your proof.", C.purple);
   shot(s, I.cap, 0.55, 1.75, 6.4, 5.1);
   rr(s, 7.4, 1.75, 5.4, 5.05, C.card);
   point(s, 7.65, 2.0, 5.0, "Every holder, wallet and share count in one share register.", C.purple);
@@ -163,11 +193,11 @@ async function img(file, box) {
   point(s, 7.65, 4.4, 5.0, "Hold your shares in your own wallet, or sign in with Google.", C.purple);
   T(s, "14 sample listings · 42 share records on blockchain", { x: 7.65, y: 5.5, w: 5.0, h: 0.8, fontSize: 15, bold: true, color: C.gold });
   foot(s);
-  s.addNotes("[1:25–1:45] Own it. When a business lists, its shares are recorded in a share register on blockchain and copied to two public blockchains. That record is your proof of ownership. New shares need a person's approval, and you see the dilution first. You can hold shares in your own wallet or simply sign in with Google.");
 
-  // ============ 6. Follow it + get paid
+  s.addNotes("[1:05–1:15] Own it. Every holder and share count sits in one share register on blockchain, copied to Ethereum and HashKey Chain. New shares need a person's approval, and investors see the dilution first.");
+  // ============ 7. Follow it + get paid
   s = newSlide();
-  head(s, 6, "Follow it · Get paid", "Same update for everyone. Dividends to your wallet.", C.gold);
+  head(s, 7, "Follow it · Get paid", "Same update for everyone. Dividends to your wallet.", C.gold);
   shot(s, I.card, 0.9, 1.75, 4.3, 5.05);
   const steps = [
     ["1", "Business shares its numbers", "weekly, monthly, quarterly or yearly", C.blue],
@@ -184,11 +214,11 @@ async function img(file, box) {
     T(s, d, { x: 6.95, y: y + 0.55, w: 5.7, h: 0.4, fontSize: 13.5, color: C.muted });
   });
   foot(s);
-  s.addNotes("[1:45–2:05] Follow it and get paid. The business shares its numbers on a regular schedule. We turn them into a plain-language update with a fair value, a person approves it, and every investor gets it at the same time. Dividends follow a rule approved once: after each update there are 24 hours to cancel, then the dividend is paid to every wallet automatically — holders pay no fees.");
 
-  // ============ 7. Check it
+  s.addNotes("[1:15–1:27] Follow it and get paid. The business shares its numbers on a schedule; a person approves the update and every investor gets it at the same time. Dividends go to every wallet, with no fees for holders.");
+  // ============ 8. Check it
   s = newSlide();
-  head(s, 7, "Check it", "Don't trust us. Check it yourself, in your browser.", C.mint);
+  head(s, 8, "Check it", "Don't trust us. Check it yourself, in your browser.", C.mint);
   const v = shot(s, I.ok, 0.55, 1.8, 5.95);
   shot(s, I.bad, 6.85, 1.8, 5.95);
   const yv = 1.8 + v.h + 0.35;
@@ -205,12 +235,55 @@ async function img(file, box) {
   }
   T(s, "No login needed: eth.blockid.au/verify", { x: 0.55, y: yv + 1.95, w: 12.2, h: 0.4, fontSize: 16, bold: true, color: C.mint, align: "center" });
   foot(s);
-  s.addNotes("[2:05–2:25] Check it. You don't have to trust us. The check page recomputes the report in your own browser and compares it with the record on three blockchains. Change a single number and it turns red. No login needed.");
 
 
-  // ============ 8. Architecture: how the layers talk
+  s.addNotes("[1:27–1:37] Check it. Don't trust us. Your browser hashes the report and compares it with three blockchains. Change one number and it turns red.");
+  // ============ 9. Investor protection: what investors get, what businesses must do
   s = newSlide();
-  head(s, 8, "How it's built", "Two blockchain layers. Only approved actions reach them.", C.blue);
+  head(s, 9, "Investor protection", "Real benefits for investors. Clear duties for the business.", C.teal);
+  rr(s, 0.55, 1.7, 4.1, 4.95, C.card);
+  T(s, "INVESTORS GET", { x: 0.8, y: 1.85, w: 3.6, h: 0.3, fontSize: 11.5, bold: true, color: C.teal, charSpacing: 3 });
+  ["A checked value: every figure sourced, approved by a person", "The same update as everyone, at the same time", "Proof of ownership: a live share register on blockchain", "Dividends on schedule, straight to the wallet, no fees", "Dilution shown before any new shares are issued"]
+    .forEach((t, i) => point(s, 0.8, 2.3 + i * 0.84, 3.7, t, C.teal, 13));
+  rr(s, 4.8, 1.7, 4.1, 4.95, C.card);
+  T(s, "THE BUSINESS MUST", { x: 5.05, y: 1.85, w: 3.6, h: 0.3, fontSize: 11.5, bold: true, color: C.gold, charSpacing: 3 });
+  ["Keep a share register: already the law (AU Corporations Act s169 · VN Law on Enterprises 2020 Art. 122)", "Report on schedule; CSF companies report yearly, audit above A$3M raised (ASIC RG 261)", "Get a person to approve every new share, dividend and transfer", "Answer the risks the numbers flag, on the record"]
+    .forEach((t, i) => point(s, 5.05, 2.3 + i * 1.04, 3.7, t, C.gold, 13));
+  rr(s, 9.05, 1.7, 3.75, 3.4, C.card);
+  T(s, "Cash back to PE investors (% of NAV)", { x: 9.25, y: 1.82, w: 3.4, h: 0.35, fontFace: H, fontSize: 12.5, bold: true });
+  s.addChart(pres.charts.BAR, [{ name: "% of NAV", labels: ["2014–17 average", "2024"], values: [29, 11] }],
+    chartBase({ x: 9.2, y: 2.2, w: 3.45, h: 2.45, barDir: "col", dataLabelFormatCode: '0"%"', dataLabelPosition: "outEnd", valAxisMaxVal: 35, valAxisMinVal: 0 }));
+  src(s, "Bain Global PE Report, Mar 2025", 9.25, 4.68, 3.4);
+  tile(s, 9.05, 5.25, 3.75, 1.4, "A$837.7M", "lost to investment scams in Australia in 2025. NASC, Targeting Scams 2025", C.red);
+  foot(s);
+
+  s.addNotes("[1:37–1:57] What does each side get? Investors get a checked value, the same update at the same time, proof of ownership and dividends on time. In return the business keeps a live share register, which Australian and Vietnamese law already require, reports on schedule (ASIC RG 261 for crowd-funded companies), and gets a person to approve every new share and dividend. With A$838 million lost to investment scams in Australia in 2025, checkable records matter.");
+  // ============ 10. Custody and tokenised assets: why the design matters next
+  s = newSlide();
+  head(s, 10, "Custody · Tokenised assets", "Built for the tokenised future: clear custody from day one.", C.purple);
+  rr(s, 0.55, 1.7, 6.6, 4.95, C.card);
+  T(s, "Tokenised real-world assets on-chain (US$ billion)", { x: 0.8, y: 1.82, w: 6.2, h: 0.35, fontFace: H, fontSize: 14, bold: true });
+  s.addChart(pres.charts.BAR, [{ name: "US$ billion", labels: ["Mar 2025", "Jan 2026", "Mar 2026", "May 2026", "Oct 2026"], values: [6.6, 21, 26.4, 31.4, 38.7] }],
+    chartBase({ x: 0.7, y: 2.25, w: 6.3, h: 3.75, barDir: "col", dataLabelFormatCode: '"$"0.0"B"', dataLabelPosition: "outEnd", valAxisMinVal: 0, valAxisMaxVal: 45 }));
+  src(s, "rwa.xyz \"distributed\" assets, excl. stablecoins (1 Oct 2026: $38.66B, 5.02M holders). Earlier points: PYMNTS, ByteTree, Yellow citing rwa.xyz.", 0.8, 6.08, 6.2);
+  tile(s, 7.35, 1.7, 5.45, 1.3, "$5.5T by 2030", "tokenised assets, Citi GPS base case (Jun 2026; bear $2.7T, bull $8.2T)", C.purple);
+  rr(s, 7.35, 3.15, 5.45, 1.75, C.card);
+  T(s, "THE RULES ARE ARRIVING", { x: 7.6, y: 3.27, w: 5, h: 0.3, fontSize: 11, bold: true, color: C.gold, charSpacing: 3 });
+  T(s, [
+    { text: "Dec 2024  EU MiCA: custody and segregation of client assets", options: { breakLine: true } },
+    { text: "Sep 2025  Vietnam Resolution 05/2025: 5-year crypto-asset pilot", options: { breakLine: true } },
+    { text: "Jan 2026  Vietnam Law 71/2025: digital assets are property", options: { breakLine: true } },
+    { text: "Apr 2026  Australia Digital Assets Framework: licensed custody platforms" },
+  ], { x: 7.6, y: 3.6, w: 5.1, h: 1.25, fontSize: 11.5, color: C.text, paraSpaceAfter: 3, valign: "top" });
+  rr(s, 7.35, 5.05, 5.45, 1.6, C.card2, C.teal);
+  T(s, "BLOCKID CUSTODY DESIGN", { x: 7.6, y: 5.15, w: 5, h: 0.3, fontSize: 11, bold: true, color: C.teal, charSpacing: 3 });
+  T(s, "Keys only in an isolated issuer · every holder verified (KYC) · register anchored on 3 chains · a licensed custodian plugs in, investors keep proof", { x: 7.6, y: 5.47, w: 5.05, h: 1.1, fontSize: 12.5, color: C.text, valign: "top" });
+  foot(s);
+
+  s.addNotes("[1:57–2:15] This also prepares for tokenised assets. Tokenised real-world assets on-chain grew from about seven to thirty-nine billion dollars in nineteen months (rwa.xyz), and Citi expects five and a half trillion by 2030. New rules in Europe, Vietnam and Australia require proper custody. In BlockID, keys sit only in an isolated issuer, every holder is verified, every record is anchored on three chains, and a licensed custodian can plug in.");
+  // ============ 11. Architecture: how the layers talk
+  s = newSlide();
+  head(s, 11, "How it's built", "Two blockchain layers. Only approved actions reach them.", C.blue);
   const lab = (y, h, t, sub, c) => {
     rr(s, 0.55, y, 1.75, h, C.card2, c, 0.08);
     T(s, [{ text: t, options: { fontFace: H, fontSize: 12.5, bold: true, color: c, breakLine: true } },
@@ -268,11 +341,11 @@ async function img(file, box) {
     { x: 10.85, y: 2.9, w: 1.8, h: 3.6, fontSize: 10.5, color: C.text, align: "center", valign: "top" });
   line(10.46, 4.57, 10.69, 4.57, C.mint); line(10.46, 6.07, 10.69, 6.07, C.mint);
   foot(s);
-  s.addNotes("[2:25–2:40] How it's built. People use one web app. Analysis never holds keys; a person approves; only the isolated issuer signs. Layer 1 is our BlockID Chain, the share register of record with zero gas. Layer 2 is HashKey Chain, the public proof layer for real-world assets: the same balances, a cap-table root and a record of which agent proposed what, also anchored on Ethereum. Anyone can check all three from the browser.");
 
-  // ============ 9. Live today + business model + ask
+  s.addNotes("[2:15–2:35] Under the hood, only approved actions reach the chain. AI runs with no keys, an admin wallet signs one approval, and only then does the isolated issuer act. Our AgentProvenance contract on HashKey Chain records who proposed and who approved. Agents propose. Humans approve. Chains prove.");
+  // ============ 12. Live today + business model + ask
   s = newSlide();
-  head(s, 9, "Working today · The ask", "Working on testnet. Looking for our first pilot businesses."); 
+  head(s, 12, "Working today · The ask", "Working on testnet. Looking for our first pilot businesses."); 
   const st = [["14", "sample listings built from public data"], ["42", "share records on blockchain"], ["3", "blockchains, every record checkable"], ["Next", "first real pilots in AU · VN"]];
   st.forEach((x, i) => {
     const X = 0.55 + i * 2.05; rr(s, X, 1.75, 1.9, 1.45, C.card);
@@ -303,11 +376,11 @@ async function img(file, box) {
 
   T(s, "We're looking for", { x: 8.95, y: 4.72, w: 3.6, h: 0.35, fontFace: H, fontSize: 16, bold: true, color: C.mint });
   T(s, "Pilot businesses · investor communities · licensed partners", { x: 8.95, y: 5.07, w: 3.6, h: 0.7, fontSize: 13.5, color: C.text });
-  T(s, "Long Do · info@blockid.au", { x: 8.95, y: 5.85, w: 3.6, h: 0.35, fontSize: 13, color: C.muted });
+  T(s, "Long Do · admin@blockid.au", { x: 8.95, y: 5.85, w: 3.6, h: 0.35, fontSize: 13, color: C.muted });
   T(s, "linkedin.com/in/dovanlong", { x: 8.95, y: 6.17, w: 3.6, h: 0.35, fontSize: 11.5, color: C.dim });
   foot(s);
-  s.addNotes("[2:40–3:00] The whole flow works today on testnet, with fourteen sample listings built from public information and forty-two share records on three blockchains. We have no real users yet: that is the next step. Businesses pay a listing fee and a share-register subscription, plus a small fee per transfer and per dividend round. We're looking for pilot businesses, investor communities and licensed partners. Scan to try it, or scan to connect with me. Know the business you invest in. Thank you.");
 
+  s.addNotes("[2:35–3:00] The whole flow works on testnet today, with fourteen sample listings built from public information and forty-two token contracts on three chains. We have no real users yet. Next: pilot businesses in Australia and Vietnam, investor communities and licensed custody partners. Businesses pay a listing fee, a register subscription, and small transfer and dividend fees. Try it at eth.blockid.au. Thank you.");
   const out = "out/BlockID-Business-Passport-3min.pptx";
   await pres.writeFile({ fileName: out });
   console.log("written", out);

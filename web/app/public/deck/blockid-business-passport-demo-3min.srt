@@ -1,239 +1,247 @@
 1
-00:00:00,650 --> 00:00:02,899
-This is BlockID Business Passport,
+00:00:00,650 --> 00:00:02,760
+This is BlockID Business Passport:
 
 2
-00:00:02,899 --> 00:00:05,875
-from Sydney: know the business you invest in.
+00:00:02,760 --> 00:00:04,745
+know the business you invest in.
 
 3
-00:00:05,875 --> 00:00:07,763
-Every shareholder, large or small,
+00:00:04,745 --> 00:00:07,276
+A live, checked view of the business you own,
 
 4
-00:00:07,763 --> 00:00:10,096
-gets a live view of the business they own,
+00:00:07,276 --> 00:00:09,245
+with dividends paid to your wallet.
 
 5
-00:00:10,096 --> 00:00:11,818
-a share register on blockchain,
+00:00:10,190 --> 00:00:13,832
+Today, investors lose sight of a business once they invest.
 
 6
-00:00:11,818 --> 00:00:14,262
-and dividends paid straight to their wallet.
-
-7
-00:00:15,230 --> 00:00:19,142
-Today, investors lose sight of a business the day they invest.
-
-8
-00:00:19,142 --> 00:00:20,973
+00:00:13,832 --> 00:00:15,567
 The numbers are hard to trust,
 
+7
+00:00:15,567 --> 00:00:18,749
+ownership sits in spreadsheets, and dividends are slow,
+
+8
+00:00:18,749 --> 00:00:19,559
+or never come.
+
 9
-00:00:20,973 --> 00:00:22,926
-ownership sits in a spreadsheet,
+00:00:20,522 --> 00:00:21,986
+The need is large.
 
 10
-00:00:22,926 --> 00:00:25,367
-and dividends are slow, or never arrive.
+00:00:21,986 --> 00:00:25,445
+Alternative assets are heading to thirty-two trillion dollars by 2030,
 
 11
-00:00:26,330 --> 00:00:28,830
-This is the live app, on testnet.
+00:00:25,445 --> 00:00:29,200
+and venture investors put in four hundred and twenty-five billion last year.
 
 12
-00:00:28,830 --> 00:00:33,092
-No sign-up: you land in a demo investor account with sample data.
+00:00:29,200 --> 00:00:33,603
+Yet in 2024, private equity paid back just eleven percent of its
 
 13
-00:00:33,092 --> 00:00:36,950
-My portfolio shows each holding at the latest approved price,
+00:00:33,603 --> 00:00:35,117
+value, a ten-year low.
 
 14
-00:00:36,950 --> 00:00:38,405
-and the dividends paid.
+00:00:36,062 --> 00:00:38,550
+Here is the live app, on testnet.
 
 15
-00:00:39,374 --> 00:00:40,998
-Each holding shows your stake,
+00:00:38,550 --> 00:00:42,605
+No sign-up: a demo investor sees each holding at the latest approved
 
 16
-00:00:40,998 --> 00:00:43,867
-a price that only moves when a new value is approved,
+00:00:42,605 --> 00:00:44,871
+price, and the dividends already paid.
 
 17
-00:00:43,867 --> 00:00:47,224
-and the business updates every investor gets at the same time.
+00:00:45,818 --> 00:00:47,612
+Each holding shows your stake,
 
 18
-00:00:48,194 --> 00:00:50,114
-A business, or an investor,
+00:00:47,612 --> 00:00:49,943
+a price that moves only after approval,
 
 19
-00:00:50,114 --> 00:00:52,106
-starts by pasting a website.
+00:00:49,943 --> 00:00:51,079
+and shared updates.
 
 20
-00:00:53,078 --> 00:00:54,835
-AI agents read the site,
+00:00:52,046 --> 00:00:54,474
+To check a business, paste its website.
 
 21
-00:00:54,835 --> 00:00:57,763
-find competitors and analyse the market,
+00:00:54,474 --> 00:00:58,450
+AI agents read it, find competitors and analyse the market.
 
 22
-00:00:57,763 --> 00:00:58,715
-step by step.
-
-23
-00:00:58,715 --> 00:01:00,378
+00:00:58,450 --> 00:01:00,034
 They hold no keys.
 
+23
+00:01:00,034 --> 00:01:01,700
+They only propose.
+
 24
-00:01:00,378 --> 00:01:02,253
-They can only propose.
+00:01:02,666 --> 00:01:05,308
+You get a grade, a score and a value range,
 
 25
-00:01:03,218 --> 00:01:04,806
-The report gives a grade,
+00:01:05,308 --> 00:01:07,582
+and every figure links to its source.
 
 26
-00:01:04,806 --> 00:01:07,030
-a business score and a value range.
+00:01:08,534 --> 00:01:10,417
+A person approves every step,
 
 27
-00:01:07,030 --> 00:01:09,143
-Every figure links to its source.
-
-28
-00:01:09,143 --> 00:01:11,230
-No source, no number.
-
-29
-00:01:12,182 --> 00:01:15,315
-A person approves every step in the admin console,
-
-30
-00:01:15,315 --> 00:01:16,944
+00:01:10,417 --> 00:01:12,105
 signed by an admin wallet.
 
-31
-00:01:16,944 --> 00:01:19,094
+28
+00:01:12,105 --> 00:01:14,153
 Only then does the issuer act.
 
+29
+00:01:15,098 --> 00:01:17,604
+The share register lives on BlockID chain,
+
+30
+00:01:17,604 --> 00:01:19,931
+mirrored to Ethereum and HashKey Chain.
+
+31
+00:01:20,894 --> 00:01:24,036
+Businesses open offerings with the dilution shown first,
+
 32
-00:01:20,066 --> 00:01:24,431
-The isolated issuer creates the share register on BlockID chain and copies
+00:01:24,036 --> 00:01:26,560
+and dividends reach every wallet with no gas.
 
 33
-00:01:24,431 --> 00:01:26,378
-it to Ethereum and HashKey Chain.
-
-34
-00:01:26,378 --> 00:01:29,241
-This cap table is read straight from the chain.
-
-35
-00:01:30,206 --> 00:01:33,973
-Businesses can open share offerings with the dilution shown first,
-
-36
-00:01:33,973 --> 00:01:36,198
-and dividends are paid to every wallet,
-
-37
-00:01:36,198 --> 00:01:37,568
-with no gas for holders.
-
-38
-00:01:38,522 --> 00:01:39,859
+00:01:27,530 --> 00:01:28,803
 Don't trust us.
 
-39
-00:01:39,859 --> 00:01:43,797
-Your browser hashes the report and compares it with three blockchains.
+34
+00:01:28,803 --> 00:01:31,994
+Your browser checks the report against three blockchains.
 
-40
-00:01:43,797 --> 00:01:46,497
+35
+00:01:31,994 --> 00:01:34,565
 Change one number, and it turns red.
 
+36
+00:01:35,510 --> 00:01:37,260
+What does each side get?
+
+37
+00:01:37,260 --> 00:01:38,964
+Investors get a checked value,
+
+38
+00:01:38,964 --> 00:01:40,838
+the same update at the same time,
+
+39
+00:01:40,838 --> 00:01:43,224
+proof of ownership, and dividends on time.
+
+40
+00:01:43,224 --> 00:01:46,150
+In return, the business keeps a live share register,
+
 41
-00:01:47,462 --> 00:01:52,689
-On HashKey Chain, our AgentProvenance contract records which agent proposed each action,
+00:01:46,150 --> 00:01:48,908
+as Australian and Vietnamese law already require,
 
 42
-00:01:52,689 --> 00:01:54,412
-and which person approved it.
+00:01:48,908 --> 00:01:53,129
+reports on schedule, and has a person approve every new share and dividend.
 
 43
-00:01:55,370 --> 00:01:58,345
-BlockID HR reviews the founding team.
+00:01:54,098 --> 00:01:56,800
+This also prepares for tokenised assets.
 
 44
-00:01:58,345 --> 00:02:02,754
-Each requirement of the role is checked against public sources and the
+00:01:56,800 --> 00:02:01,137
+On-chain real-world assets grew from about seven to thirty-nine billion dollars in
 
 45
-00:02:02,754 --> 00:02:04,895
-CV: met, partly met, or not found.
+00:02:01,137 --> 00:02:04,681
+nineteen months, and Citi expects five and a half trillion by 2030.
 
 46
-00:02:05,846 --> 00:02:07,346
-Agents propose.
+00:02:04,681 --> 00:02:07,062
+New rules demand proper custody.
 
 47
-00:02:07,346 --> 00:02:08,721
-Humans approve.
+00:02:07,062 --> 00:02:10,223
+In BlockID, keys sit only in an isolated issuer,
 
 48
-00:02:08,721 --> 00:02:10,146
-Chains prove.
+00:02:10,223 --> 00:02:14,371
+every holder is verified, and a licensed custodian can plug in.
 
 49
-00:02:10,146 --> 00:02:11,624
-AI runs with no keys,
+00:02:15,326 --> 00:02:19,261
+On HashKey Chain, AgentProvenance records which agent proposed,
 
 50
-00:02:11,624 --> 00:02:14,299
-one admin approval unlocks the issuer,
+00:02:19,261 --> 00:02:20,885
+and which person approved.
 
 51
-00:02:14,299 --> 00:02:16,833
-and every step is recorded on chain.
+00:02:21,842 --> 00:02:24,132
+BlockID HR checks the founding team:
 
 52
-00:02:17,786 --> 00:02:20,339
-Today the whole flow runs live on testnet:
+00:02:24,132 --> 00:02:27,377
+each requirement against public sources and the CV.
 
 53
-00:02:20,339 --> 00:02:24,471
-fourteen sample listings, forty-two token contracts on three chains,
+00:02:28,334 --> 00:02:30,510
+Today the full flow runs on testnet:
 
 54
-00:02:24,471 --> 00:02:26,355
-every report verified on chain,
+00:02:30,510 --> 00:02:34,620
+fourteen sample listings, forty-two token contracts on three chains,
 
 55
-00:02:26,355 --> 00:02:28,361
-and more than five hundred tests.
+00:02:34,620 --> 00:02:37,703
+every report verified, and over five hundred tests.
 
 56
-00:02:28,361 --> 00:02:30,498
-We have no real users yet.
+00:02:37,703 --> 00:02:39,453
+No real users yet.
 
 57
-00:02:31,454 --> 00:02:35,302
-Next: our first pilot businesses in Australia and Vietnam,
+00:02:40,418 --> 00:02:43,503
+Next: pilot businesses in Australia and Vietnam,
 
 58
-00:02:35,302 --> 00:02:38,154
-investor communities and licensed partners.
+00:02:43,503 --> 00:02:46,846
+investor communities, and licensed custody partners.
 
 59
-00:02:38,154 --> 00:02:40,916
-Try it at eth dot blockid dot au.
+00:02:46,846 --> 00:02:48,275
+Agents propose.
 
 60
-00:02:40,916 --> 00:02:41,991
-Thank you.
+00:02:48,275 --> 00:02:49,582
+Humans approve.
+
+61
+00:02:49,582 --> 00:02:50,941
+Chains prove.
+
+62
+00:02:50,941 --> 00:02:53,572
+Try it at eth dot blockid dot au.

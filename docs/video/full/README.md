@@ -5,7 +5,7 @@ Two cuts from one pipeline. Pick the cut with `CUT=full` (default) or `CUT=3min`
 | Cut | Narration | Audio · clips | Output |
 |---|---|---|---|
 | full, 4:46 | `narration.tsv` (17 scenes, edge-tts rate +5 %) | `audio/` · `clips/` | `blockid-business-passport-full-demo*.mp4` |
-| 3 min, 2:45 (for "max 3 minutes" rules) | `narration-3min.tsv` (16 scenes, rate +0 %) | `audio-3min/` · `clips-3min/` | `blockid-business-passport-demo-3min*.mp4` · https://eth.blockid.au/deck/blockid-business-passport-demo-3min-captions.mp4 |
+| 3 min, 2:57 (for "max 3 minutes" rules) | `narration-3min.tsv` (17 scenes incl. deck slides 3, 9, 10 with market, investor-protection and custody charts; rate +5 %) | `audio-3min/` · `clips-3min/` | `blockid-business-passport-demo-3min*.mp4` · https://eth.blockid.au/deck/blockid-business-passport-demo-3min-captions.mp4 |
 
 The 3-minute cut replays the same recorded actions faster (each scene's speed = its length ÷ the full cut's).
 
@@ -41,7 +41,7 @@ python3 build.py                                   # Docker ffmpeg -> ../blockid
 cp ../blockid-business-passport-full-demo* ../../../web/app/public/deck/
 ```
 
-3-minute cut: same steps with `CUT=3min` (`--rate=+0%`, `narration-3min.tsv`, `audio-3min/`; pass `-e CUT=3min`
+3-minute cut: same steps with `CUT=3min` (`--rate=+5%`, `narration-3min.tsv`; deck slides: `pdftoppm -png -scale-to-x 1920 -scale-to-y 1080 ../../pitch/out/BlockID-Business-Passport-3min.pdf slides/slide-deck`, `audio-3min/`; pass `-e CUT=3min`
 to the Playwright container; copy `../blockid-business-passport-demo-3min*`).
 
 `slides/slide-{1,2,3,8}.png` come from `../bp3/slides` (the 3-minute deck). To re-render the two new slides, run
