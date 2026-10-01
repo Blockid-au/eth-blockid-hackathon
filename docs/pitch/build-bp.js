@@ -120,18 +120,17 @@ async function img(file, box) {
     { text: "you invest in.", options: { color: C.mint } },
   ], { x: 0.55, y: 1.75, w: 6.2, h: 1.9, fontFace: H, fontSize: 46, bold: true });
   T(s, "BlockID Business Passport gives every shareholder, large or small, a live view of the business they own: " +
-    "AI-analysed, human-approved updates and valuations, an on-chain share register as proof of ownership, " +
+    "updates and valuations checked and approved by people, a share register on blockchain as proof of ownership, " +
     "and dividends paid straight to their wallet.", { x: 0.55, y: 3.85, w: 5.9, h: 1.9, fontSize: 17, color: C.muted, valign: "top" });
   rr(s, 0.55, 5.95, 5.9, 0.6, C.card2, C.teal);
   T(s, "Understand it  ·  Follow it  ·  Own it  ·  Get paid  ·  Check it", { x: 0.55, y: 5.95, w: 5.9, h: 0.6, fontSize: 15, bold: true, color: C.mint, align: "center", valign: "middle" });
   const hs = browser(s, L.portfolio, 6.85, 1.5, 5.75, "eth.blockid.au/i  ·  demo investor account");
   const hy = 1.5 + hs.h + 0.25;
-  [["14", "sample listings (demo data)"], ["42", "share records on blockchain"], ["3", "blockchains, every record checkable"]].forEach(([n, l], i) => {
+  [["14", "sample listings, live on testnet"], ["42", "share records on blockchain"], ["3", "chains, every record checkable"]].forEach(([n, l], i) => {
     const x = 6.6 + i * 2.13; rr(s, x, hy, 1.99, 1.05, C.card);
     T(s, n, { x: x + 0.15, y: hy + 0.08, w: 1.7, h: 0.5, fontFace: H, fontSize: 22, bold: true, color: i === 1 ? C.gold : C.teal });
     T(s, l, { x: x + 0.15, y: hy + 0.58, w: 1.75, h: 0.4, fontSize: 11, color: C.muted });
   });
-  T(s, "Working end to end on testnet at eth.blockid.au", { x: 6.6, y: hy + 1.2, w: 6.25, h: 0.35, fontSize: 13, color: C.dim, align: "center", italic: true });
   foot(s);
 
   s.addNotes("[0:00–0:12] Know the business you invest in. BlockID Business Passport gives every shareholder, large or small, a live view of the business they own: checked updates and valuations, a share register on blockchain as proof of ownership, and dividends paid straight to their wallet.");
@@ -206,7 +205,7 @@ async function img(file, box) {
   T(s, "Canva: A$64B mid value, every source listed, approved by a person.", { x: 8.45, y: 5.45, w: 4.2, h: 0.9, fontSize: 15, bold: true, color: C.gold });
   foot(s);
 
-  s.addNotes("[0:52–1:05] Understand it. Paste a website and get a plain report in minutes: a grade from A to E and a low, mid and high value. AI agents do the research but hold no keys; every figure links to its source, and a person approves it.");
+  s.addNotes("[0:52–1:05] Understand it. Paste a website and get a plain report in minutes: a grade from A to E and a low, mid and high value. Independent research does the legwork, every figure links to its source, and a person approves it before anyone sees it.");
   // ============ 6. Own it
   s = newSlide();
   head(s, 6, "Own it", "Your shares are on the record. The record is your proof.", C.purple);
@@ -301,18 +300,18 @@ async function img(file, box) {
   ], { x: 7.6, y: 3.6, w: 5.1, h: 1.25, fontSize: 11.5, color: C.text, paraSpaceAfter: 3, valign: "top" });
   rr(s, 7.35, 5.05, 5.45, 1.6, C.card2, C.teal);
   T(s, "BLOCKID CUSTODY DESIGN", { x: 7.6, y: 5.15, w: 5, h: 0.3, fontSize: 11, bold: true, color: C.teal, charSpacing: 3 });
-  T(s, "Keys only in an isolated issuer · every holder verified (KYC) · register anchored on 3 chains · a licensed custodian plugs in, investors keep proof", { x: 7.6, y: 5.47, w: 5.05, h: 1.1, fontSize: 12.5, color: C.text, valign: "top" });
+  T(s, "Keys sit in one locked-down signing service, never with the research tools · every holder verified (KYC) · records on 3 chains · a licensed custodian plugs in, investors keep the proof", { x: 7.6, y: 5.47, w: 5.05, h: 1.1, fontSize: 12.5, color: C.text, valign: "top" });
   foot(s);
 
-  s.addNotes("[1:57–2:15] This also prepares for tokenised assets. Tokenised real-world assets on-chain grew from about seven to thirty-nine billion dollars in nineteen months (rwa.xyz), and Citi expects five and a half trillion by 2030. New rules in Europe, Vietnam and Australia require proper custody. In BlockID, keys sit only in an isolated issuer, every holder is verified, every record is anchored on three chains, and a licensed custodian can plug in.");
+  s.addNotes("[1:57–2:15] This also prepares for tokenised assets. Tokenised real-world assets on-chain grew from about seven to thirty-nine billion dollars in nineteen months (rwa.xyz), and Citi expects five and a half trillion by 2030. New rules in Europe, Vietnam and Australia require proper custody. In BlockID, keys sit in one locked-down signing service, every holder is verified, every record is on three chains, and a licensed custodian can plug in.");
   // ============ 11. Architecture: how the layers talk
   s = newSlide();
-  head(s, 11, "How it's built", "Agents propose. Humans approve. Chains prove.", C.blue);
-  browser(s, L.admin, 0.55, 1.75, 6.05, "eth.blockid.au/admin  ·  a person approves");
+  head(s, 11, "How it works", "People decide. Every step is on the record.", C.blue);
+  browser(s, L.admin, 0.55, 1.75, 6.05, "eth.blockid.au/admin  ·  every step waits for a person");
   browser(s, L.hsk, 6.75, 1.75, 6.05, "eth.blockid.au/hsk  ·  HashKey Chain, chain 133");
-  const flow = [["AI agents propose", "research and value; no keys, no network path to keys", C.teal],
-    ["A person approves", "admin wallet signs one approval, four-eyes rule on chain", C.gold],
-    ["Isolated issuer acts", "only key holder; writes BlockID Chain, mirrors Ethereum + HashKey", C.purple]];
+  const flow = [["Research drafts", "public sources gathered and checked; drafts only, no access to keys", C.teal],
+    ["A person approves", "a named reviewer signs; no one can approve their own request", C.gold],
+    ["Recorded on chain", "any EVM chain, L1 or L2; live on BlockID Chain, Ethereum and HashKey", C.purple]];
   flow.forEach(([t, d, c], i) => {
     const x = 0.55 + i * 4.13;
     rr(s, x, 6.0, 3.95, 0.82, C.card, c);
@@ -322,7 +321,7 @@ async function img(file, box) {
   });
   foot(s);
 
-  s.addNotes("[2:15–2:30] Under the hood, only approved actions reach the chain. AI runs with no keys, an admin wallet signs one approval, and only then does the isolated issuer act. Our AgentProvenance contract on HashKey Chain records who proposed and who approved. Agents propose. Humans approve. Chains prove.");
+  s.addNotes("[2:15–2:30] How it works. Research tools draft, but they never touch keys. A named person reviews and approves every valuation, new share and dividend, and no one can approve their own request. Only then is it written to the chain, and anyone can check the record. It runs on any EVM chain, layer 1 or layer 2: today BlockID Chain, Ethereum and HashKey Chain.");
   // ============ 12. Team: who executes (owner-confirmed facts, docs/TEAM.md)
   s = newSlide();
   head(s, 12, "The team", "Built by founders who have run tech at scale.", C.mint);
@@ -350,7 +349,7 @@ async function img(file, box) {
   const teams = [
     [fa.FaCode, "Tech team in Vietnam", "Blockchain, AI and fintech engineers (Vietnam Blockchain Corporation, since 2016)", C.blue],
     [fa.FaHandshake, "Business team in Sydney", "Pilots, partners and licensing in Australia (Auschain)", C.gold],
-    [fa.FaLayerGroup, "Built end to end, in house", "Smart contracts, AI agents, key-holding issuer, web app, 3 chains", C.teal],
+    [fa.FaLayerGroup, "Built end to end, in house", "Smart contracts, research tools, secure signing service, web app, 3 chains", C.teal],
   ];
   for (let i = 0; i < teams.length; i++) {
     const [ic, t, d, c] = teams[i], x = 0.55 + i * 4.13;
@@ -364,19 +363,25 @@ async function img(file, box) {
 
   // ============ 13. Live today + business model + ask
   s = newSlide();
-  head(s, 13, "Working today · The ask", "Working on testnet. Looking for our first pilot businesses."); 
-  const st = [["14", "sample listings built from public data"], ["42", "share records on blockchain"], ["3", "blockchains, every record checkable"], ["Next", "first real pilots in AU · VN"]];
+  head(s, 13, "Join us", "A real app, ready to run on your chain."); 
+  const st = [["14", "sample listings live on testnet"], ["42", "share-token contracts"], ["3", "chains: BlockID L1, Ethereum, HashKey L2"]];
   st.forEach((x, i) => {
-    const X = 0.55 + i * 2.05; rr(s, X, 1.75, 1.9, 1.45, C.card);
-    T(s, x[0], { x: X + 0.15, y: 1.83, w: 1.65, h: 0.7, fontFace: H, fontSize: 28, bold: true, color: i % 2 ? C.gold : C.teal });
-    T(s, x[1], { x: X + 0.15, y: 2.55, w: 1.65, h: 0.6, fontSize: 11.5, color: C.muted });
+    const X = 0.55 + i * 2.72; rr(s, X, 1.75, 2.57, 1.2, C.card);
+    T(s, x[0], { x: X + 0.18, y: 1.8, w: 2.2, h: 0.6, fontFace: H, fontSize: 26, bold: true, color: i % 2 ? C.gold : C.teal });
+    T(s, x[1], { x: X + 0.18, y: 2.4, w: 2.3, h: 0.5, fontSize: 11.5, color: C.muted });
   });
-  rr(s, 0.55, 3.4, 3.95, 3.35, C.card);
-  T(s, "WHO PAYS", { x: 0.8, y: 3.55, w: 3.5, h: 0.3, fontSize: 11.5, bold: true, color: C.gold, charSpacing: 3 });
-  ["Businesses: listing fee + share-register subscription", "Per share transfer fee", "0.5–1% of each dividend round"].forEach((t, i) => point(s, 0.8, 3.95 + i * 0.72, 3.55, t, C.gold, 13.5));
-  rr(s, 4.65, 3.4, 3.85, 3.35, C.card);
-  T(s, "WHO IT'S FOR", { x: 4.9, y: 3.55, w: 3.5, h: 0.3, fontSize: 11.5, bold: true, color: C.teal, charSpacing: 3 });
-  ["Investors, retail and professional", "Businesses raising from them (AU · VN)", "Accelerators, VCs, licensed partners"].forEach((t, i) => point(s, 4.9, 3.95 + i * 0.72, 3.45, t, C.teal, 13.5));
+  const asks = [
+    ["Ethereum investors", "Back our first pilots in Australia and Vietnam: real businesses, real shareholders, on Ethereum rails.", C.teal],
+    ["L1 and L2 teams", "Run BlockID on your chain as a real-world-asset case: share registers, updates, dividends and checks. Any EVM chain.", C.gold],
+    ["Licensed partners", "Custody, offerings and transfer services, so investors keep their rights and their proof.", C.purple],
+  ];
+  asks.forEach(([t, d, c], i) => {
+    const y = 3.15 + i * 1.2;
+    rr(s, 0.55, y, 7.95, 1.05, C.card, c);
+    T(s, t, { x: 0.8, y: y + 0.08, w: 7.5, h: 0.4, fontFace: H, fontSize: 16, bold: true, color: c });
+    T(s, d, { x: 0.8, y: y + 0.48, w: 7.5, h: 0.52, fontSize: 12.5, color: C.text });
+  });
+  T(s, "Revenue: listing fee · share-register subscription · small transfer and dividend fees", { x: 0.55, y: 6.78, w: 7.95, h: 0.3, fontSize: 11, color: C.dim });
 
   // right column: founder contact card (owner's original image, untouched) + app QR
   rr(s, 8.7, 1.75, 4.1, 5.0, C.card2, C.teal);
@@ -393,13 +398,13 @@ async function img(file, box) {
   T(s, "Try it now", { x: 11.62, y: 2.93, w: 1.15, h: 0.26, fontSize: 10.5, bold: true, align: "center" });
   T(s, "eth.blockid.au", { x: 11.62, y: 3.17, w: 1.15, h: 0.24, fontSize: 9, color: C.teal, align: "center" });
 
-  T(s, "We're looking for", { x: 8.95, y: 4.72, w: 3.6, h: 0.35, fontFace: H, fontSize: 16, bold: true, color: C.mint });
-  T(s, "Pilot businesses · investor communities · licensed partners", { x: 8.95, y: 5.07, w: 3.6, h: 0.7, fontSize: 13.5, color: C.text });
-  T(s, "Long Do · admin@blockid.au", { x: 8.95, y: 5.85, w: 3.6, h: 0.35, fontSize: 13, color: C.muted });
-  T(s, "linkedin.com/in/dovanlong", { x: 8.95, y: 6.17, w: 3.6, h: 0.35, fontSize: 11.5, color: C.dim });
+  T(s, "Know the business you invest in.", { x: 8.95, y: 4.72, w: 3.6, h: 0.7, fontFace: H, fontSize: 16, bold: true, color: C.mint });
+  T(s, "Long Do · admin@blockid.au", { x: 8.95, y: 5.5, w: 3.6, h: 0.35, fontSize: 13, color: C.muted });
+  T(s, "linkedin.com/in/dovanlong", { x: 8.95, y: 5.82, w: 3.6, h: 0.35, fontSize: 11.5, color: C.dim });
+  T(s, "eth.blockid.au · hr.blockid.au", { x: 8.95, y: 6.14, w: 3.6, h: 0.35, fontSize: 11.5, color: C.teal });
   foot(s);
+  s.addNotes("[2:45–3:00] Everything you saw runs today on testnet, across BlockID Chain, Ethereum and HashKey Chain. We invite Ethereum investors to back our first pilots in Australia and Vietnam, and layer one and layer two teams to run BlockID on their chain as a real-world-asset case. Licensed partners can bring custody and offerings. Know the business you invest in. Try it at eth.blockid.au.");
 
-  s.addNotes("[2:45–3:00] The whole flow works on testnet today: fourteen sample listings and forty-two token contracts on three chains, with no real users yet. Next: pilot businesses in Australia and Vietnam, investor communities and licensed custody partners. Businesses pay a listing fee, a register subscription and small transfer and dividend fees. Try it at eth.blockid.au. Thank you.");
   const out = "out/BlockID-Business-Passport-3min.pptx";
   await pres.writeFile({ fileName: out });
   console.log("written", out);

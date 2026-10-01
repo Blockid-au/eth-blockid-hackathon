@@ -4,7 +4,7 @@
 
 The live talk follows the 3-minute deck ([PDF](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pdf) ·
 [PPTX](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pptx)) · video:
-https://eth.blockid.au/deck/blockid-business-passport-3min-captions.mp4 (recorded live-app demos: https://eth.blockid.au/deck/blockid-business-passport-demo-3min-captions.mp4, 3 min, and https://eth.blockid.au/deck/blockid-business-passport-full-demo-captions.mp4, 5:06; source in `docs/video/full`). The timed script below follows the earlier
+https://eth.blockid.au/deck/blockid-business-passport-3min-captions.mp4 (recorded live-app demos: https://eth.blockid.au/deck/blockid-business-passport-demo-3min-captions.mp4, 3 min, and https://eth.blockid.au/deck/blockid-business-passport-full-demo-captions.mp4, 5:15; source in `docs/video/full`). The timed script below follows the earlier
 7-slide deck; the flow on stage is the same.
 
 ## Before going on stage

@@ -32,13 +32,13 @@ HEADS = {
     "r01": ("Investor portal · live on testnet", "Every holding at its approved value. Dividends already in the wallet."),
     "r02": ("One holding", "Your stake, a checked price, and the same update as every investor."),
     "r03": ("For businesses", "Paste a website. Get an evidence-based valuation in minutes."),
-    "r04": ("AI research", "AI agents research the business. They hold no keys, they only propose."),
+    "r04": ("Research in minutes", "Independent research in minutes. People make the final call."),
     "r05": ("Valuation report", "Grade A–E and a value range. Every number links to its source."),
     "r06": ("Human approval", "Nothing reaches the chain until a person approves it."),
     "r07": ("Share register on blockchain", "Ownership read straight from the chain, not from a spreadsheet."),
     "r08": ("Offerings and dividends", "Dilution shown before new shares. Dividends to every wallet, no gas."),
     "r09": ("Check it yourself", "Your browser checks 3 blockchains. Change one number: it turns red."),
-    "r10": ("HashKey Chain", "On-chain proof of which agent proposed and which person approved."),
+    "r10": ("HashKey Chain", "On-chain proof of who proposed each step and who approved it."),
     "r11": ("BlockID HR · founding team", "Know the people: each claim checked against public sources."),
 }
 
@@ -112,29 +112,31 @@ def durations() -> dict[str, float]:
 
 
 def band_png(cid: str, path: Path) -> None:
-    """1920x1080 frame overlay: dark surround + bottom message band (recording sits in a 1536x864 window above)."""
+    """Full-frame overlay: transparent, with a bottom gradient carrying the feature label and the key message."""
     from PIL import Image, ImageDraw, ImageFont
     lab, msg = HEADS.get(cid, (cid, ""))
     bold = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
-    im = Image.new("RGBA", (1920, 1080), (10, 19, 17, 255))
+    im = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+    g = Image.new("RGBA", (1920, 230), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(g)
+    for y in range(230):  # fade the live app into a dark bottom band
+        gd.line((0, y, 1920, y), fill=(10, 19, 17, int(248 * min(1, y / 85))))
+    im.alpha_composite(g, (0, 850))
     d = ImageDraw.Draw(im)
-    d.rectangle((192, 24, 192 + 1536 - 1, 24 + 864 - 1), fill=(0, 0, 0, 0))  # window for the recording
-    d.rounded_rectangle((188, 20, 192 + 1536 + 3, 24 + 864 + 3), radius=10, outline=(37, 64, 58, 255), width=4)
-    d.rectangle((192, 24, 192 + 1536 - 1, 24 + 864 - 1), fill=(0, 0, 0, 0))
-    fl, fm, fb = ImageFont.truetype(bold, 26), ImageFont.truetype(bold, 46), ImageFont.truetype(bold, 22)
-    d.ellipse((192, 919, 210, 937), fill=(127, 224, 194, 255))
-    d.text((224, 912), lab.upper(), font=fl, fill=(34, 160, 127, 255))
-    size = 46
-    while d.textlength(msg, font=fm) > 1536 and size > 30:
+    fl, fb = ImageFont.truetype(bold, 26), ImageFont.truetype(bold, 22)
+    size = 48; fm = ImageFont.truetype(bold, size)
+    while d.textlength(msg, font=fm) > 1680 and size > 30:
         size -= 2; fm = ImageFont.truetype(bold, size)
-    d.text((192, 958), msg, font=fm, fill=(242, 247, 245, 255))
+    d.ellipse((60, 959, 78, 977), fill=(127, 224, 194, 255))
+    d.text((92, 952), lab.upper(), font=fl, fill=(127, 224, 194, 255))
+    d.text((60, 992), msg, font=fm, fill=(255, 255, 255, 255))
     brand = "BlockID Business Passport  ·  eth.blockid.au"
-    d.text((192 + 1536 - d.textlength(brand, font=fb), 914), brand, font=fb, fill=(126, 148, 143, 255))
+    d.text((1860 - d.textlength(brand, font=fb), 955), brand, font=fb, fill=(169, 189, 183, 255))
     im.save(path)
 
 
 def render_clip(cid: str, dur: float) -> Path:
-    """Frames (variable timing) -> constant-fps mp4 of exactly dur seconds, framed above the message band."""
+    """Frames (variable timing) -> constant-fps full-frame mp4 of exactly dur seconds, with the message overlay."""
     d = HERE / f"clips{SFX}" / cid
     meta = json.loads((d / "frames.json").read_text())
     frames = meta["frames"]
@@ -150,8 +152,8 @@ def render_clip(cid: str, dur: float) -> Path:
     band_png(cid, lab)
     out = HERE / f"clips{SFX}" / f"{cid}.mp4"
     ff("-f", "concat", "-safe", "0", "-i", w(d / "list.txt"), "-i", w(lab),
-       "-filter_complex", f"[0:v]scale=1536:864:flags=lanczos,setsar=1,fps={FPS},tpad=stop_mode=clone:stop_duration=30,"
-       f"trim=duration={dur:.3f},pad=1920:1080:192:24:color=0x0A1311[b];[b][1:v]overlay=0:0:format=auto,format=yuv420p[v]",
+       "-filter_complex", f"[0:v]scale=1920:1080:flags=lanczos,setsar=1,fps={FPS},tpad=stop_mode=clone:stop_duration=30,"
+       f"trim=duration={dur:.3f}[b];[b][1:v]overlay=0:0:format=auto,format=yuv420p[v]",
        "-map", "[v]", "-c:v", "libx264", "-preset", "medium", "-crf", "16", "-r", str(FPS), w(out))
     return out
 
@@ -210,7 +212,7 @@ def main() -> None:
        "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
        "-movflags", "+faststart", w(clean))
     style = ("FontName=Liberation Sans,FontSize=11,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,"
-             "BackColour=&H99000000,BorderStyle=4,Outline=1,Shadow=0,MarginV=56,MarginL=40,MarginR=40")
+             "BackColour=&H99000000,BorderStyle=4,Outline=1,Shadow=0,MarginV=62,MarginL=40,MarginR=40")
     ff("-i", w(clean), "-vf", f"subtitles=/w/{NAME}.srt:fontsdir=/fonts:force_style='{style}'", "-c:v", "libx264", "-preset",
        "medium", "-crf", "19", "-c:a", "copy", "-movflags", "+faststart", w(OUT / f"{NAME}-captions.mp4"))
     print("total", round(total, 1), "s ->", clean)

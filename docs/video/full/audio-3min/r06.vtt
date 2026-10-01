@@ -1,8 +1,8 @@
 1
-00:00:00,050 --> 00:00:03,621
-A person approves every step, signed by an admin wallet.
+00:00:00,050 --> 00:00:02,550
+A named person approves every step.
 
 2
-00:00:03,621 --> 00:00:05,669
-Only then does the issuer act.
+00:00:02,550 --> 00:00:07,014
+No one can approve their own request, and nothing reaches the chain before that.
 

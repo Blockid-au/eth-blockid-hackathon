@@ -13,10 +13,11 @@ SLIDE_MSG = {
     "deck-04": ("One passport per business. Five things every investor gets.", "Solution"),
     "deck-09": ("Real benefits for investors. Clear duties for the business.", "Investor protection"),
     "deck-10": ("Built for the tokenised future: clear custody from day one.", "Custody and tokenised assets"),
-    "deck-11": ("Agents propose. Humans approve. Chains prove.", "Architecture"),
+    "deck-11": ("People decide. Every step is on the record.", "How it works"),
+    "deck-13": ("A real app, ready to run on your chain.", "Join us: Ethereum investors, L1 and L2 teams, licensed partners"),
     "deck-12": ("Built by founders who have run tech at scale.", "Team"),
     "progress": ("Live on testnet, end to end.", "Current progress"),
-    "close": ("Agents propose. Humans approve. Chains prove.", "Next steps and contact"),
+    "close": ("Know the business you invest in.", "Next steps and contact"),
 }
 EVIDENCE = {
     "m01": "Preqin Oct 2025 ($32T alternatives AUM by 2030) · Crunchbase Jan 2026 ($425B VC in 2025) · Bain GPER Mar 2025 (distributions 11% of NAV, a decade low)",

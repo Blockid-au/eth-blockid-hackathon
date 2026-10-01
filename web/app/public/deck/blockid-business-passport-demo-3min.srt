@@ -79,173 +79,169 @@ and shared updates.
 To check a business, paste its website.
 
 21
-00:00:54,474 --> 00:00:58,450
-AI agents read it, find competitors and analyse the market.
+00:00:54,474 --> 00:00:56,056
+Our research tools read it,
 
 22
-00:00:58,450 --> 00:01:00,034
-They hold no keys.
+00:00:56,056 --> 00:00:58,926
+find competitors and study the market in minutes.
 
 23
-00:01:00,034 --> 00:01:01,700
-They only propose.
+00:00:58,926 --> 00:01:01,200
+They draft; people decide.
 
 24
-00:01:02,666 --> 00:01:05,308
+00:01:02,138 --> 00:01:04,780
 You get a grade, a score and a value range,
 
 25
-00:01:05,308 --> 00:01:07,582
+00:01:04,780 --> 00:01:07,054
 and every figure links to its source.
 
 26
-00:01:08,534 --> 00:01:10,417
-A person approves every step,
+00:01:08,006 --> 00:01:10,506
+A named person approves every step.
 
 27
-00:01:10,417 --> 00:01:12,105
-signed by an admin wallet.
+00:01:10,506 --> 00:01:12,597
+No one can approve their own request,
 
 28
-00:01:12,105 --> 00:01:14,153
-Only then does the issuer act.
+00:01:12,597 --> 00:01:14,970
+and nothing reaches the chain before that.
 
 29
-00:01:15,098 --> 00:01:17,604
-The share register lives on BlockID chain,
+00:01:15,938 --> 00:01:19,752
+The share register is written to BlockID chain and copied to Ethereum
 
 30
-00:01:17,604 --> 00:01:19,931
-mirrored to Ethereum and HashKey Chain.
+00:01:19,752 --> 00:01:20,747
+and HashKey Chain.
 
 31
-00:01:20,894 --> 00:01:24,036
+00:01:21,710 --> 00:01:24,852
 Businesses open offerings with the dilution shown first,
 
 32
-00:01:24,036 --> 00:01:26,560
+00:01:24,852 --> 00:01:27,376
 and dividends reach every wallet with no gas.
 
 33
-00:01:27,530 --> 00:01:28,803
+00:01:28,346 --> 00:01:29,619
 Don't trust us.
 
 34
-00:01:28,803 --> 00:01:31,994
+00:01:29,619 --> 00:01:32,810
 Your browser checks the report against three blockchains.
 
 35
-00:01:31,994 --> 00:01:34,565
+00:01:32,810 --> 00:01:35,381
 Change one number, and it turns red.
 
 36
-00:01:35,510 --> 00:01:37,214
+00:01:36,326 --> 00:01:38,030
 Investors get a checked value,
 
 37
-00:01:37,214 --> 00:01:39,088
+00:01:38,030 --> 00:01:39,904
 the same update at the same time,
 
 38
-00:01:39,088 --> 00:01:41,474
+00:01:39,904 --> 00:01:42,290
 proof of ownership, and dividends on time.
 
 39
-00:01:41,474 --> 00:01:44,500
+00:01:42,290 --> 00:01:45,316
 In return, the business keeps a live share register,
 
 40
-00:01:44,500 --> 00:01:46,129
+00:01:45,316 --> 00:01:46,945
 as the law already requires,
 
 41
-00:01:46,129 --> 00:01:49,271
+00:01:46,945 --> 00:01:50,087
 reports on schedule, and has every new share approved.
 
 42
-00:01:50,234 --> 00:01:54,571
+00:01:51,050 --> 00:01:55,387
 On-chain real-world assets grew from about seven to thirty-nine billion dollars in
 
 43
-00:01:54,571 --> 00:01:58,114
+00:01:55,387 --> 00:01:58,930
 nineteen months, and Citi expects five and a half trillion by 2030.
 
 44
-00:01:58,114 --> 00:02:00,211
+00:01:58,930 --> 00:02:00,868
 New rules demand proper custody:
 
 45
-00:02:00,211 --> 00:02:03,356
-in BlockID, keys sit only in an isolated issuer,
+00:02:00,868 --> 00:02:04,261
+in BlockID, keys sit in one locked-down signing service,
 
 46
-00:02:03,356 --> 00:02:05,781
+00:02:04,261 --> 00:02:06,502
 and a licensed custodian can plug in.
 
 47
-00:02:06,734 --> 00:02:09,024
+00:02:07,454 --> 00:02:09,744
 BlockID HR checks the founding team:
 
 48
-00:02:09,024 --> 00:02:12,269
+00:02:09,744 --> 00:02:12,989
 each requirement against public sources and the CV.
 
 49
-00:02:13,226 --> 00:02:14,404
+00:02:13,946 --> 00:02:15,124
 Who builds it?
 
 50
-00:02:14,404 --> 00:02:17,165
+00:02:15,124 --> 00:02:17,885
 Founder Do Van Long and co-founder Truong Quoc Tuan,
 
 51
-00:02:17,165 --> 00:02:21,573
+00:02:17,885 --> 00:02:22,293
 both former CTOs of major Vietnamese corporations and holders of Australia's Global
 
 52
-00:02:21,573 --> 00:02:24,759
+00:02:22,293 --> 00:02:25,479
 Talent visa, lead a tech team in Vietnam and a business team
 
 53
-00:02:24,759 --> 00:02:26,618
+00:02:25,479 --> 00:02:27,338
 in Sydney, built to scale globally.
 
 54
-00:02:27,566 --> 00:02:29,742
+00:02:28,286 --> 00:02:30,462
 Today the full flow runs on testnet:
 
 55
-00:02:29,742 --> 00:02:33,852
+00:02:30,462 --> 00:02:34,572
 fourteen sample listings, forty-two token contracts on three chains,
 
 56
-00:02:33,852 --> 00:02:36,935
+00:02:34,572 --> 00:02:37,655
 every report verified, and over five hundred tests.
 
 57
-00:02:36,935 --> 00:02:38,685
+00:02:37,655 --> 00:02:39,405
 No real users yet.
 
 58
-00:02:39,650 --> 00:02:42,735
-Next: pilot businesses in Australia and Vietnam,
+00:02:40,370 --> 00:02:43,455
+Everything you saw runs today on BlockID Chain,
 
 59
-00:02:42,735 --> 00:02:46,078
-investor communities, and licensed custody partners.
+00:02:43,455 --> 00:02:45,227
+Ethereum and HashKey Chain.
 
 60
-00:02:46,078 --> 00:02:47,507
-Agents propose.
+00:02:45,227 --> 00:02:48,267
+We invite Ethereum investors to back our first pilots,
 
 61
-00:02:47,507 --> 00:02:48,814
-Humans approve.
+00:02:48,267 --> 00:02:51,870
+and layer one and layer two teams to run BlockID on their chain.
 
 62
-00:02:48,814 --> 00:02:50,173
-Chains prove.
-
-63
-00:02:50,173 --> 00:02:52,804
+00:02:51,870 --> 00:02:54,500
 Try it at eth dot blockid dot au.

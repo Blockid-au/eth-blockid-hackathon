@@ -3,15 +3,15 @@ s02	slide:deck-02	Today, investors lose sight of a business once they invest. Th
 m01	slide:deck-03	The need is large. Alternative assets are heading to thirty-two trillion dollars by 2030, and venture investors put in four hundred and twenty-five billion last year. Yet in 2024, private equity paid back just eleven percent of its value, a ten-year low.
 r01	rec:portfolio	Here is the live app, on testnet. No sign-up: a demo investor sees each holding at the latest approved price, and the dividends already paid.
 r02	rec:position	Each holding shows your stake, a price that moves only after approval, and shared updates.
-r04	rec:research	To check a business, paste its website. AI agents read it, find competitors and analyse the market. They hold no keys. They only propose.
+r04	rec:research	To check a business, paste its website. Our research tools read it, find competitors and study the market in minutes. They draft; people decide.
 r05	rec:report	You get a grade, a score and a value range, and every figure links to its source.
-r06	rec:admin	A person approves every step, signed by an admin wallet. Only then does the issuer act.
-r07	rec:captable	The share register lives on BlockID chain, mirrored to Ethereum and HashKey Chain.
+r06	rec:admin	A named person approves every step. No one can approve their own request, and nothing reaches the chain before that.
+r07	rec:captable	The share register is written to BlockID chain and copied to Ethereum and HashKey Chain.
 r08	rec:offering	Businesses open offerings with the dilution shown first, and dividends reach every wallet with no gas.
 r09	rec:verify	Don't trust us. Your browser checks the report against three blockchains. Change one number, and it turns red.
 m02	slide:deck-09	Investors get a checked value, the same update at the same time, proof of ownership, and dividends on time. In return, the business keeps a live share register, as the law already requires, reports on schedule, and has every new share approved.
-m03	slide:deck-10	On-chain real-world assets grew from about seven to thirty-nine billion dollars in nineteen months, and Citi expects five and a half trillion by 2030. New rules demand proper custody: in BlockID, keys sit only in an isolated issuer, and a licensed custodian can plug in.
+m03	slide:deck-10	On-chain real-world assets grew from about seven to thirty-nine billion dollars in nineteen months, and Citi expects five and a half trillion by 2030. New rules demand proper custody: in BlockID, keys sit in one locked-down signing service, and a licensed custodian can plug in.
 r11	rec:hr	BlockID HR checks the founding team: each requirement against public sources and the CV.
 t01	slide:deck-12	Who builds it? Founder Do Van Long and co-founder Truong Quoc Tuan, both former CTOs of major Vietnamese corporations and holders of Australia's Global Talent visa, lead a tech team in Vietnam and a business team in Sydney, built to scale globally.
 p01	slide:progress	Today the full flow runs on testnet: fourteen sample listings, forty-two token contracts on three chains, every report verified, and over five hundred tests. No real users yet.
-s09	slide:close	Next: pilot businesses in Australia and Vietnam, investor communities, and licensed custody partners. Agents propose. Humans approve. Chains prove. Try it at eth dot blockid dot au.
+s09	slide:deck-13	Everything you saw runs today on BlockID Chain, Ethereum and HashKey Chain. We invite Ethereum investors to back our first pilots, and layer one and layer two teams to run BlockID on their chain. Try it at eth dot blockid dot au.

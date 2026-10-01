@@ -1,12 +1,12 @@
 1
-00:00:00,050 --> 00:00:12,585
-Research runs as a team of AI agents, and each step reports as it finishes: read the website, build the business profile, find competitors and market data within a fixed budget of web searches, analyse the market, and score.
+00:00:00,050 --> 00:00:10,883
+Research runs step by step, and each step reports as it finishes: read the website, build the business profile, find competitors and market data within a fixed budget of web searches, and score.
 
 2
-00:00:12,585 --> 00:00:14,538
-The agents hold no keys.
+00:00:10,883 --> 00:00:13,216
+The research tools hold no keys.
 
 3
-00:00:14,538 --> 00:00:16,323
-They can only propose.
+00:00:13,216 --> 00:00:15,680
+They draft; a person decides.
 

@@ -3,15 +3,15 @@
 0:19	Market size and unmet need	Trillions in private businesses. Investors still can't see inside.
 0:35	Investor portal · live on testnet	Every holding at its approved value. Dividends already in the wallet.
 0:45	One holding	Your stake, a checked price, and the same update as every investor.
-0:51	AI research	AI agents research the business. They hold no keys, they only propose.
-1:02	Valuation report	Grade A–E and a value range. Every number links to its source.
+0:51	Research in minutes	Independent research in minutes. People make the final call.
+1:01	Valuation report	Grade A–E and a value range. Every number links to its source.
 1:07	Human approval	Nothing reaches the chain until a person approves it.
-1:14	Share register on blockchain	Ownership read straight from the chain, not from a spreadsheet.
-1:20	Offerings and dividends	Dilution shown before new shares. Dividends to every wallet, no gas.
-1:26	Check it yourself	Your browser checks 3 blockchains. Change one number: it turns red.
-1:34	Investor protection	Real benefits for investors. Clear duties for the business.
-1:49	Custody and tokenised assets	Built for the tokenised future: clear custody from day one.
+1:15	Share register on blockchain	Ownership read straight from the chain, not from a spreadsheet.
+1:21	Offerings and dividends	Dilution shown before new shares. Dividends to every wallet, no gas.
+1:27	Check it yourself	Your browser checks 3 blockchains. Change one number: it turns red.
+1:35	Investor protection	Real benefits for investors. Clear duties for the business.
+1:50	Custody and tokenised assets	Built for the tokenised future: clear custody from day one.
 2:06	BlockID HR · founding team	Know the people: each claim checked against public sources.
-2:12	Team	Built by founders who have run tech at scale.
-2:26	Current progress	Live on testnet, end to end.
-2:38	Next steps and contact	Agents propose. Humans approve. Chains prove.
+2:13	Team	Built by founders who have run tech at scale.
+2:27	Current progress	Live on testnet, end to end.
+2:39	Join us: Ethereum investors, L1 and L2 teams, licensed partners	A real app, ready to run on your chain.

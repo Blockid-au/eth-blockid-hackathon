@@ -151,341 +151,349 @@ then the research starts.
 A business can add its own numbers to improve the result.
 
 39
-00:01:31,730 --> 00:01:33,838
-Research runs as a team of AI agents,
+00:01:31,730 --> 00:01:33,261
+Research runs step by step,
 
 40
-00:01:33,838 --> 00:01:35,946
+00:01:33,261 --> 00:01:35,360
 and each step reports as it finishes:
 
 41
-00:01:35,946 --> 00:01:38,510
+00:01:35,360 --> 00:01:37,912
 read the website, build the business profile,
 
 42
-00:01:38,510 --> 00:01:42,556
-find competitors and market data within a fixed budget of web searches,
+00:01:37,912 --> 00:01:42,563
+find competitors and market data within a fixed budget of web searches, and score.
 
 43
-00:01:42,556 --> 00:01:44,265
-analyse the market, and score.
+00:01:42,563 --> 00:01:44,896
+The research tools hold no keys.
 
 44
-00:01:44,265 --> 00:01:46,218
-The agents hold no keys.
+00:01:44,896 --> 00:01:47,360
+They draft; a person decides.
 
 45
-00:01:46,218 --> 00:01:48,003
-They can only propose.
-
-46
-00:01:48,950 --> 00:01:51,517
+00:01:48,326 --> 00:01:50,893
 The result is a plain valuation report:
 
-47
-00:01:51,517 --> 00:01:52,833
+46
+00:01:50,893 --> 00:01:52,209
 a grade from A to E,
 
-48
-00:01:52,833 --> 00:01:54,676
+47
+00:01:52,209 --> 00:01:54,052
 a business score, and a low,
 
-49
-00:01:54,676 --> 00:01:55,926
+48
+00:01:54,052 --> 00:01:55,302
 mid and high value.
 
-50
-00:01:55,926 --> 00:01:57,549
+49
+00:01:55,302 --> 00:01:56,925
 Each part explains its score,
 
-51
-00:01:57,549 --> 00:02:00,235
+50
+00:01:56,925 --> 00:01:59,611
 and every figure links to the page it came from.
 
-52
-00:02:00,235 --> 00:02:03,580
-A finding that cites a page the agent never read is dropped.
+51
+00:01:59,611 --> 00:02:02,647
+A finding that cites a page we never read is dropped.
 
-53
-00:02:03,580 --> 00:02:05,569
+52
+00:02:02,647 --> 00:02:04,635
 No source, no number.
 
-54
-00:02:06,530 --> 00:02:09,399
+53
+00:02:05,594 --> 00:02:08,463
 Nothing moves further until a person approves it.
 
-55
-00:02:09,399 --> 00:02:13,214
+54
+00:02:08,463 --> 00:02:12,278
 The admin console lists every waiting item in flow order:
 
-56
-00:02:13,214 --> 00:02:16,225
+55
+00:02:12,278 --> 00:02:15,289
 valuations, issuance, chain sync, new shares,
 
-57
-00:02:16,225 --> 00:02:18,434
+56
+00:02:15,289 --> 00:02:17,498
 dividends, updates and offerings.
 
-58
-00:02:18,434 --> 00:02:20,828
+57
+00:02:17,498 --> 00:02:19,704
 Approvals are signed by an admin wallet,
 
+58
+00:02:19,704 --> 00:02:22,296
+and only then is anything written to the chain.
+
 59
-00:02:20,828 --> 00:02:22,863
-and only then does the issuer act.
+00:02:23,246 --> 00:02:25,757
+After approval, a locked-down signing service,
 
 60
-00:02:23,822 --> 00:02:25,901
-After approval, the isolated issuer,
-
-61
-00:02:25,901 --> 00:02:27,344
+00:02:25,757 --> 00:02:27,122
 the only part with a key,
 
-62
-00:02:27,344 --> 00:02:31,328
+61
+00:02:27,122 --> 00:02:30,888
 creates the share register on BlockID chain and copies it to Ethereum
 
-63
-00:02:31,328 --> 00:02:32,714
+62
+00:02:30,888 --> 00:02:32,198
 Hoodi and HashKey Chain.
 
-64
-00:02:32,714 --> 00:02:35,538
+63
+00:02:32,198 --> 00:02:35,022
 This cap table is read straight from the chain:
 
-65
-00:02:35,538 --> 00:02:37,762
+64
+00:02:35,022 --> 00:02:37,246
 every holder, wallet and share count.
 
-66
-00:02:38,714 --> 00:02:42,041
+65
+00:02:38,210 --> 00:02:41,537
 From the same workspace, a business can open a share offering,
 
-67
-00:02:42,041 --> 00:02:45,475
+66
+00:02:41,537 --> 00:02:44,971
 and investors see the dilution before any new shares are issued.
 
-68
-00:02:45,475 --> 00:02:47,737
+67
+00:02:44,971 --> 00:02:47,233
 A dividend rule is approved once.
 
-69
-00:02:47,737 --> 00:02:49,809
+68
+00:02:47,233 --> 00:02:49,305
 After twenty-four hours to cancel,
 
-70
-00:02:49,809 --> 00:02:51,454
+69
+00:02:49,305 --> 00:02:50,950
 it is paid to every wallet,
 
-71
-00:02:51,454 --> 00:02:52,856
+70
+00:02:50,950 --> 00:02:52,352
 and holders pay no gas.
 
-72
-00:02:53,822 --> 00:02:54,738
+71
+00:02:53,318 --> 00:02:54,234
 Check it.
 
-73
-00:02:54,738 --> 00:02:56,012
+72
+00:02:54,234 --> 00:02:55,508
 Don't trust us.
 
-74
-00:02:56,012 --> 00:02:59,427
+73
+00:02:55,508 --> 00:02:58,923
 The verify page hashes the full report in your browser and compares
 
-75
-00:02:59,427 --> 00:03:01,822
+74
+00:02:58,923 --> 00:03:01,318
 it with the hash recorded on three blockchains.
 
-76
-00:03:01,822 --> 00:03:03,143
+75
+00:03:01,318 --> 00:03:02,639
 All three match.
 
-77
-00:03:03,143 --> 00:03:06,060
+76
+00:03:02,639 --> 00:03:05,556
 Now change one number, and the check turns red.
 
-78
-00:03:07,010 --> 00:03:09,769
+77
+00:03:06,506 --> 00:03:09,216
 On HashKey Chain we run the real-world asset stack:
 
-79
-00:03:09,769 --> 00:03:13,773
+78
+00:03:09,216 --> 00:03:13,148
 identity registry, share token, dividend distributor and cap table anchor,
 
+79
+00:03:13,148 --> 00:03:17,079
+plus a provenance contract that records who proposed each action and which
+
 80
-00:03:13,773 --> 00:03:18,371
-plus our AgentProvenance contract, which records which agent proposed each action and
+00:03:17,079 --> 00:03:18,089
+person approved it.
 
 81
-00:03:18,371 --> 00:03:19,724
-which person approved it.
-
-82
-00:03:20,678 --> 00:03:22,761
+00:03:19,046 --> 00:03:21,129
 Investors also back people.
 
-83
-00:03:22,761 --> 00:03:24,805
+82
+00:03:21,129 --> 00:03:23,173
 Our second app, BlockID HR,
 
-84
-00:03:24,805 --> 00:03:26,773
+83
+00:03:23,173 --> 00:03:25,141
 reviews the founding team.
 
-85
-00:03:26,773 --> 00:03:29,166
+84
+00:03:25,141 --> 00:03:27,534
 It reads public professional information,
 
-86
-00:03:29,166 --> 00:03:30,742
+85
+00:03:27,534 --> 00:03:29,110
 and a CV when one is given,
 
-87
-00:03:30,742 --> 00:03:33,136
+86
+00:03:29,110 --> 00:03:31,504
 then checks each requirement of the role:
 
-88
-00:03:33,136 --> 00:03:34,887
+87
+00:03:31,504 --> 00:03:33,255
 met, partly met, or not found,
 
-89
-00:03:34,887 --> 00:03:37,047
+88
+00:03:33,255 --> 00:03:35,415
 and whether the evidence is verified.
 
-90
-00:03:37,047 --> 00:03:39,196
+89
+00:03:35,415 --> 00:03:37,564
 Not found is never treated as false,
 
-91
-00:03:39,196 --> 00:03:41,404
+90
+00:03:37,564 --> 00:03:39,772
 and every score links to its sources.
 
+91
+00:03:40,730 --> 00:03:43,222
+How it works: research tools draft,
+
 92
-00:03:42,362 --> 00:03:45,623
-Under the hood, only approved actions reach the chain.
+00:03:43,222 --> 00:03:44,718
+but never touch keys.
 
 93
-00:03:45,623 --> 00:03:48,123
-AI analysis runs with no keys.
+00:03:44,718 --> 00:03:47,140
+A named person approves every valuation,
 
 94
-00:03:48,123 --> 00:03:50,552
-An admin wallet signs one approval.
+00:03:47,140 --> 00:03:51,075
+new share and dividend, and no one can approve their own request.
 
 95
-00:03:50,552 --> 00:03:52,897
-Only then does the isolated issuer act,
+00:03:51,075 --> 00:03:53,200
+Only then is it written to the chain,
 
 96
-00:03:52,897 --> 00:03:56,385
-and AgentProvenance records who proposed and who approved.
+00:03:53,200 --> 00:03:54,694
+where anyone can check it.
 
 97
-00:03:56,385 --> 00:03:57,814
-Agents propose.
+00:03:54,694 --> 00:03:56,532
+It runs on any EVM chain,
 
 98
-00:03:57,814 --> 00:03:59,121
-Humans approve.
+00:03:56,532 --> 00:03:58,223
+layer one or layer two:
 
 99
-00:03:59,121 --> 00:04:00,481
-Chains prove.
+00:03:58,223 --> 00:04:01,753
+today BlockID Chain, Ethereum and HashKey Chain.
 
 100
-00:04:01,430 --> 00:04:02,608
+00:04:02,702 --> 00:04:03,880
 Who builds it?
 
 101
-00:04:02,608 --> 00:04:06,361
+00:04:03,880 --> 00:04:07,633
 Founder Do Van Long and co-founder Truong Quoc Tuan are both former
 
 102
-00:04:06,361 --> 00:04:08,490
+00:04:07,633 --> 00:04:09,762
 CTOs of major Vietnamese corporations,
 
 103
-00:04:08,490 --> 00:04:11,011
+00:04:09,762 --> 00:04:12,283
 and both hold Australia's Global Talent visa,
 
 104
-00:04:11,011 --> 00:04:14,596
+00:04:12,283 --> 00:04:15,868
 to build global fintech, blockchain and AI products from Sydney.
 
 105
-00:04:14,596 --> 00:04:17,722
+00:04:15,868 --> 00:04:18,994
 A strong tech team in Vietnam and a business team in Australia
 
 106
-00:04:17,722 --> 00:04:19,385
+00:04:18,994 --> 00:04:20,657
 built this whole system in house,
 
 107
-00:04:19,385 --> 00:04:21,049
+00:04:20,657 --> 00:04:22,321
 and it is ready to grow globally.
 
 108
-00:04:22,010 --> 00:04:23,545
+00:04:23,282 --> 00:04:24,817
 Where are we today?
 
 109
-00:04:23,545 --> 00:04:25,561
+00:04:24,817 --> 00:04:26,833
 The whole flow runs live on testnet,
 
 110
-00:04:25,561 --> 00:04:28,921
+00:04:26,833 --> 00:04:30,193
 with fourteen sample listings built from public information,
 
 111
-00:04:28,921 --> 00:04:31,609
+00:04:30,193 --> 00:04:32,881
 forty-two share token contracts on three chains,
 
 112
-00:04:31,609 --> 00:04:33,569
+00:04:32,881 --> 00:04:34,841
 and every report verified on chain.
 
 113
-00:04:33,569 --> 00:04:37,597
+00:04:34,841 --> 00:04:38,869
 Since the Sydney demo we added founding team reviews with CV checks,
 
 114
-00:04:37,597 --> 00:04:40,974
+00:04:38,869 --> 00:04:42,246
 an improved valuation model, and terms and privacy pages.
 
 115
-00:04:40,974 --> 00:04:44,688
+00:04:42,246 --> 00:04:45,960
 More than five hundred automated tests run on every change.
 
 116
-00:04:44,688 --> 00:04:46,724
+00:04:45,960 --> 00:04:47,996
 We have no real users yet.
 
 117
-00:04:47,678 --> 00:04:51,141
-Next: our first pilot businesses in Australia and Vietnam,
+00:04:48,950 --> 00:04:51,618
+Everything you saw runs today on testnet,
 
 118
-00:04:51,141 --> 00:04:55,320
-investor communities, and licensed partners for custody and offerings.
+00:04:51,618 --> 00:04:54,807
+across BlockID Chain, Ethereum and HashKey Chain.
 
 119
-00:04:55,320 --> 00:04:56,749
-Agents propose.
+00:04:54,807 --> 00:04:58,450
+We invite Ethereum investors to back our first pilots in Australia and
 
 120
-00:04:56,749 --> 00:04:58,056
-Humans approve.
+00:04:58,450 --> 00:05:01,676
+Vietnam, layer one and layer two teams to run BlockID on their
 
 121
-00:04:58,056 --> 00:04:59,416
-Chains prove.
+00:05:01,676 --> 00:05:03,394
+chain as a real-world-asset case,
 
 122
-00:04:59,416 --> 00:05:02,308
-Try it yourself at eth dot blockid dot au.
+00:05:03,394 --> 00:05:06,152
+and licensed partners to bring custody and offerings.
 
 123
-00:05:02,308 --> 00:05:03,332
+00:05:06,152 --> 00:05:08,188
+Know the business you invest in.
+
+124
+00:05:08,188 --> 00:05:10,819
+Try it at eth dot blockid dot au.
+
+125
+00:05:10,819 --> 00:05:11,842
 Thank you.

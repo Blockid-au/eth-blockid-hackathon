@@ -7,10 +7,10 @@ The result is a plain valuation report: a grade from A to E, a business score, a
 Each part explains its score, and every figure links to the page it came from.
 
 3
-00:00:11,335 --> 00:00:14,680
-A finding that cites a page the agent never read is dropped.
+00:00:11,335 --> 00:00:14,371
+A finding that cites a page we never read is dropped.
 
 4
-00:00:14,680 --> 00:00:16,669
+00:00:14,371 --> 00:00:16,359
 No source, no number.
 

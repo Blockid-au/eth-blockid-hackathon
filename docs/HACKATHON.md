@@ -17,7 +17,7 @@ answers become part of the recorded disclosure.
 - Live app: https://eth.blockid.au · Verify: https://eth.blockid.au/verify/EBA · HashKey Chain page:
   https://eth.blockid.au/hsk · Explorer: https://scan.blockid.au
 - Pitch deck (3 min): [PDF](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pdf) ·
-  [PPTX](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pptx) · demo video (3 min, live app): https://eth.blockid.au/deck/blockid-business-passport-demo-3min-captions.mp4 · full demo (5:06): https://eth.blockid.au/deck/blockid-business-passport-full-demo-captions.mp4 · pitch video (3 min, slides): https://eth.blockid.au/deck/blockid-business-passport-3min-captions.mp4
+  [PPTX](https://eth.blockid.au/deck/BlockID-Business-Passport-3min.pptx) · demo video (3 min, live app): https://eth.blockid.au/deck/blockid-business-passport-demo-3min-captions.mp4 · full demo (5:15): https://eth.blockid.au/deck/blockid-business-passport-full-demo-captions.mp4 · pitch video (3 min, slides): https://eth.blockid.au/deck/blockid-business-passport-3min-captions.mp4
 - Repo guide: [README.md](../README.md) · Demo script: [DEMO.md](DEMO.md) · Security: [SECURITY.md](SECURITY.md) ·
   Facts: [FACTS.md](FACTS.md)
 

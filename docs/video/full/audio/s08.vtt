@@ -1,28 +1,16 @@
 1
-00:00:00,050 --> 00:00:03,311
-Under the hood, only approved actions reach the chain.
+00:00:00,050 --> 00:00:04,038
+How it works: research tools draft, but never touch keys.
 
 2
-00:00:03,311 --> 00:00:05,811
-AI analysis runs with no keys.
+00:00:04,038 --> 00:00:10,395
+A named person approves every valuation, new share and dividend, and no one can approve their own request.
 
 3
-00:00:05,811 --> 00:00:08,240
-An admin wallet signs one approval.
+00:00:10,395 --> 00:00:14,014
+Only then is it written to the chain, where anyone can check it.
 
 4
-00:00:08,240 --> 00:00:14,073
-Only then does the isolated issuer act, and AgentProvenance records who proposed and who approved.
-
-5
-00:00:14,073 --> 00:00:15,502
-Agents propose.
-
-6
-00:00:15,502 --> 00:00:16,809
-Humans approve.
-
-7
-00:00:16,809 --> 00:00:18,169
-Chains prove.
+00:00:14,014 --> 00:00:21,073
+It runs on any EVM chain, layer one or layer two: today BlockID Chain, Ethereum and HashKey Chain.
 
